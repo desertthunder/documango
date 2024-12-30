@@ -3,9 +3,17 @@
 //
 // Commands:
 //
-//	documango new
-//	documango run
-//	documango create
+//	documango run		 - starts the server
+//
+// In Progress:
+//
+//	documango new		 - creates a documentation directory
+//
+// Future:
+//
+//	documango new [type] - create a docs dir and frontmatter schema
+//	documango build		 - builds a directory of pages for your files
+//	documango deploy 	 - deploy to gh pages, neocities, cloudflare
 package main
 
 import (
