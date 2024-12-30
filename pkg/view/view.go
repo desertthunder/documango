@@ -19,7 +19,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/charmbracelet/log"
 	"github.com/desertthunder/documango/pkg/libs/logs"
 
 	ts "github.com/smacker/go-tree-sitter"
@@ -91,7 +90,7 @@ func loadMarkup(f *os.File) *markup {
 
 // function printNode is a debugging helper for tree construction
 func printNode(n *ts.Node, depth int, name string, content string) {
-	if logger.GetLevel() > log.DebugLevel || n == nil {
+	if logger.GetLevel() > -4 || n == nil {
 		return
 	}
 

@@ -22,8 +22,6 @@ import (
 	"github.com/desertthunder/documango/pkg/libs/logs"
 	"github.com/fsnotify/fsnotify"
 	"github.com/urfave/cli/v3"
-
-	"github.com/charmbracelet/log"
 )
 
 var logger = logs.CreateConsoleLogger("Server 🌎")
@@ -137,8 +135,7 @@ func createServer(p int64, d string) *server {
 // and then stores them in the server instance.
 //
 // Right now the contents of the file are stored in the struct
-// but this could prove to be less than performant and not
-// scalable.
+// but this could prove to be less than performant and not scalable.
 func (s *server) loadDocuments() {
 	s.locks.documentLoader.Lock()
 	defer s.locks.documentLoader.Unlock()
@@ -146,7 +143,7 @@ func (s *server) loadDocuments() {
 	entries, err := os.ReadDir(s.dir)
 
 	if err != nil {
-		log.Errorf("unable to read dir %v: %v", s.dir, err.Error())
+		logger.Errorf("unable to read dir %v: %v", s.dir, err.Error())
 	}
 
 	s.docs = []*document{}
@@ -159,7 +156,7 @@ func (s *server) loadDocuments() {
 		doc, err := createDocument(s.dir, entry)
 
 		if err != nil {
-			log.Errorf("unable to parse file %v: %v", doc.path, err.Error())
+			logger.Errorf("unable to parse file %v: %v", doc.path, err.Error())
 			continue
 		}
 
@@ -195,13 +192,13 @@ func (s *server) addRoutes() {
 	mux := http.NewServeMux()
 	f, err := os.ReadFile("templates/base.html")
 	if err != nil {
-		log.Errorf("unable to find html files in templates dir %v", err.Error())
+		logger.Errorf("unable to find html files in templates dir %v", err.Error())
 	}
 
 	tmpl, err := template.New("base").Parse(string(f))
 
 	if err != nil {
-		log.Errorf("unable to parse template base %v", err.Error())
+		logger.Errorf("unable to parse template base %v", err.Error())
 	}
 
 	for _, doc := range s.docs {
@@ -217,7 +214,7 @@ func (s *server) addRoutes() {
 			err := tmpl.ExecuteTemplate(w, "base", doc.contents)
 
 			if err != nil {
-				log.Errorf("unable to execute template %v", err.Error())
+				logger.Errorf("unable to execute template %v", err.Error())
 
 				data := createErrorJSON(http.StatusInternalServerError, err)
 				w.WriteHeader(http.StatusInternalServerError)
@@ -234,19 +231,19 @@ func (s *server) addRoutes() {
 func (s *server) watchDocuments(ctx context.Context, reload chan struct{}) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		log.Errorf("unable to create watcher: %v", err.Error())
+		logger.Errorf("unable to create watcher: %v", err.Error())
 	}
 
 	defer watcher.Close()
 
 	if err = watcher.Add(s.dir); err != nil {
-		log.Fatalf("unable to read dir %v", s.dir)
+		logger.Fatalf("unable to read dir %v", s.dir)
 	}
 
 	for {
 		select {
 		case <-ctx.Done():
-			log.Infof("stopping watcher...")
+			logger.Infof("stopping watcher...")
 			return
 		case event, ok := <-watcher.Events:
 			if !ok {
@@ -285,7 +282,7 @@ func (s *server) watchDocuments(ctx context.Context, reload chan struct{}) {
 			}
 
 			if err != nil {
-				log.Errorf("something went wrong: %v", err.Error())
+				logger.Errorf("something went wrong: %v", err.Error())
 				return
 			}
 		}
@@ -318,13 +315,13 @@ func (s server) listen(ctx context.Context, reload chan struct{}) {
 
 	go func() {
 		for range reload {
-			log.Infof("reloading documents...")
+			logger.Infof("reloading documents...")
 			s.reloadHandler(srv)
 		}
 	}()
 
 	if err := srv.ListenAndServe(); err != nil {
-		log.Fatalf("something went wrong %v", err.Error())
+		logger.Fatalf("something went wrong %v", err.Error())
 	}
 
 }
