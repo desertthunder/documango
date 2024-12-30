@@ -19,18 +19,14 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/desertthunder/documango/pkg/libs/logs"
 	"github.com/fsnotify/fsnotify"
 	"github.com/urfave/cli/v3"
 
 	"github.com/charmbracelet/log"
 )
 
-var logger = log.NewWithOptions(os.Stderr, log.Options{
-	Prefix:          "Server 🌎",
-	ReportCaller:    true,
-	ReportTimestamp: true,
-	TimeFormat:      time.RFC3339Nano,
-})
+var logger = logs.CreateConsoleLogger("Server 🌎")
 
 func GenerateLogID() (string, error) {
 	var id [8]byte
