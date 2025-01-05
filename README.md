@@ -1,6 +1,6 @@
 # Documango 🥭
 
-A simple documentation and blog generator tool.
+A simple static site, documentation and blog generator tool.
 
 ## Server
 

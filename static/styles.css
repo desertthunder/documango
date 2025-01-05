@@ -1,15 +1,28 @@
+/*
+  Credits: XMin Theme
+
+  https://xmin.yihui.org/
+
+  Tinted Themes (base16 gallery)
+
+  https://tinted-theming.github.io/tinted-gallery/
+
+  v0.1.0 Light: Atom Light
+  v0.1.0  Dark: Oxocarbon Dark
+*/
 :root {
-  /* Base Colors */
-  --base00: #fafafa; /* Default Background */
+  /* --------------- Base Colors ----------------  */
+
+  --base00: #fafafa; /* Default Background | Surface */
   --base01: #f0f0f1; /* Lighter Background */
-  --base02: #e5e5e6; /* Selection Background */
+  --base02: #e5e5e6; /* Selection Background | Surface 2 */
   --base03: #a0a1a7; /* Comments, Invisibles */
   --base04: #696c77; /* Dark Foreground */
   --base05: #383a42; /* Default Foreground */
-  --base06: #202227; /* Light Foreground */
+  --base06: #202227; /* Light Foreground | Default Text */
   --base07: #090a0b; /* Light Background */
 
-  /* Syntax Colors */
+  /* --------------- Syntax Colors ---------------  */
   --base08: #ca1243; /* Variables, Tags */
   --base09: #d75f00; /* Numbers, Constants */
   --base0A: #c18401; /* Classes, Markup */
@@ -18,90 +31,41 @@
   --base0D: #4078f2; /* Functions, Methods */
   --base0E: #a626a4; /* Keywords, Storage */
   --base0F: #986801; /* Deprecated, Opening */
-
-  /* Semantic Color Mapping */
-  --color-bg-primary: var(--base00);
-  --color-bg-secondary: var(--base01);
-  --color-bg-tertiary: var(--base02);
-  --color-bg-selection: var(--base02);
-
-  --color-text-primary: var(--base05);
-  --color-text-secondary: var(--base04);
-  --color-text-muted: var(--base03);
-  --color-text-bright: var(--base06);
-  --color-text-inverted: var(--base00);
-
-  /* Interactive Elements */
-  --color-link: var(--base0D);
-  --color-link-hover: var(--base0E);
-  --color-border: var(--base02);
-  --color-shadow: rgba(9, 10, 11, 0.1); /* based on base07 */
-
-  /* Accent Colors */
-  --color-accent-primary: var(--base0D);
-  --color-accent-secondary: var(--base0E);
-  --color-accent-success: var(--base0B);
-  --color-accent-danger: var(--base08);
-  --color-accent-warning: var(--base0A);
-  --color-accent-info: var(--base0C);
-
-  /* Special Purpose */
-  --color-code: var(--base0E);
-  --color-mark: var(--base0A);
-  --color-highlight: var(--base02);
-  --color-focus-ring: var(--base0D);
-
-  /* Form Elements */
-  --color-input-border: var(--base02);
-  --color-input-focus: var(--base0D);
-  --color-input-disabled: var(--base02);
-  --color-input-placeholder: var(--base03);
-
-  /* Interactive States */
-  --color-hover: var(--base01);
-  --color-active: var(--base02);
-  --color-selected: var(--base02);
-  --color-disabled: var(--base03);
 }
 
 * {
+  /* TODO: Display, Sans, Monospace fonts */
   font-family: "Noto Sans", sans-serif;
   font-weight: 500;
 
-
-  /* Reset */
+  /* TODO: Reset */
   margin: 0;
   padding: 0;
 }
 
 html {
-  background-color: var(--color-bg-primary);
-  color: var(--color-text-primary);
-}
-
-a {
-  color: var(--color-accent-primary);
-  text-decoration: none;
-}
-
-a:hover {
-  color: var(--color-link-hover);
-  text-decoration: underline;
+  background-color: var(--base00);
+  color: var(--base06);
 }
 
 body {
   line-height: 1.5;
-  font-size: 1.125rem;
+  font-size: 1em;
+}
+
+header {
+  background-color: var(--base02);
+}
+
+header h1 {
+  font-size: 1.1em;
 }
 
 main {
   max-width: 800px;
   margin: auto;
   padding: 1em;
-}
-
-header {
-  background-color: var(--color-bg-secondary);
+  hyphens: auto;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -110,67 +74,91 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 h1 {
-  font-size: 2rem;
+  color: var(--base0A);
 }
 
-/* XMin Theme */
-/* header and footer areas */
-.menu {
+h2 {
+  color: var(--base0B);
+}
+
+h3 {
+  color: var(--base0C);
+}
+
+h4 {
+  color: var(--base0D);
+}
+
+h5, h6 {
+  color: var(--base0E)
+}
+
+em {
+  color: var(--base0D);
+}
+
+strong {
+  color: var(--base09);
+}
+
+a {
+  color: var(--base0C);
+}
+
+blockquote {
+  color: var(--base0D);
+  border-left: 5px solid #ccc;
+  padding: 3px 1em 3px;
+}
+
+pre, code {
+  color: var(--base07);
+  background-color: var(--base01);
+}
+
+nav {
   padding: 0;
 }
-.menu li {
+nav ul li {
   display: inline-block;
 }
-.article-meta,
-.menu a {
+
+nav a {
   text-decoration: none;
-  background: #eee;
+  background: var(--base02);
   padding: 5px;
   border-radius: 5px;
 }
-.menu,
-.article-meta,
+
+nav,
 footer {
   text-align: center;
 }
-.title {
-  font-size: 1.1em;
-}
+
 footer a {
   text-decoration: none;
 }
+
 hr {
   border-style: dashed;
   color: #ddd;
 }
 
-/* code */
 pre {
-  border: 1px solid #ddd;
-  box-shadow: 5px 5px 5px #eee;
+  border: 1px solid var(--base01);
+  box-shadow: 5px 5px 5px var(--base02);
   padding: 1em;
   overflow-x: auto;
 }
-code {
-  background: #f9f9f9;
-}
+
 pre code {
   background: none;
 }
 
-/* misc elements */
 img,
 iframe,
 video {
   max-width: 100%;
-}
-main {
-  hyphens: auto;
-}
-blockquote {
-  background: #f9f9f9;
-  border-left: 5px solid #ccc;
-  padding: 3px 1em 3px;
 }
 
 table {
@@ -178,15 +166,18 @@ table {
   border-top: 1px solid #666;
   border-bottom: 1px solid #666;
 }
+
 table thead th {
   border-bottom: 1px solid #ddd;
 }
+
 th,
 td {
   padding: 5px;
 }
+
 thead,
 tfoot,
 tr:nth-child(even) {
-  background: #eee;
+  background: var(--base02);
 }

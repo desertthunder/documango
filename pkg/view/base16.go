@@ -33,12 +33,12 @@ type Palette struct {
 	Base0F string `yaml:"base0F"`
 }
 
-// Parse YAML file into Theme struct
-func ParseTheme(data []byte) (Theme, error) {
-	var theme Theme
-	err := yaml.Unmarshal(data, &theme)
+// Unmarshal YAML file into a Theme struct
+func ParseTheme(data []byte) (*Theme, error) {
+	t := Theme{}
+	err := yaml.Unmarshal(data, &t)
 	if err != nil {
-		return Theme{}, fmt.Errorf("error parsing theme: %w", err)
+		return nil, fmt.Errorf("error parsing theme: %w", err)
 	}
-	return theme, nil
+	return &t, nil
 }
