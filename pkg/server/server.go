@@ -9,7 +9,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"io/fs"
 	"net/http"
 	"os"
@@ -20,6 +19,7 @@ import (
 	"time"
 
 	"github.com/desertthunder/documango/pkg/libs/logs"
+	"github.com/desertthunder/documango/pkg/view"
 	"github.com/fsnotify/fsnotify"
 	"github.com/urfave/cli/v3"
 )
@@ -101,13 +101,13 @@ func createDocument(dir string, entry fs.DirEntry) (*document, error) {
 }
 
 type server struct {
-	port int64
-	// dir is the HTML template directory
-	dir     string
-	docs    []*document
-	watcher fsnotify.Watcher
-	locks   locks
-	handler http.Handler
+	port        int64
+	contentDir  string
+	templateDir string
+	views       []*view.View
+	watcher     fsnotify.Watcher
+	locks       locks
+	handler     http.Handler
 }
 
 // function createLocks creates mutex locks for the server
@@ -127,8 +127,8 @@ func (s *server) addLogger() {
 // function createServer instantiates a server instance
 // with the given port/addr and a filesystem directory to
 // watch. It also instantiates a new mux instance
-func createServer(p int64, d string) *server {
-	return &server{port: p, dir: d}
+func createServer(p int64, c, t string) *server {
+	return &server{port: p, contentDir: c, templateDir: t}
 }
 
 // function loadDocuments loads the documents in the docs dir
@@ -140,28 +140,7 @@ func (s *server) loadDocuments() {
 	s.locks.documentLoader.Lock()
 	defer s.locks.documentLoader.Unlock()
 
-	entries, err := os.ReadDir(s.dir)
-
-	if err != nil {
-		logger.Errorf("unable to read dir %v: %v", s.dir, err.Error())
-	}
-
-	s.docs = []*document{}
-
-	for _, entry := range entries {
-		if !strings.HasSuffix(entry.Name(), ".md") {
-			continue
-		}
-
-		doc, err := createDocument(s.dir, entry)
-
-		if err != nil {
-			logger.Errorf("unable to parse file %v: %v", doc.path, err.Error())
-			continue
-		}
-
-		s.docs = append(s.docs, doc)
-	}
+	s.views = view.NewViews(s.contentDir, s.templateDir)
 }
 
 func (s *server) reloadHandler(srv *http.Server) {
@@ -190,20 +169,9 @@ func createErrorJSON(s int, e error) []byte {
 // TODO: template dir (configurable?)
 func (s *server) addRoutes() {
 	mux := http.NewServeMux()
-	f, err := os.ReadFile("templates/base.html")
-	if err != nil {
-		logger.Errorf("unable to find html files in templates dir %v", err.Error())
-	}
 
-	tmpl, err := template.New("base").Parse(string(f))
-
-	if err != nil {
-		logger.Errorf("unable to parse template base %v", err.Error())
-	}
-
-	for _, doc := range s.docs {
-		path := strings.TrimSuffix(doc.filename, ".md")
-		path = strings.ToLower(path)
+	for _, doc := range s.views {
+		path := strings.ToLower(doc.Path)
 
 		route := fmt.Sprintf("/%v", path)
 		if path == "index" || path == "readme" {
@@ -211,10 +179,12 @@ func (s *server) addRoutes() {
 		}
 
 		mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
-			err := tmpl.ExecuteTemplate(w, "base", doc.contents)
+			code, err := w.Write([]byte(doc.HTML))
 
 			if err != nil {
-				logger.Errorf("unable to execute template %v", err.Error())
+				logger.Errorf("unable to execute template with code %v: %v",
+					err.Error(), code,
+				)
 
 				data := createErrorJSON(http.StatusInternalServerError, err)
 				w.WriteHeader(http.StatusInternalServerError)
@@ -236,8 +206,12 @@ func (s *server) watchDocuments(ctx context.Context, reload chan struct{}) {
 
 	defer watcher.Close()
 
-	if err = watcher.Add(s.dir); err != nil {
-		logger.Fatalf("unable to read dir %v", s.dir)
+	if err = watcher.Add(s.contentDir); err != nil {
+		logger.Fatalf("unable to read content dir %v", s.contentDir)
+	}
+
+	if err = watcher.Add(s.templateDir); err != nil {
+		logger.Fatalf("unable to read template dir %v", s.templateDir)
 	}
 
 	for {
@@ -333,7 +307,7 @@ func (s server) listen(ctx context.Context, reload chan struct{}) {
 //
 // Is an ActionFunc for the cli library
 func Run(ctx context.Context, c *cli.Command) error {
-	s := createServer(c.Int("port"), c.String("dir"))
+	s := createServer(c.Int("port"), c.String("content"), c.String("templates"))
 
 	logger.Print("created state machine")
 

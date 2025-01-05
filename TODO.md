@@ -10,7 +10,8 @@
 
 The server should...
 
-- [ ] do what the [build](#build) command does, while also constructing
+- [ ] do what the [build](#build) command does, while also serving
+      the web pages
 
 ### Watcher
 
@@ -26,7 +27,9 @@ The watcher should...
 
 The build command should...
 
+- [ ] (v0) create a dist/build directory
 - [ ] (v0) create html files for each markdown file
+- [ ] (v0) copy files from the static directory to the dist directory
 - [ ] (v1) create a directory with an index.html file for each markdown file
 
 ## Deploy

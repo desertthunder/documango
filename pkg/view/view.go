@@ -29,7 +29,7 @@ import (
 	"github.com/gomarkdown/markdown/parser"
 )
 
-type View struct {
+type view struct {
 	Path        string
 	content     []byte
 	html        []byte
@@ -39,22 +39,22 @@ type View struct {
 
 var logger = logs.CreateConsoleLogger("[view]")
 
-// ReadContentDirectory recursively calls constructors on a
+// readContentDirectory recursively calls constructors on a
 // provided directory and creates pointers to Views
-func ReadContentDirectory(dir string, tdir string) []*View {
+func readContentDirectory(dir string, tdir string) []*view {
 	entries, err := os.ReadDir(dir)
 
 	if err != nil {
 		logger.Fatalf("unable to create views for directory %v: %v", dir, err.Error())
 	}
 
-	views := []*View{}
+	views := []*view{}
 
 	for _, entry := range entries {
 		fpath := fmt.Sprintf("%v/%v", dir, entry.Name())
 
 		if entry.IsDir() {
-			nested_views := ReadContentDirectory(fpath, tdir)
+			nested_views := readContentDirectory(fpath, tdir)
 			views = slices.Concat(views, nested_views)
 			continue
 		}
@@ -76,7 +76,7 @@ func isNotMarkdown(n string) bool {
 	return p[len(p)-1] != "md"
 }
 
-func openFile(p string, t string) *View {
+func openFile(p string, t string) *view {
 	data, err := os.ReadFile(p)
 
 	if err != nil {
@@ -84,13 +84,13 @@ func openFile(p string, t string) *View {
 		return nil
 	}
 
-	v := View{p, data, []byte{}, t, nil}
+	v := view{p, data, []byte{}, t, nil}
 	v.toHTML()
 
 	return &v
 }
 
-func (v *View) toHTML() {
+func (v *view) toHTML() {
 	ext := parser.CommonExtensions | parser.AutoHeadingIDs | parser.NoEmptyLineBeforeBlock
 	p := parser.NewWithExtensions(ext)
 
@@ -103,7 +103,7 @@ func (v *View) toHTML() {
 	v.html = markdown.Render(doc, renderer)
 }
 
-func (v *View) getTemplate() {
+func (v *view) getTemplate() {
 	patterns := []string{v.name(), "base"}
 	var err error
 
@@ -115,7 +115,7 @@ func (v *View) getTemplate() {
 		)
 
 		if err != nil {
-			logger.Errorf("unable to parse parse glob for %v: %v.html",
+			logger.Warnf("unable to parse parse glob for %v: %v.html",
 				p, err.Error())
 		}
 
@@ -129,7 +129,7 @@ func (v *View) getTemplate() {
 	}
 }
 
-func (v *View) Build() *View {
+func (v *view) Build() *view {
 	v.toHTML()
 	v.getTemplate()
 	return v
@@ -139,28 +139,55 @@ func (v *View) Build() *View {
 type Context = map[string]template.HTML
 
 // func Render executes and writes the template
-func (v *View) Render(w io.Writer) Context {
-	view := v.Build()
-
+func (v *view) Render(w io.Writer) Context {
 	templ_ctx := map[string]template.HTML{
 		"contents": template.HTML(v.HTML()),
 	}
 
-	view.templ.Execute(w, templ_ctx)
+	v.templ.Execute(w, templ_ctx)
 
 	return templ_ctx
 }
 
-func (v View) name() string {
+func (v view) name() string {
 	p := strings.Split(v.Path, "/")
 	f := p[len(p)-1]
 	return strings.Split(f, ".")[0]
 }
 
-func (v View) Content() string {
+func (v view) Content() string {
 	return string(v.content)
 }
 
-func (v View) HTML() string {
+func (v view) HTML() string {
 	return string(v.html)
+}
+
+type View struct {
+	Path string
+	HTML string
+}
+
+func (v View) getHTML(iv *view) string {
+	b := strings.Builder{}
+	iv.Render(&b)
+	return b.String()
+}
+
+func fromInternal(iv *view) *View {
+	v := iv.Build()
+	newView := View{Path: v.name()}
+	newView.HTML = newView.getHTML(v)
+	return &newView
+}
+
+func NewViews(c string, t string) []*View {
+	vs := readContentDirectory(c, t)
+	views := make([]*View, len(vs))
+
+	for i, v := range vs {
+		views[i] = fromInternal(v)
+	}
+
+	return views
 }

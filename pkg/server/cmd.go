@@ -8,8 +8,11 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-var defaultPort int64 = 4242
-var defaultDir string = "examples"
+const (
+	defaultPort        int64  = 4242
+	defaultContentDir  string = "examples"
+	defaultTemplateDir string = "templates"
+)
 
 var ServerCommand = &cli.Command{
 	Name:      "run",
@@ -17,25 +20,35 @@ var ServerCommand = &cli.Command{
 	Aliases:   []string{"r", "s", "serve"},
 	Usage:     "starts the server",
 	UsageText: "starts the development server at the provided port",
-	Description: strings.Join([]string{
-		"instantiates a filesystem watcher and serves ",
-		"a website with pages for each markdown file.",
-	}, "\n"),
+	Description: strings.Join(
+		[]string{
+			"instantiates a filesystem watcher and serves ",
+			"a website with pages for each markdown file.",
+		},
+		"\n",
+	),
 	ArgsUsage: "[config]",
 	Flags: []cli.Flag{
 		&cli.IntFlag{
 			Name:        "port",
 			Aliases:     []string{"p", "addr"},
 			Required:    false,
-			DefaultText: fmt.Sprintf("defaults to port %v", defaultPort),
+			DefaultText: fmt.Sprintf("%v", defaultPort),
 			Value:       defaultPort,
 		},
 		&cli.StringFlag{
-			Name:        "directory",
-			Aliases:     []string{"dir", "path", "d"},
+			Name:        "content",
+			Aliases:     []string{"c", "md"},
 			Required:    false,
-			DefaultText: fmt.Sprintf("defaults to /%v", defaultDir),
-			Value:       defaultDir,
+			DefaultText: defaultContentDir,
+			Value:       defaultContentDir,
+		},
+		&cli.StringFlag{
+			Name:        "templates",
+			Aliases:     []string{"t", "html"},
+			Required:    false,
+			DefaultText: defaultTemplateDir,
+			Value:       defaultTemplateDir,
 		},
 	},
 	// Commands: []*cli.Command{debug.DebugCmd},

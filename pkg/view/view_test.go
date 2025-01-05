@@ -21,7 +21,7 @@ func TestReadContentDirectory(t *testing.T) {
 		}
 
 		root := helpers.FindModuleRoot(wd, logger)
-		views := ReadContentDirectory(relPath(root, "examples"),
+		views := readContentDirectory(relPath(root, "examples"),
 			relPath(root, "templates"))
 
 		got := len(views)
