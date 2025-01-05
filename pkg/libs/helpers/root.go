@@ -27,3 +27,16 @@ func FindModuleRoot(dir string, logger *log.Logger) (roots string) {
 
 	return ""
 }
+
+func FindWDRoot(l ...*log.Logger) (roots string) {
+	var logger *log.Logger
+	if l == nil {
+		logger = log.Default()
+	} else {
+		logger = l[len(l)-1]
+	}
+
+	wd, _ := os.Getwd()
+
+	return FindModuleRoot(wd, logger)
+}

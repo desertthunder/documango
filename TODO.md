@@ -10,6 +10,7 @@
 
 - [ ] base16 light
 - [ ] base16 dark
+- [ ] simple js toggle for data attribute
 
 ## Server
 
@@ -17,13 +18,15 @@ The server should...
 
 - [ ] do what the [build](#build) command does, while also serving
       the web pages
+- [ ] accept a toml config file
 
 ### Watcher
 
 The watcher should...
 
-- [ ] watch for changes in the content directory
-- [ ] watch for changes in the templates directory
+- [x] watch for changes in the content directory
+- [x] watch for changes in the templates directory
+- [x] watch for changes in the static directory
 - [ ] open a websocket when the browser is open
 - [ ] trigger a reload in the browser when the above two directories
       have changes

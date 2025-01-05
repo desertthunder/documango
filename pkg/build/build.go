@@ -10,6 +10,11 @@ import (
 
 var logger = logs.CreateConsoleLogger("[build]")
 
+type FilePath struct {
+	FileP string
+	Name  string
+}
+
 func createBuildDir(d string) (string, error) {
 	err := os.MkdirAll(d, 0755)
 	if err != nil {
@@ -20,15 +25,10 @@ func createBuildDir(d string) (string, error) {
 	return d, err
 }
 
-type FilePath struct {
-	FileP string
-	Name  string
-}
-
 // CopyStaticFiles creates the build dir at d, the provided destination
-// directory.
+// directory as well as the static files directory at {{ d }}/assets
 func CopyStaticFiles(src, d string) ([]*FilePath, error) {
-	dest, err := createBuildDir(d)
+	dest, err := createBuildDir(d + "/assets")
 	paths := []*FilePath{}
 	if err != nil {
 		logger.Fatal(err.Error())
@@ -46,7 +46,7 @@ func CopyStaticFiles(src, d string) ([]*FilePath, error) {
 	for _, entry := range entries {
 		fname := entry.Name()
 		if entry.IsDir() {
-			// No-op
+			continue
 		}
 
 		path, err := copyFile(fname, src, dest)

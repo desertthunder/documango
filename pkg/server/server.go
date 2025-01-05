@@ -9,7 +9,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/fs"
 	"net/http"
 	"os"
 	"os/signal"
@@ -25,7 +24,10 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-var logger = logs.CreateConsoleLogger("Server 🌎")
+var (
+	logger     = logs.CreateConsoleLogger("[server]")
+	stopSignal = make(chan os.Signal, 1)
+)
 
 func GenerateLogID() (string, error) {
 	var id [8]byte
@@ -41,7 +43,7 @@ func GenerateLogID() (string, error) {
 	return encoded, nil
 }
 
-type loggingMiddleware struct {
+type middleware struct {
 	h http.Handler
 }
 
@@ -53,54 +55,6 @@ type locks struct {
 type state struct {
 	ctx       context.Context
 	canceller context.CancelFunc
-}
-
-func (l loggingMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	id, _ := GenerateLogID()
-	method := r.Method
-	path := r.URL.String()
-
-	logger.Infof("[%v] %v: %v", id, method, path)
-
-	l.h.ServeHTTP(w, r)
-}
-
-// function createMachine creates a state machine that stores
-// the background process context and cancellation function to
-// be used by the server and watchers
-func createMachine() state {
-	defer logger.Print("created state machine")
-
-	s := state{}
-	s.ctx, s.canceller = context.WithCancel(context.Background())
-	return s
-}
-
-type document struct {
-	dir      string
-	path     string
-	filename string
-	contents string
-}
-
-// function createDocument creates a reference to a
-// markdown file and stores it in a document struct
-func createDocument(dir string, entry fs.DirEntry) (*document, error) {
-	doc := document{
-		dir:      dir,
-		filename: entry.Name(),
-		path:     fmt.Sprintf("%v/%v", dir, entry.Name()),
-	}
-
-	file, err := os.ReadFile(doc.path)
-
-	if err != nil {
-		return &doc, err
-	}
-
-	doc.contents = string(file)
-
-	return &doc, nil
 }
 
 type server struct {
@@ -115,11 +69,40 @@ type server struct {
 	handler     http.Handler
 }
 
+type errorData struct {
+	Status int    `json:"statusCode"`
+	Err    string `json:"ErrorMessage"`
+}
+
+func (m middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	method := r.Method
+	path := r.URL.String()
+
+	logger.Infof("[%v]: %v", method, path)
+
+	m.h.ServeHTTP(w, r)
+
+	for k, v := range w.Header() {
+		logger.Debugf("Header %v: %v", k, v)
+	}
+}
+
+// function createMachine creates a state machine that stores
+// the background process context and cancellation function to
+// be used by the server and watchers
+func createMachine() state {
+	defer logger.Debug("created state machine")
+
+	s := state{}
+	s.ctx, s.canceller = context.WithCancel(context.Background())
+	return s
+}
+
 // function createLocks creates mutex locks for the server
 // instance to ensure that there are no race conditions
 // between document loading and server lifecycle
 func (s *server) createLocks() {
-	logger.Print("creating locks")
+	logger.Debug("creating locks")
 
 	s.locks.documentLoader = &sync.RWMutex{}
 	s.locks.serverStarter = &sync.RWMutex{}
@@ -128,9 +111,9 @@ func (s *server) createLocks() {
 // function addLogger adds logging middleware that wraps the
 // mux instance
 func (s *server) addLogger() {
-	logger.Print("adding logger")
+	logger.Debug("adding logger")
 
-	s.handler = loggingMiddleware{h: s.handler}
+	s.handler = middleware{h: s.handler}
 }
 
 // function createServer instantiates a server instance
@@ -146,13 +129,13 @@ func createServer(p int64, dirs ...string) *server {
 	return &s
 }
 
-// function loadDocuments loads the documents in the docs dir
+// function loadViewLayer loads the markup in the content dir
 // and then stores them in the server instance.
 //
 // Right now the contents of the file are stored in the struct
 // but this could prove to be less than performant and not scalable.
-func (s *server) loadDocuments() {
-	logger.Print("loading documents")
+func (s *server) loadViewLayer() {
+	logger.Debug("loading views")
 
 	s.locks.documentLoader.Lock()
 	defer s.locks.documentLoader.Unlock()
@@ -160,17 +143,12 @@ func (s *server) loadDocuments() {
 }
 
 func (s *server) reloadHandler(srv *http.Server) {
-	s.loadDocuments()
+	s.loadViewLayer()
 	s.collectStatic()
 	s.addRoutes()
 	s.addLogger()
 
 	srv.Handler = s.handler
-}
-
-type errorData struct {
-	Status int    `json:"statusCode"`
-	Err    string `json:"ErrorMessage"`
 }
 
 func createErrorJSON(s int, e error) []byte {
@@ -179,15 +157,17 @@ func createErrorJSON(s int, e error) []byte {
 	return data
 }
 
-// function addRoutes parses a directory of template files
-// and executes them based on html files found in the
-// templates directory (defaults to /templates)
-//
-// TODO: template dir (configurable?)
+// function addRoutes parses a directory of template files and
+// executes them based on html files found in the templates
+// directory (defaults to /templates)
 func (s *server) addRoutes() {
-	logger.Print("registering routes")
+	logger.Debug("registering routes")
 
 	mux := http.NewServeMux()
+	static_fpath := fmt.Sprintf("./%v/assets", buildDir)
+	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir(static_fpath))))
+	logger.Infof("Serving static files from %v at /assets/", static_fpath)
+
 	for _, doc := range s.views {
 		path := strings.ToLower(doc.Path)
 
@@ -199,7 +179,7 @@ func (s *server) addRoutes() {
 		logger.Infof("Registered Route: %v", route)
 
 		// TODO: encapsulate in `build`
-		// Build the file in the build dir
+		// Build the file in to buildDir
 		f, err := os.Create(fmt.Sprintf("%v/%v.html", buildDir, path))
 		if err != nil {
 			logger.Fatalf("unable to create file for route %v\n%v",
@@ -228,42 +208,12 @@ func (s *server) addRoutes() {
 		})
 	}
 
-	// TODO: use http.FileServer
-	for _, sp := range s.staticPaths {
-		r := "/" + strings.ToLower(sp.Name)
-		defer logger.Infof("registered static route %v", r)
-		mux.HandleFunc(r, func(w http.ResponseWriter, r *http.Request) {
-			f, err := os.ReadFile("./" + sp.FileP)
-			if err != nil {
-				logger.Errorf("unable to read static file %v: %v",
-					sp.FileP, err.Error(),
-				)
-			}
-
-			if strings.HasSuffix(sp.Name, "css") {
-				w.Header().Set("Content-Type", "text/css")
-				w.Header().Set("Vary", "Accept-Encoding")
-			}
-
-			code, err := w.Write(f)
-			if err != nil {
-				logger.Errorf("file not %v not found (code: %v):\n %v",
-					sp.FileP, code, err.Error(),
-				)
-
-				data := createErrorJSON(http.StatusNotFound, err)
-				w.WriteHeader(http.StatusNotFound)
-				w.Write(data)
-			}
-		})
-	}
-
 	s.handler = mux
 }
 
-// function watchDocuments instantiates a filesystem watcher that
+// function watchFiles instantiates a filesystem watcher that
 // responds to the context in the application.
-func (s *server) watchDocuments(ctx context.Context, reload chan struct{}) {
+func (s *server) watchFiles(ctx context.Context, reload chan struct{}) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		logger.Errorf("unable to create watcher: %v", err.Error())
@@ -332,8 +282,6 @@ func (s *server) watchDocuments(ctx context.Context, reload chan struct{}) {
 	}
 }
 
-var stopSignal = make(chan os.Signal, 1)
-
 // function address is a getter for the address of the server
 func (s server) address() string {
 	return fmt.Sprintf(":%v", s.port)
@@ -342,7 +290,6 @@ func (s server) address() string {
 func (s server) listen(ctx context.Context, reload chan struct{}) {
 	srv := &http.Server{Addr: s.address(), Handler: s.handler}
 
-	// graceful shutdown
 	go func() {
 		<-ctx.Done()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -364,7 +311,12 @@ func (s server) listen(ctx context.Context, reload chan struct{}) {
 	}()
 
 	if err := srv.ListenAndServe(); err != nil {
-		logger.Fatalf("something went wrong %v", err.Error())
+		if err == http.ErrServerClosed {
+			logger.Info("server closed")
+			os.Exit(0)
+		} else {
+			logger.Fatalf("something went wrong %v", err.Error())
+		}
 	}
 
 }
@@ -384,7 +336,7 @@ func (s *server) collectStatic() {
 
 func (s *server) setup() {
 	s.createLocks()
-	s.loadDocuments()
+	s.loadViewLayer()
 	s.collectStatic()
 	s.addRoutes()
 	s.addLogger()
@@ -409,7 +361,7 @@ func Run(ctx context.Context, c *cli.Command) error {
 	s.setup()
 
 	reload := make(chan struct{}, 1)
-	go s.watchDocuments(machine.ctx, reload)
+	go s.watchFiles(machine.ctx, reload)
 	go func() {
 		signal.Notify(stopSignal, os.Interrupt, syscall.SIGTERM)
 		<-stopSignal

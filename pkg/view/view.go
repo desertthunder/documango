@@ -167,6 +167,7 @@ func (v view) HTML() string {
 type View struct {
 	Path string
 	HTML string
+	v    *view
 }
 
 func (v View) getHTML(iv *view) string {
@@ -179,6 +180,7 @@ func fromInternal(iv *view) *View {
 	v := iv.Build()
 	newView := View{Path: v.name()}
 	newView.HTML = newView.getHTML(v)
+	newView.v = v
 	return &newView
 }
 

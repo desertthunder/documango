@@ -4,6 +4,8 @@ A simple static site, documentation and blog generator tool.
 
 ## Server
 
+## Development
+
 ## Resources
 
 Markdown files are parsed using an abstract syntax tree constructed with

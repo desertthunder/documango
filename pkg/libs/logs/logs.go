@@ -1,12 +1,15 @@
 package logs
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"time"
 
 	"github.com/charmbracelet/log"
 )
+
+var layout = fmt.Sprintf("06/01/02 at %v", time.Kitchen)
 
 type LogConfig struct {
 	Prefix string
@@ -26,7 +29,7 @@ func CreateFileLogger(conf LogConfig) *log.Logger {
 		Prefix:          conf.Prefix,
 		ReportCaller:    true,
 		ReportTimestamp: true,
-		TimeFormat:      time.DateTime,
+		TimeFormat:      layout,
 	})
 }
 
@@ -37,7 +40,7 @@ func CreateConsoleLogger(prefix string) *log.Logger {
 		Prefix:          prefix,
 		ReportCaller:    true,
 		ReportTimestamp: true,
-		TimeFormat:      time.DateTime,
+		TimeFormat:      layout,
 	})
 }
 
@@ -58,6 +61,6 @@ func CreateLoggers(conf LogConfig) *log.Logger {
 		Prefix:          conf.Prefix,
 		ReportCaller:    true,
 		ReportTimestamp: true,
-		TimeFormat:      time.DateTime,
+		TimeFormat:      layout,
 	})
 }
