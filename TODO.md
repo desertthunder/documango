@@ -6,6 +6,11 @@
 - [ ] Replace charmbracelet/log with hand-roller logger
 - [ ] Add structured logging
 
+## Theming
+
+- [ ] base16 light
+- [ ] base16 dark
+
 ## Server
 
 The server should...
@@ -48,3 +53,7 @@ These are all version 1 onward
 - [ ] base16 color scheme support
 - [ ] base24 color scheme support
 - [ ] light & dark themes
+
+## Bugs
+
+- [ ] 1/5/25: sigkill shouldn't print sww to stderr

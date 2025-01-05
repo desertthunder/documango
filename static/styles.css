@@ -1,0 +1,192 @@
+:root {
+  /* Base Colors */
+  --base00: #fafafa; /* Default Background */
+  --base01: #f0f0f1; /* Lighter Background */
+  --base02: #e5e5e6; /* Selection Background */
+  --base03: #a0a1a7; /* Comments, Invisibles */
+  --base04: #696c77; /* Dark Foreground */
+  --base05: #383a42; /* Default Foreground */
+  --base06: #202227; /* Light Foreground */
+  --base07: #090a0b; /* Light Background */
+
+  /* Syntax Colors */
+  --base08: #ca1243; /* Variables, Tags */
+  --base09: #d75f00; /* Numbers, Constants */
+  --base0A: #c18401; /* Classes, Markup */
+  --base0B: #50a14f; /* Strings, Changed */
+  --base0C: #0184bc; /* Support, Regular */
+  --base0D: #4078f2; /* Functions, Methods */
+  --base0E: #a626a4; /* Keywords, Storage */
+  --base0F: #986801; /* Deprecated, Opening */
+
+  /* Semantic Color Mapping */
+  --color-bg-primary: var(--base00);
+  --color-bg-secondary: var(--base01);
+  --color-bg-tertiary: var(--base02);
+  --color-bg-selection: var(--base02);
+
+  --color-text-primary: var(--base05);
+  --color-text-secondary: var(--base04);
+  --color-text-muted: var(--base03);
+  --color-text-bright: var(--base06);
+  --color-text-inverted: var(--base00);
+
+  /* Interactive Elements */
+  --color-link: var(--base0D);
+  --color-link-hover: var(--base0E);
+  --color-border: var(--base02);
+  --color-shadow: rgba(9, 10, 11, 0.1); /* based on base07 */
+
+  /* Accent Colors */
+  --color-accent-primary: var(--base0D);
+  --color-accent-secondary: var(--base0E);
+  --color-accent-success: var(--base0B);
+  --color-accent-danger: var(--base08);
+  --color-accent-warning: var(--base0A);
+  --color-accent-info: var(--base0C);
+
+  /* Special Purpose */
+  --color-code: var(--base0E);
+  --color-mark: var(--base0A);
+  --color-highlight: var(--base02);
+  --color-focus-ring: var(--base0D);
+
+  /* Form Elements */
+  --color-input-border: var(--base02);
+  --color-input-focus: var(--base0D);
+  --color-input-disabled: var(--base02);
+  --color-input-placeholder: var(--base03);
+
+  /* Interactive States */
+  --color-hover: var(--base01);
+  --color-active: var(--base02);
+  --color-selected: var(--base02);
+  --color-disabled: var(--base03);
+}
+
+* {
+  font-family: "Noto Sans", sans-serif;
+  font-weight: 500;
+
+
+  /* Reset */
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+}
+
+a {
+  color: var(--color-accent-primary);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--color-link-hover);
+  text-decoration: underline;
+}
+
+body {
+  line-height: 1.5;
+  font-size: 1.125rem;
+}
+
+main {
+  max-width: 800px;
+  margin: auto;
+  padding: 1em;
+}
+
+header {
+  background-color: var(--color-bg-secondary);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+h1 {
+  font-size: 2rem;
+}
+
+/* XMin Theme */
+/* header and footer areas */
+.menu {
+  padding: 0;
+}
+.menu li {
+  display: inline-block;
+}
+.article-meta,
+.menu a {
+  text-decoration: none;
+  background: #eee;
+  padding: 5px;
+  border-radius: 5px;
+}
+.menu,
+.article-meta,
+footer {
+  text-align: center;
+}
+.title {
+  font-size: 1.1em;
+}
+footer a {
+  text-decoration: none;
+}
+hr {
+  border-style: dashed;
+  color: #ddd;
+}
+
+/* code */
+pre {
+  border: 1px solid #ddd;
+  box-shadow: 5px 5px 5px #eee;
+  padding: 1em;
+  overflow-x: auto;
+}
+code {
+  background: #f9f9f9;
+}
+pre code {
+  background: none;
+}
+
+/* misc elements */
+img,
+iframe,
+video {
+  max-width: 100%;
+}
+main {
+  hyphens: auto;
+}
+blockquote {
+  background: #f9f9f9;
+  border-left: 5px solid #ccc;
+  padding: 3px 1em 3px;
+}
+
+table {
+  margin: auto;
+  border-top: 1px solid #666;
+  border-bottom: 1px solid #666;
+}
+table thead th {
+  border-bottom: 1px solid #ddd;
+}
+th,
+td {
+  padding: 5px;
+}
+thead,
+tfoot,
+tr:nth-child(even) {
+  background: #eee;
+}

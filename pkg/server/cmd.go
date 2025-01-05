@@ -12,6 +12,8 @@ const (
 	defaultPort        int64  = 4242
 	defaultContentDir  string = "examples"
 	defaultTemplateDir string = "templates"
+	defaultStaticDir   string = "static"
+	buildDir           string = "dist"
 )
 
 var ServerCommand = &cli.Command{
@@ -49,6 +51,16 @@ var ServerCommand = &cli.Command{
 			Required:    false,
 			DefaultText: defaultTemplateDir,
 			Value:       defaultTemplateDir,
+		},
+		&cli.StringFlag{
+			Name:     "static",
+			Aliases:  []string{"s", "assets"},
+			Required: false,
+			DefaultText: fmt.Sprintf(
+				"static files directory, defaults to %v",
+				defaultStaticDir,
+			),
+			Value: defaultStaticDir,
 		},
 	},
 	// Commands: []*cli.Command{debug.DebugCmd},

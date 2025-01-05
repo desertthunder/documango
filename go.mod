@@ -8,6 +8,7 @@ require (
 	github.com/gomarkdown/markdown v0.0.0-20241205020045-f7e15b2f3e62
 	github.com/smacker/go-tree-sitter v0.0.0-20240827094217-dd81d9e9be82
 	github.com/urfave/cli/v3 v3.0.0-beta1
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (

@@ -115,8 +115,9 @@ func (v *view) getTemplate() {
 		)
 
 		if err != nil {
-			logger.Warnf("unable to parse parse glob for %v: %v.html",
-				p, err.Error())
+			logger.Warnf("unable to parse parse glob for %v: %v",
+				p, err.Error(),
+			)
 		}
 
 		if v.templ != nil {
@@ -184,7 +185,6 @@ func fromInternal(iv *view) *View {
 func NewViews(c string, t string) []*View {
 	vs := readContentDirectory(c, t)
 	views := make([]*View, len(vs))
-
 	for i, v := range vs {
 		views[i] = fromInternal(v)
 	}
