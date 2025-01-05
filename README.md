@@ -2,6 +2,8 @@
 
 A simple documentation and blog generator tool.
 
+## Server
+
 ## Resources
 
 Markdown files are parsed using an abstract syntax tree constructed with
@@ -24,3 +26,7 @@ grammar for treesitter.
     )
 )
 ```
+
+### Color Schemes
+
+<https://tinted-theming.github.io/tinted-gallery/>
