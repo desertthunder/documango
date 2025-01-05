@@ -10,7 +10,7 @@ grammar and then using the range of each element to extract its string
 contents. Take a look at `examples/test-ast.json` for an example of the
 generated ast.
 */
-package view
+package syntax
 
 import (
 	"context"

@@ -1,38 +1,19 @@
-package view
+package syntax
 
 import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/charmbracelet/log"
+	"github.com/desertthunder/documango/pkg/libs/helpers"
 )
-
-func findModuleRoot(dir string) (roots string) {
-	dir = filepath.Clean(dir)
-	for {
-		p := filepath.Join(dir, "go.mod")
-		if fi, err := os.Stat(p); err == nil && !fi.IsDir() {
-			logger.Info(dir)
-			return dir
-		} else if err != nil {
-			d := filepath.Dir(dir)
-			dir = d
-		} else {
-			break
-		}
-
-	}
-
-	return ""
-}
 
 func ExampleParse() {
 	logger.SetLevel(log.InfoLevel)
 
 	wd, _ := os.Getwd()
-	root := findModuleRoot(wd)
+	root := helpers.FindModuleRoot(wd, logger)
 	f, err := os.Open(fmt.Sprintf("%v/examples/test.md", root))
 
 	if err != nil {
