@@ -3,6 +3,7 @@ module github.com/desertthunder/documango
 go 1.22.4
 
 require (
+	github.com/BurntSushi/toml v1.4.0
 	github.com/charmbracelet/log v0.4.0
 	github.com/fsnotify/fsnotify v1.8.0
 	github.com/gomarkdown/markdown v0.0.0-20241205020045-f7e15b2f3e62

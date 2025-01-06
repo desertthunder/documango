@@ -10,9 +10,8 @@
   v0.1.0 Light: Atom Light
   v0.1.0  Dark: Oxocarbon Dark
 */
-:root {
+:root[data-theme="light"] {
   /* --------------- Base Colors ----------------  */
-
   --base00: #fafafa; /* Default Background | Surface */
   --base01: #f0f0f1; /* Lighter Background */
   --base02: #e5e5e6; /* Selection Background | Surface 2 */
@@ -33,6 +32,33 @@
   --base0F: #986801; /* Deprecated, Opening */
 }
 
+:root[data-theme="dark"] {
+  --base00: #161616;
+  --base01: #262626;
+  --base02: #393939;
+  --base03: #525252;
+  --base04: #dde1e6;
+  --base05: #f2f4f8;
+  --base06: #ffffff;
+  --base07: #08bdba;
+  --base08: #3ddbd9;
+  --base09: #78a9ff;
+  --base0A: #ee5396;
+  --base0B: #33b1ff;
+  --base0C: #ff7eb6;
+  --base0D: #42be65;
+  --base0E: #be95ff;
+  --base0F: #82cfff;
+}
+
+html {
+  transition: background-color 0.3s ease, color 0.3s ease;
+  background-color: var(--base00);
+  color: var(--base06);
+}
+
+html,
+body,
 * {
   /* TODO: Display, Sans, Monospace fonts */
   font-family: "Noto Sans", sans-serif;
@@ -43,54 +69,76 @@
   padding: 0;
 }
 
-html {
-  background-color: var(--base00);
-  color: var(--base06);
-}
-
 body {
   line-height: 1.5;
-  font-size: 1em;
+  font-size: 1.125em;
+}
+
+header, footer {
+  margin: 0;
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  border: 1px var(--base0F) dashed;
+  border-left: 0;
+  border-right: 0;
+}
+
+footer {
+  border-bottom: 0;
+  justify-content: center;
 }
 
 header {
-  background-color: var(--base02);
+  border-top: 0;
+  justify-content: space-between;
 }
 
 header h1 {
-  font-size: 1.1em;
+  font-size: 2em;
+  color: var(--base08);
 }
 
 main {
   max-width: 800px;
   margin: auto;
-  padding: 1em;
+  padding: 0 1em;
   hyphens: auto;
 }
 
-h1, h2, h3, h4, h5, h6 {
+article {
+  padding: 2rem;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-weight: 600;
   letter-spacing: -0.025em;
+  color: var(--base07);
 }
 
-h1 {
-  color: var(--base0A);
+a,
+[data-toggle] {
+  color: var(--base08);
 }
 
-h2 {
-  color: var(--base0B);
+a:hover,
+[data-toggle]:hover {
+  color: var(--base09);
 }
 
-h3 {
-  color: var(--base0C);
-}
-
-h4 {
-  color: var(--base0D);
-}
-
-h5, h6 {
-  color: var(--base0E)
+nav button {
+  margin: 0;
+  padding: 0;
+  background-color: transparent;
+  font-size: inherit;
+  box-shadow: none;
+  border: 0;
+  cursor: pointer;
 }
 
 em {
@@ -101,17 +149,14 @@ strong {
   color: var(--base09);
 }
 
-a {
-  color: var(--base0C);
-}
-
 blockquote {
   color: var(--base0D);
   border-left: 5px solid #ccc;
   padding: 3px 1em 3px;
 }
 
-pre, code {
+pre,
+code {
   color: var(--base07);
   background-color: var(--base01);
 }
@@ -119,11 +164,16 @@ pre, code {
 nav {
   padding: 0;
 }
+
+nav ul {
+  list-style: none;
+}
+
 nav ul li {
   display: inline-block;
 }
 
-nav a {
+nav a, nav button {
   text-decoration: none;
   background: var(--base02);
   padding: 5px;

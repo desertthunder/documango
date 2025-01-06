@@ -174,12 +174,14 @@ func (s *server) addRoutes() {
 		route := fmt.Sprintf("/%v", path)
 		if path == "index" || path == "readme" {
 			route = "/"
+			path = "index"
 		}
 
 		logger.Infof("Registered Route: %v", route)
 
 		// TODO: encapsulate in `build`
 		// Build the file in to buildDir
+
 		f, err := os.Create(fmt.Sprintf("%v/%v.html", buildDir, path))
 		if err != nil {
 			logger.Fatalf("unable to create file for route %v\n%v",
@@ -357,7 +359,6 @@ func Run(ctx context.Context, c *cli.Command) error {
 	s := createServer(c.Int("port"), dirs...)
 	machine := createMachine()
 	defer machine.canceller()
-
 	s.setup()
 
 	reload := make(chan struct{}, 1)

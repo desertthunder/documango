@@ -31,6 +31,7 @@ import (
 
 type view struct {
 	Path        string
+	front       *Frontmatter
 	content     []byte
 	html        []byte
 	templateDir string
@@ -43,16 +44,13 @@ var logger = logs.CreateConsoleLogger("[view]")
 // provided directory and creates pointers to Views
 func readContentDirectory(dir string, tdir string) []*view {
 	entries, err := os.ReadDir(dir)
-
 	if err != nil {
 		logger.Fatalf("unable to create views for directory %v: %v", dir, err.Error())
 	}
 
 	views := []*view{}
-
 	for _, entry := range entries {
 		fpath := fmt.Sprintf("%v/%v", dir, entry.Name())
-
 		if entry.IsDir() {
 			nested_views := readContentDirectory(fpath, tdir)
 			views = slices.Concat(views, nested_views)
@@ -77,25 +75,40 @@ func isNotMarkdown(n string) bool {
 }
 
 func openFile(p string, t string) *view {
+	var v view
 	data, err := os.ReadFile(p)
-
 	if err != nil {
 		logger.Errorf("unable to read data from %v: %v", p, err.Error())
 		return nil
 	}
 
-	v := view{p, data, []byte{}, t, nil}
-	v.toHTML()
+	frontmatter, content, err := SplitFrontmatter(data)
 
+	if err != nil {
+		logger.Warnf("unable to read content %v", err)
+
+		v = view{p, nil, data, []byte{}, t, nil}
+		v.toHTML()
+		return &v
+	}
+
+	if frontmatter == nil {
+		v = view{p, nil, data, []byte{}, t, nil}
+		v.toHTML()
+		return &v
+	}
+
+	logger.Info(frontmatter.Title)
+
+	v = view{p, frontmatter, content, []byte{}, t, nil}
+	v.toHTML()
 	return &v
 }
 
 func (v *view) toHTML() {
 	ext := parser.CommonExtensions | parser.AutoHeadingIDs | parser.NoEmptyLineBeforeBlock
 	p := parser.NewWithExtensions(ext)
-
 	doc := p.Parse(v.content)
-
 	flags := html.CommonFlags | html.HrefTargetBlank
 	opts := html.RendererOptions{Flags: flags}
 	renderer := html.NewRenderer(opts)
@@ -106,7 +119,6 @@ func (v *view) toHTML() {
 func (v *view) getTemplate() {
 	patterns := []string{v.name(), "base"}
 	var err error
-
 	for _, p := range patterns {
 		v.templ, err = template.ParseGlob(
 			fmt.Sprintf("%v/%v.html",
@@ -115,7 +127,7 @@ func (v *view) getTemplate() {
 		)
 
 		if err != nil {
-			logger.Warnf("unable to parse parse glob for %v: %v",
+			logger.Debugf("unable to parse parse glob for %v: %v",
 				p, err.Error(),
 			)
 		}
@@ -137,16 +149,29 @@ func (v *view) Build() *view {
 }
 
 // Template Context
-type Context = map[string]template.HTML
+type Context struct {
+	Contents template.HTML
+	// Configurable Attributes
+	Theme     string
+	DocTitle  string
+	PageTitle string
+	Links     []interface{}
+}
 
 // func Render executes and writes the template
 func (v *view) Render(w io.Writer) Context {
-	templ_ctx := map[string]template.HTML{
-		"contents": template.HTML(v.HTML()),
+	templ_ctx := Context{
+		template.HTML(v.HTML()),
+		"dark",
+		"Owais J.",
+		"Owais J.",
+		[]any{},
 	}
 
+	if v.front != nil {
+		templ_ctx.PageTitle = v.front.Title
+	}
 	v.templ.Execute(w, templ_ctx)
-
 	return templ_ctx
 }
 
@@ -190,6 +215,5 @@ func NewViews(c string, t string) []*View {
 	for i, v := range vs {
 		views[i] = fromInternal(v)
 	}
-
 	return views
 }
