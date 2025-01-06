@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/desertthunder/documango/pkg/libs/logs"
+	"github.com/desertthunder/documango/pkg/view"
 )
 
 var logger = logs.CreateConsoleLogger("[build]")
@@ -23,6 +25,37 @@ func createBuildDir(d string) (string, error) {
 		)
 	}
 	return d, err
+}
+
+func copyFile(fname, src, dest string) (string, error) {
+	src_path := fmt.Sprintf("%v/%v", src, fname)
+	dest_path := fmt.Sprintf("%v/%v", dest, fname)
+	data, err := os.ReadFile(src_path)
+	if err != nil {
+		return "", fmt.Errorf("unable to read file at %v %v",
+			src_path, err.Error(),
+		)
+	}
+	logger.Debugf("read file at %v", src_path)
+
+	_ = os.Remove(dest_path)
+	f, err := os.Create(dest_path)
+	if err != nil {
+		return "", fmt.Errorf("unable to create file at %v %v",
+			src_path, err.Error(),
+		)
+	}
+
+	logger.Debugf("created file at %v", dest_path)
+	defer logger.Debugf("wrote contents %v to file at %v", string(data), src_path)
+
+	code, err := io.WriteString(f, string(data))
+	if err != nil {
+		return "", fmt.Errorf("unable to write file at %v with code %v %v",
+			dest_path, code, err.Error(),
+		)
+	}
+	return dest_path, nil
 }
 
 // CopyStaticFiles creates the build dir at d, the provided destination
@@ -56,39 +89,29 @@ func CopyStaticFiles(src, d string) ([]*FilePath, error) {
 			errs = append(errs, err)
 		}
 	}
-
 	return paths, nil
 }
 
-func copyFile(fname, src, dest string) (string, error) {
-	src_path := fmt.Sprintf("%v/%v", src, fname)
-	dest_path := fmt.Sprintf("%v/%v", dest, fname)
-	data, err := os.ReadFile(src_path)
+func BuildHTML(v *view.View) (string, error) {
+	path := strings.ToLower(v.Path)
+	route := fmt.Sprintf("/%v", path)
+	if path == "index" || path == "readme" {
+		route = "/"
+		path = "index"
+	}
+
+	f, err := os.Create(fmt.Sprintf("%v/%v.html", BuildDir, path))
 	if err != nil {
-		return "", fmt.Errorf("unable to read file at %v %v",
-			src_path, err.Error(),
+		logger.Fatalf("unable to create file for route %v\n%v",
+			route, err.Error(),
 		)
 	}
-	logger.Debugf("read file at %v", src_path)
 
-	// File Syncing
-	_ = os.Remove(dest_path)
-
-	f, err := os.Create(dest_path)
+	code, err := f.Write([]byte(v.HTML))
 	if err != nil {
-		return "", fmt.Errorf("unable to create file at %v %v",
-			src_path, err.Error(),
+		logger.Fatalf("unable to write file for route %v\n%v (code: %v)",
+			route, err.Error(), code,
 		)
 	}
-	logger.Debugf("created file at %v", dest_path)
-
-	code, err := io.WriteString(f, string(data))
-	if err != nil {
-		return "", fmt.Errorf("unable to write file at %v with code %v %v",
-			dest_path, code, err.Error(),
-		)
-	}
-	logger.Debugf("wrote contents %v to file at %v", string(data), src_path)
-
-	return dest_path, nil
+	return route, err
 }

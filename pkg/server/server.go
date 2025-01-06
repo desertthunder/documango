@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -125,7 +124,7 @@ func createServer(p int64, dirs ...string) *server {
 	}
 	s := server{port: p}
 	s.contentDir, s.templateDir, s.staticDir = dirs[0], dirs[1], dirs[2]
-
+	s.setup()
 	return &s
 }
 
@@ -144,7 +143,7 @@ func (s *server) loadViewLayer() {
 
 func (s *server) reloadHandler(srv *http.Server) {
 	s.loadViewLayer()
-	s.collectStatic()
+	s.staticPaths, _ = build.CopyStaticFiles(s.staticDir, build.BuildDir)
 	s.addRoutes()
 	s.addLogger()
 
@@ -164,48 +163,31 @@ func (s *server) addRoutes() {
 	logger.Debug("registering routes")
 
 	mux := http.NewServeMux()
-	static_fpath := fmt.Sprintf("./%v/assets", buildDir)
+	static_fpath := fmt.Sprintf("./%v/assets", build.BuildDir)
 	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir(static_fpath))))
 	logger.Infof("Serving static files from %v at /assets/", static_fpath)
 
 	for _, doc := range s.views {
-		path := strings.ToLower(doc.Path)
-
-		route := fmt.Sprintf("/%v", path)
-		if path == "index" || path == "readme" {
-			route = "/"
-			path = "index"
+		route, err := build.BuildHTML(doc)
+		if err != nil {
+			logger.Fatalf("unable to build file for route %v %v", route, err.Error())
 		}
-
-		logger.Infof("Registered Route: %v", route)
-
-		// TODO: encapsulate in `build`
-		// Build the file in to buildDir
-
-		f, err := os.Create(fmt.Sprintf("%v/%v.html", buildDir, path))
+		defer logger.Infof("Registered Route: %v", route)
 		if err != nil {
 			logger.Fatalf("unable to create file for route %v\n%v",
 				route, err.Error(),
 			)
 		}
 
-		code, err := f.Write([]byte(doc.HTML))
-		if err != nil {
-			logger.Fatalf("unable to write file for route %v\n%v (code: %v)",
-				route, err.Error(), code,
-			)
-		}
-
 		mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
 			code, err := w.Write([]byte(doc.HTML))
 			if err != nil {
-				logger.Errorf("unable to execute template with code %v: %v",
-					err.Error(), code,
-				)
-
 				data := createErrorJSON(http.StatusInternalServerError, err)
 				w.WriteHeader(http.StatusInternalServerError)
 				w.Write(data)
+				logger.Errorf("unable to execute template with code %v: %v",
+					err.Error(), code,
+				)
 			}
 		})
 	}
@@ -323,23 +305,10 @@ func (s server) listen(ctx context.Context, reload chan struct{}) {
 
 }
 
-func (s *server) collectStatic() {
-	var err error
-	s.staticPaths, err = build.CopyStaticFiles(s.staticDir, buildDir)
-	if err != nil {
-		logger.Warnf("collecting static files failed\n %v", err.Error())
-	}
-
-	defer logger.Infof("copied static files from %v to %v",
-		s.staticDir, buildDir,
-	)
-
-}
-
 func (s *server) setup() {
 	s.createLocks()
 	s.loadViewLayer()
-	s.collectStatic()
+	s.staticPaths, _ = build.CopyStaticFiles(s.staticDir, build.BuildDir)
 	s.addRoutes()
 	s.addLogger()
 }
@@ -358,18 +327,14 @@ func Run(ctx context.Context, c *cli.Command) error {
 	}
 	s := createServer(c.Int("port"), dirs...)
 	machine := createMachine()
-	defer machine.canceller()
-	s.setup()
-
 	reload := make(chan struct{}, 1)
+	defer machine.canceller()
 	go s.watchFiles(machine.ctx, reload)
 	go func() {
 		signal.Notify(stopSignal, os.Interrupt, syscall.SIGTERM)
 		<-stopSignal
 		machine.canceller()
 	}()
-
 	s.listen(machine.ctx, reload)
-
 	return nil
 }

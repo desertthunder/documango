@@ -5,16 +5,11 @@ import (
 	"strings"
 
 	// "github.com/desertthunder/documango/pkg/libs/debug"
+	"github.com/desertthunder/documango/pkg/build"
 	"github.com/urfave/cli/v3"
 )
 
-const (
-	defaultPort        int64  = 4242
-	defaultContentDir  string = "examples"
-	defaultTemplateDir string = "templates"
-	defaultStaticDir   string = "static"
-	buildDir           string = "dist"
-)
+const defaultPort int64 = 4242
 
 var ServerCommand = &cli.Command{
 	Name:      "run",
@@ -30,39 +25,13 @@ var ServerCommand = &cli.Command{
 		"\n",
 	),
 	ArgsUsage: "[config]",
-	Flags: []cli.Flag{
-		&cli.IntFlag{
-			Name:        "port",
-			Aliases:     []string{"p", "addr"},
-			Required:    false,
-			DefaultText: fmt.Sprintf("%v", defaultPort),
-			Value:       defaultPort,
-		},
-		&cli.StringFlag{
-			Name:        "content",
-			Aliases:     []string{"c", "md"},
-			Required:    false,
-			DefaultText: defaultContentDir,
-			Value:       defaultContentDir,
-		},
-		&cli.StringFlag{
-			Name:        "templates",
-			Aliases:     []string{"t", "html"},
-			Required:    false,
-			DefaultText: defaultTemplateDir,
-			Value:       defaultTemplateDir,
-		},
-		&cli.StringFlag{
-			Name:     "static",
-			Aliases:  []string{"s", "assets"},
-			Required: false,
-			DefaultText: fmt.Sprintf(
-				"static files directory, defaults to %v",
-				defaultStaticDir,
-			),
-			Value: defaultStaticDir,
-		},
-	},
-	// Commands: []*cli.Command{debug.DebugCmd},
-	Action: Run,
+	Flags: build.MergeFlags(&cli.IntFlag{
+		Name:        "port",
+		Aliases:     []string{"p", "addr"},
+		Required:    false,
+		DefaultText: fmt.Sprintf("%v", defaultPort),
+		Value:       defaultPort,
+	}),
+	Commands: []*cli.Command{build.BuildCommand},
+	Action:   Run,
 }

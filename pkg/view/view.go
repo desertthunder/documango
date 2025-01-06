@@ -161,14 +161,17 @@ type Context struct {
 // func Render executes and writes the template
 func (v *view) Render(w io.Writer) Context {
 	templ_ctx := Context{
-		template.HTML(v.HTML()),
-		"dark",
-		"Owais J.",
-		"Owais J.",
-		[]any{},
+		Contents:  template.HTML(v.HTML()),
+		Theme:     "dark",
+		DocTitle:  "Owais J.",
+		PageTitle: "Owais J.",
+		Links:     []any{},
 	}
 
 	if v.front != nil {
+		if templ_ctx.DocTitle != v.front.Title {
+			templ_ctx.DocTitle = fmt.Sprintf("%v | %v", v.front.Title, templ_ctx.DocTitle)
+		}
 		templ_ctx.PageTitle = v.front.Title
 	}
 	v.templ.Execute(w, templ_ctx)

@@ -57,12 +57,8 @@ html {
   color: var(--base06);
 }
 
-html,
-body,
-* {
+html, body, * {
   /* TODO: Display, Sans, Monospace fonts */
-  font-family: "Noto Sans", sans-serif;
-  font-weight: 500;
 
   /* TODO: Reset */
   margin: 0;
@@ -70,8 +66,10 @@ body,
 }
 
 body {
-  line-height: 1.5;
+  font-family: "Noto Sans", sans-serif;
   font-size: 1.125em;
+  font-weight: 400;
+  line-height: 1.5;
 }
 
 header, footer {
@@ -116,19 +114,10 @@ h3,
 h4,
 h5,
 h6 {
+  font-family: "Nunito", sans-serif;
   font-weight: 600;
-  letter-spacing: -0.025em;
+  letter-spacing: 0em;
   color: var(--base07);
-}
-
-a,
-[data-toggle] {
-  color: var(--base08);
-}
-
-a:hover,
-[data-toggle]:hover {
-  color: var(--base09);
 }
 
 nav button {
@@ -159,6 +148,22 @@ pre,
 code {
   color: var(--base07);
   background-color: var(--base01);
+  font-family: monospace;
+}
+
+nav a, button, footer {
+  font-family: "Nunito", sans-serif;
+}
+
+a, [data-toggle] {
+  font-weight: 500;
+  letter-spacing: -0.025rem;
+  color: var(--base08);
+}
+
+a:hover, a code:hover,
+[data-toggle]:hover {
+  color: var(--base09);
 }
 
 nav {
@@ -176,12 +181,16 @@ nav ul li {
 nav a, nav button {
   text-decoration: none;
   background: var(--base02);
-  padding: 5px;
-  border-radius: 5px;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
 }
 
-nav,
-footer {
+nav a:hover,
+nav button:hover {
+  background: var(--base03);
+}
+
+nav, footer {
   text-align: center;
 }
 
@@ -213,21 +222,39 @@ video {
 
 table {
   margin: auto;
-  border-top: 1px solid #666;
-  border-bottom: 1px solid #666;
+  border-top: 0.125rem solid #666;
+  border-bottom: 0.125rem solid #666;
 }
 
 table thead th {
-  border-bottom: 1px solid #ddd;
+  border-bottom: 0.125rem solid #ddd;
 }
 
-th,
-td {
-  padding: 5px;
+th, td {
+  padding: 0.5rem;
 }
 
 thead,
 tfoot,
 tr:nth-child(even) {
   background: var(--base02);
+}
+
+article {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+article p {
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+@media not all and (min-width: 768px) {
+  header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
 }
