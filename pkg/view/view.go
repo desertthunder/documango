@@ -27,7 +27,12 @@ import (
 	"github.com/gomarkdown/markdown"
 	"github.com/gomarkdown/markdown/html"
 	"github.com/gomarkdown/markdown/parser"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
+
+var caser = cases.Title(language.AmericanEnglish)
+var Caser = caser
 
 type view struct {
 	Path        string
@@ -61,9 +66,15 @@ func readContentDirectory(dir string, tdir string) []*view {
 			continue
 		}
 
-		if v := openFile(fpath, tdir); v != nil {
-			views = append(views, v)
+		v := openContentFile(fpath, tdir)
+
+		if v == nil ||
+			(v.front != nil && v.front.Draft) {
+			continue
 		}
+
+		views = append(views, v)
+
 	}
 
 	return views
@@ -74,7 +85,7 @@ func isNotMarkdown(n string) bool {
 	return p[len(p)-1] != "md"
 }
 
-func openFile(p string, t string) *view {
+func openContentFile(p string, t string) *view {
 	var v view
 	data, err := os.ReadFile(p)
 	if err != nil {
@@ -158,8 +169,10 @@ type Context struct {
 	Links     []interface{}
 }
 
+func (c *Context) SetLinks() {}
+
 // func Render executes and writes the template
-func (v *view) Render(w io.Writer) Context {
+func (v *view) Render(w io.Writer, c *Context) Context {
 	templ_ctx := Context{
 		Contents:  template.HTML(v.HTML()),
 		Theme:     "dark",
@@ -200,7 +213,7 @@ type View struct {
 
 func (v View) getHTML(iv *view) string {
 	b := strings.Builder{}
-	iv.Render(&b)
+	iv.Render(&b, nil)
 	return b.String()
 }
 

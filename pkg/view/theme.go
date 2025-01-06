@@ -1,8 +1,14 @@
 package view
 
 import (
+	"context"
+	_ "embed"
 	"fmt"
+	"strings"
+	"text/template"
+	"time"
 
+	"github.com/urfave/cli/v3"
 	"gopkg.in/yaml.v3"
 )
 
@@ -33,6 +39,16 @@ type Palette struct {
 	Base0F string `yaml:"base0F"`
 }
 
+type themeCtx struct {
+	Light *Theme
+	Dark  *Theme
+	Date  string
+}
+
+type styleCtx struct {
+	ThemeSnippet string
+}
+
 // Unmarshal YAML file into a Theme struct
 func ParseTheme(data []byte) (*Theme, error) {
 	t := Theme{}
@@ -41,4 +57,99 @@ func ParseTheme(data []byte) (*Theme, error) {
 		return nil, fmt.Errorf("error parsing theme: %w", err)
 	}
 	return &t, nil
+}
+
+//go:embed themes/light/windows-nt.yml
+var ExampleLightFile []byte
+
+//go:embed themes/dark/oxocarbon-dark.yml
+var ExampleDarkFile []byte
+
+var ThemeCommand = &cli.Command{
+	Name:   "theme",
+	Usage:  "generate stylesheet",
+	Action: Run,
+}
+
+func buildStack(errs []error, err error) []error {
+	if err != nil {
+		errs = append(errs, err)
+		return errs
+	}
+
+	return errs
+}
+
+func (t *themeCtx) buildStack(errs []error, err error, theme *Theme) []error {
+	errs = buildStack(errs, err)
+	if theme != nil {
+		v := strings.ToLower(theme.Variant)
+		if v == "dark" {
+			t.Dark = theme
+		} else {
+			t.Light = theme
+		}
+	}
+
+	return errs
+}
+
+func (t *themeCtx) withTime(layout ...string) *themeCtx {
+	if layout != nil {
+		t.Date = time.Now().Format(layout[0])
+	} else {
+		t.Date = time.Now().Format(time.RFC1123Z)
+	}
+	return t
+}
+
+func (s *styleCtx) with(t string) *styleCtx {
+	s.ThemeSnippet = t
+	return s
+}
+
+// function BuildTheme takes a theme slug to select a theme and then executes
+// the theme variable & stylesheet templates. These are concatenated and then
+// the contents are returns as a string
+func BuildTheme(args ...string) string {
+	theme_ctx := themeCtx{}
+	style_ctx := styleCtx{}
+	b := strings.Builder{}
+
+	light_theme, err := ParseTheme(ExampleLightFile)
+	errs := theme_ctx.buildStack([]error{}, err, light_theme)
+	dark_theme, err := ParseTheme(ExampleDarkFile)
+	errs = theme_ctx.buildStack(errs, err, dark_theme)
+
+	if len(errs) == 2 {
+		logger.Fatalf(
+			"theme parsing failed \nLight: %v \nDark:%v",
+			errs[0], errs[1],
+		)
+	}
+
+	theme_template, err := template.ParseGlob("templates/_theme.css")
+	if err != nil {
+		logger.Fatalf("unable to read template dir %v", err)
+	}
+
+	if err = theme_template.Execute(&b, theme_ctx.withTime(time.Kitchen)); err != nil {
+		logger.Fatalf("unable to execute template %v", err)
+	}
+
+	theme := b.String()
+	b.Reset()
+
+	style_template, err := template.ParseGlob("templates/_style.css")
+	if err = style_template.Execute(&b, style_ctx.with(theme)); err != nil {
+		logger.Fatalf("unable to execute template %v", err)
+	}
+
+	return b.String()
+}
+
+func Run(ctx context.Context, c *cli.Command) error {
+	theme := BuildTheme()
+	logger.Infof("generated stylesheet \n%v", theme)
+	return nil
 }

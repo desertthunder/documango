@@ -12,6 +12,7 @@ import (
 
 type Frontmatter struct {
 	Title string `toml:"title"`
+	Draft bool   `toml:"draft"`
 }
 
 func SplitFrontmatter(content []byte) (*Frontmatter, []byte, error) {
@@ -52,7 +53,7 @@ func SplitFrontmatter(content []byte) (*Frontmatter, []byte, error) {
 		}
 	}
 
-	t := Frontmatter{}
+	t := Frontmatter{Draft: false}
 	toml.Unmarshal(bytes.TrimSpace(fm.Bytes()), &t)
 
 	return &t, bytes.TrimSpace(b.Bytes()), nil

@@ -173,11 +173,6 @@ func (s *server) addRoutes() {
 			logger.Fatalf("unable to build file for route %v %v", route, err.Error())
 		}
 		defer logger.Infof("Registered Route: %v", route)
-		if err != nil {
-			logger.Fatalf("unable to create file for route %v\n%v",
-				route, err.Error(),
-			)
-		}
 
 		mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
 			code, err := w.Write([]byte(doc.HTML))

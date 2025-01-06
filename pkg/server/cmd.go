@@ -6,6 +6,7 @@ import (
 
 	// "github.com/desertthunder/documango/pkg/libs/debug"
 	"github.com/desertthunder/documango/pkg/build"
+	"github.com/desertthunder/documango/pkg/view"
 	"github.com/urfave/cli/v3"
 )
 
@@ -32,6 +33,6 @@ var ServerCommand = &cli.Command{
 		DefaultText: fmt.Sprintf("%v", defaultPort),
 		Value:       defaultPort,
 	}),
-	Commands: []*cli.Command{build.BuildCommand},
+	Commands: []*cli.Command{build.BuildCommand, view.ThemeCommand},
 	Action:   Run,
 }

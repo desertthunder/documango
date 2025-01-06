@@ -27,7 +27,7 @@ func createBuildDir(d string) (string, error) {
 	return d, err
 }
 
-func copyFile(fname, src, dest string) (string, error) {
+func CopyFile(fname, src, dest string) (string, error) {
 	src_path := fmt.Sprintf("%v/%v", src, fname)
 	dest_path := fmt.Sprintf("%v/%v", dest, fname)
 	data, err := os.ReadFile(src_path)
@@ -59,7 +59,7 @@ func copyFile(fname, src, dest string) (string, error) {
 }
 
 // CopyStaticFiles creates the build dir at d, the provided destination
-// directory as well as the static files directory at {{ d }}/assets
+// directory as well as the static files directory at {dest}/assets
 func CopyStaticFiles(src, d string) ([]*FilePath, error) {
 	dest, err := createBuildDir(d + "/assets")
 	paths := []*FilePath{}
@@ -82,7 +82,7 @@ func CopyStaticFiles(src, d string) ([]*FilePath, error) {
 			continue
 		}
 
-		path, err := copyFile(fname, src, dest)
+		path, err := CopyFile(fname, src, dest)
 		paths = append(paths, &FilePath{path, fname})
 		if err != nil {
 			logger.Warnf("unable to copy %v from %v to %v", fname, src, dest)

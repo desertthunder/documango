@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/desertthunder/documango/pkg/libs/helpers"
 	"github.com/desertthunder/documango/pkg/view"
 	"github.com/urfave/cli/v3"
 )
@@ -71,8 +72,14 @@ func Run(ctx context.Context, c *cli.Command) error {
 func CollectStatic(s, b string) ([]*FilePath, error) {
 	defer logger.Infof("copied static files from %v to %v", s, b)
 	static_paths, err := CopyStaticFiles(s, b)
+
 	if err != nil {
 		logger.Warnf("collecting static files failed\n %v", err.Error())
 	}
+
+	theme := view.BuildTheme()
+	err = helpers.CreateAndWriteFile([]byte(theme), fmt.Sprintf("%v/assets/styles.css", b))
+	logger.Debugf("Generated Theme: \n%v", theme)
+
 	return static_paths, err
 }

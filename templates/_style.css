@@ -1,56 +1,4 @@
-/*
-  Credits: XMin Theme
-
-  https://xmin.yihui.org/
-
-  Tinted Themes (base16 gallery)
-
-  https://tinted-theming.github.io/tinted-gallery/
-
-  v0.1.0 Light: Atom Light
-  v0.1.0  Dark: Oxocarbon Dark
-*/
-:root[data-theme="light"] {
-  /* --------------- Base Colors ----------------  */
-  --base00: #fafafa; /* Default Background | Surface */
-  --base01: #f0f0f1; /* Lighter Background */
-  --base02: #e5e5e6; /* Selection Background | Surface 2 */
-  --base03: #a0a1a7; /* Comments, Invisibles */
-  --base04: #696c77; /* Dark Foreground */
-  --base05: #383a42; /* Default Foreground */
-  --base06: #202227; /* Light Foreground | Default Text */
-  --base07: #090a0b; /* Light Background */
-
-  /* --------------- Syntax Colors ---------------  */
-  --base08: #ca1243; /* Variables, Tags */
-  --base09: #d75f00; /* Numbers, Constants */
-  --base0A: #c18401; /* Classes, Markup */
-  --base0B: #50a14f; /* Strings, Changed */
-  --base0C: #0184bc; /* Support, Regular */
-  --base0D: #4078f2; /* Functions, Methods */
-  --base0E: #a626a4; /* Keywords, Storage */
-  --base0F: #986801; /* Deprecated, Opening */
-}
-
-:root[data-theme="dark"] {
-  --base00: #161616;
-  --base01: #262626;
-  --base02: #393939;
-  --base03: #525252;
-  --base04: #dde1e6;
-  --base05: #f2f4f8;
-  --base06: #ffffff;
-  --base07: #08bdba;
-  --base08: #3ddbd9;
-  --base09: #78a9ff;
-  --base0A: #ee5396;
-  --base0B: #33b1ff;
-  --base0C: #ff7eb6;
-  --base0D: #42be65;
-  --base0E: #be95ff;
-  --base0F: #82cfff;
-}
-
+{{ .ThemeSnippet }}
 html {
   transition: background-color 0.3s ease, color 0.3s ease;
   background-color: var(--base00);
@@ -59,7 +7,6 @@ html {
 
 html, body, * {
   /* TODO: Display, Sans, Monospace fonts */
-
   /* TODO: Reset */
   margin: 0;
   padding: 0;
@@ -77,7 +24,7 @@ header, footer {
   padding: 1rem;
   display: flex;
   align-items: center;
-  border: 1px var(--base0F) dashed;
+  border: 1px var(--base08) dashed;
   border-left: 0;
   border-right: 0;
 }
@@ -146,22 +93,26 @@ blockquote {
 
 pre,
 code {
-  color: var(--base07);
+  color: var(--base03);
   background-color: var(--base01);
-  font-family: monospace;
+  padding: 0.25rem;
 }
 
-nav a, button, footer {
+nav a,
+button,
+footer {
   font-family: "Nunito", sans-serif;
 }
 
-a, [data-toggle] {
+a, a code,
+[data-toggle] {
   font-weight: 500;
   letter-spacing: -0.025rem;
   color: var(--base08);
 }
 
-a:hover, a code:hover,
+a:hover,
+a code:hover,
 [data-toggle]:hover {
   color: var(--base09);
 }
@@ -178,7 +129,8 @@ nav ul li {
   display: inline-block;
 }
 
-nav a, nav button {
+nav a,
+nav button {
   text-decoration: none;
   background: var(--base02);
   padding: 0.25rem 0.5rem;
@@ -190,7 +142,8 @@ nav button:hover {
   background: var(--base03);
 }
 
-nav, footer {
+nav,
+footer {
   text-align: center;
 }
 
@@ -200,7 +153,7 @@ footer a {
 
 hr {
   border-style: dashed;
-  color: #ddd;
+  color: #;
 }
 
 pre {
@@ -230,7 +183,8 @@ table thead th {
   border-bottom: 0.125rem solid #ddd;
 }
 
-th, td {
+th,
+td {
   padding: 0.5rem;
 }
 

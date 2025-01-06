@@ -64,7 +64,7 @@ func TestReadContentDirectory(t *testing.T) {
 				for _, v := range views {
 					b := strings.Builder{}
 
-					v.Render(&b)
+					v.Render(&b, nil)
 					got := b.String()
 
 					if got == "" {

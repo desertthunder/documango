@@ -22,4 +22,4 @@ community and have begun trying to add to their great ecosystem. You can read th
 
 ## Contact Me
 
-The best way to reach me is by email at `jamil.owais (at) gmail.com`
+The best way to reach me is by email: [jamil.owais (at) gmail.com](/)
