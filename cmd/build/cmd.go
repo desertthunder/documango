@@ -50,6 +50,9 @@ var BuildCommand = &cli.Command{
 	Action: Run,
 }
 
+// MergeFlags allows other commands to use the build commands directory
+// paths to run while including their own flags by returning a new
+// list of Flags
 func MergeFlags(flag cli.Flag) []cli.Flag {
 	return append(BuildFlags, flag)
 }
@@ -58,12 +61,15 @@ func Run(ctx context.Context, c *cli.Command) error {
 	dirs := []string{c.String("content"), c.String("templates"), c.String("static")}
 	contentDir, templateDir, staticDir := dirs[0], dirs[1], dirs[2]
 	views := view.NewViews(contentDir, templateDir)
+
 	if _, err := CollectStatic(staticDir, BuildDir); err != nil {
 		logger.Fatalf("unable to collect static files %v", err.Error())
 	}
+
 	defer logger.Infof("built site to %v ✅", BuildDir)
+
 	for _, v := range views {
-		if _, err := BuildHTML(v); err != nil {
+		if _, err := BuildHTMLFileContents(v); err != nil {
 			logger.Fatalf("unable to build view %v %v", v.Path, err.Error())
 		}
 	}
@@ -72,13 +78,14 @@ func Run(ctx context.Context, c *cli.Command) error {
 
 func CollectStatic(s, b string) ([]*FilePath, error) {
 	defer logger.Infof("copied static files from %v to %v", s, b)
-	static_paths, err := CopyStaticFiles(s, b)
+	static_paths, err := CopyStaticFiles(s)
 
 	if err != nil {
 		logger.Warnf("collecting static files failed\n %v", err.Error())
 	}
 
 	theme := view.BuildTheme()
+	logger.Info(theme)
 	err = helpers.CreateAndWriteFile([]byte(theme), fmt.Sprintf("%v/assets/styles.css", b))
 	logger.Debugf("Generated Theme: \n%v", theme)
 

@@ -59,11 +59,17 @@ func ParseTheme(data []byte) (*Theme, error) {
 	return &t, nil
 }
 
+//go:embed themes/_theme.css
+var ThemeTempl []byte
+
+//go:embed themes/_style.css
+var DefaultStyleTempl []byte
+
 //go:embed themes/light/windows-nt.yml
-var ExampleLightFile []byte
+var DefaultLightThemeFile []byte
 
 //go:embed themes/dark/oxocarbon-dark.yml
-var ExampleDarkFile []byte
+var DefaultDarkThemeFile []byte
 
 var ThemeCommand = &cli.Command{
 	Name:   "theme",
@@ -110,15 +116,15 @@ func (s *styleCtx) with(t string) *styleCtx {
 
 // function BuildTheme takes a theme slug to select a theme and then executes
 // the theme variable & stylesheet templates. These are concatenated and then
-// the contents are returns as a string
+// the contents are returns as a string.
 func BuildTheme(args ...string) string {
 	theme_ctx := themeCtx{}
 	style_ctx := styleCtx{}
 	b := strings.Builder{}
 
-	light_theme, err := ParseTheme(ExampleLightFile)
+	light_theme, err := ParseTheme(DefaultLightThemeFile)
 	errs := theme_ctx.buildStack([]error{}, err, light_theme)
-	dark_theme, err := ParseTheme(ExampleDarkFile)
+	dark_theme, err := ParseTheme(DefaultDarkThemeFile)
 	errs = theme_ctx.buildStack(errs, err, dark_theme)
 
 	if len(errs) == 2 {
@@ -128,7 +134,8 @@ func BuildTheme(args ...string) string {
 		)
 	}
 
-	theme_template, err := template.ParseGlob("templates/_theme.css")
+	theme_template, err := template.New("theme").Parse(string(ThemeTempl))
+
 	if err != nil {
 		logger.Fatalf("unable to read template dir %v", err)
 	}
@@ -141,6 +148,17 @@ func BuildTheme(args ...string) string {
 	b.Reset()
 
 	style_template, err := template.ParseGlob("templates/_style.css")
+
+	if err != nil && strings.Contains(err.Error(), "no files") {
+		style_template, _ = template.New("styles").Parse(string(DefaultStyleTempl))
+
+		logger.Debugf("custom template not found: %v \n using default %v",
+			err.Error(), style_template.Name(),
+		)
+	} else if err != nil {
+		logger.Fatalf("unable to parse: %v", err)
+	}
+
 	if err = style_template.Execute(&b, style_ctx.with(theme)); err != nil {
 		logger.Fatalf("unable to execute template %v", err)
 	}

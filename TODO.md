@@ -28,7 +28,8 @@ The server should...
 
 - [x] do what the [build](#build) command does, while also serving
       the web pages
-- [ ] use a toml config file
+- [x] use a toml config file
+- [ ] build a list of available links for the top level navigation
 
 ### Watcher
 
@@ -77,3 +78,8 @@ These are all version 1 onward
 ## Bugs
 
 - [x] 1/5/25: sigkill shouldn't print sww to stderr
+
+## Parking Lot
+
+- Pages list?
+- Which theme files should be embedded in the binary?

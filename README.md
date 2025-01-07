@@ -38,6 +38,9 @@ grammar for treesitter.
     )
 )
 ```
+## Theming
+
+Themes come from the auto-generated repo from [tinted-theming](https://github.com/tinted-theming/schemes)
 
 ### Color Schemes
 

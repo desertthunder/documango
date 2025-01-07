@@ -28,6 +28,10 @@ var (
 	stopSignal = make(chan os.Signal, 1)
 )
 
+// function GenerateLogID generates a random 8 digit identifier for
+// logs.
+//
+// TODO: Move to libs
 func GenerateLogID() (string, error) {
 	var id [8]byte
 	_, err := rand.Read(id[:])
@@ -90,10 +94,11 @@ func (m middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // the background process context and cancellation function to
 // be used by the server and watchers
 func createMachine() state {
-	defer logger.Debug("created state machine")
-
 	s := state{}
 	s.ctx, s.canceller = context.WithCancel(context.Background())
+
+	logger.Debug("created state machine")
+
 	return s
 }
 
@@ -143,7 +148,8 @@ func (s *server) loadViewLayer() {
 
 func (s *server) reloadHandler(srv *http.Server) {
 	s.loadViewLayer()
-	s.staticPaths, _ = build.CopyStaticFiles(s.staticDir, build.BuildDir)
+	s.staticPaths, _ = build.CopyStaticFiles(s.staticDir)
+	build.CollectStatic(s.staticDir, build.BuildDir)
 	s.addRoutes()
 	s.addLogger()
 
@@ -162,21 +168,20 @@ func createErrorJSON(s int, e error) []byte {
 func (s *server) addRoutes() {
 	logger.Debug("registering routes")
 
-	mux := http.NewServeMux()
 	static_fpath := fmt.Sprintf("./%v/assets", build.BuildDir)
+
+	mux := http.NewServeMux()
 	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir(static_fpath))))
 	logger.Infof("Serving static files from %v at /assets/", static_fpath)
 
-	for _, doc := range s.views {
-		route, err := build.BuildHTML(doc)
+	for _, view := range s.views {
+		route, err := build.BuildHTMLFileContents(view)
 		if err != nil {
-			logger.Fatalf("unable to build file for route %v %v", route, err.Error())
+			logger.Fatalf("unable to build file for route %v \n%v", route, err.Error())
 		}
-		defer logger.Infof("Registered Route: %v", route)
 
 		mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
-			code, err := w.Write([]byte(doc.HTML))
-			if err != nil {
+			if code, err := w.Write(view.HTML()); err != nil {
 				data := createErrorJSON(http.StatusInternalServerError, err)
 				w.WriteHeader(http.StatusInternalServerError)
 				w.Write(data)
@@ -185,6 +190,8 @@ func (s *server) addRoutes() {
 				)
 			}
 		})
+
+		logger.Infof("Registered Route: %v", route)
 	}
 
 	s.handler = mux
@@ -200,14 +207,19 @@ func (s *server) watchFiles(ctx context.Context, reload chan struct{}) {
 
 	defer watcher.Close()
 
+	// TODO: we need to create this dir if it doesn't exist
 	if err = watcher.Add(s.contentDir); err != nil {
 		logger.Fatalf("unable to read content dir %v", s.contentDir)
 	}
 
+	// TODO: we need to create this dir
+	// TODO: should this be watched if the user chooses to use the preconfigured
+	// templates?
 	if err = watcher.Add(s.templateDir); err != nil {
 		logger.Fatalf("unable to read template dir %v", s.templateDir)
 	}
 
+	// TODO: same as templateDir
 	if err = watcher.Add(s.staticDir); err != nil {
 		logger.Fatalf("unable to read static dir %v", s.staticDir)
 	}
@@ -303,7 +315,7 @@ func (s server) listen(ctx context.Context, reload chan struct{}) {
 func (s *server) setup() {
 	s.createLocks()
 	s.loadViewLayer()
-	s.staticPaths, _ = build.CopyStaticFiles(s.staticDir, build.BuildDir)
+	s.staticPaths, _ = build.CopyStaticFiles(s.staticDir)
 	s.addRoutes()
 	s.addLogger()
 }
@@ -323,6 +335,7 @@ func Run(ctx context.Context, c *cli.Command) error {
 	s := createServer(c.Int("port"), dirs...)
 	machine := createMachine()
 	reload := make(chan struct{}, 1)
+
 	defer machine.canceller()
 	go s.watchFiles(machine.ctx, reload)
 	go func() {
@@ -330,6 +343,8 @@ func Run(ctx context.Context, c *cli.Command) error {
 		<-stopSignal
 		machine.canceller()
 	}()
+
 	s.listen(machine.ctx, reload)
+
 	return nil
 }

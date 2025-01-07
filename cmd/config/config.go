@@ -36,10 +36,10 @@ type Theme struct {
 var logger = logs.CreateConsoleLogger("[documango 🥭]")
 
 var ConfCommand = &cli.Command{
-	Name:    "documango",
-	Version: "0.1.0",
-	Description: `a cli to quickly generate a static site from a folder
-of markdown files`,
+	Name:        "documango",
+	Version:     "0.1.0",
+	Description: `a cli to quickly generate a static site from a folder of markdown files`,
+	Usage:       "generate a static site from a collection of markdown files",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:        "file",

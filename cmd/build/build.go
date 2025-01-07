@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 
 	"github.com/desertthunder/documango/cmd/libs/logs"
 	"github.com/desertthunder/documango/cmd/view"
@@ -17,8 +16,9 @@ type FilePath struct {
 	Name  string
 }
 
+// TODO: CreateDir helper?
 func createBuildDir(d string) (string, error) {
-	err := os.MkdirAll(d, 0755)
+	err := os.MkdirAll(d, os.ModePerm)
 	if err != nil {
 		return "", fmt.Errorf("unable to create build & static assets dir at %v",
 			err.Error(),
@@ -27,6 +27,7 @@ func createBuildDir(d string) (string, error) {
 	return d, err
 }
 
+// TODO: Move to helpers/libs
 func CopyFile(fname, src, dest string) (string, error) {
 	src_path := fmt.Sprintf("%v/%v", src, fname)
 	dest_path := fmt.Sprintf("%v/%v", dest, fname)
@@ -60,8 +61,8 @@ func CopyFile(fname, src, dest string) (string, error) {
 
 // CopyStaticFiles creates the build dir at d, the provided destination
 // directory as well as the static files directory at {dest}/assets
-func CopyStaticFiles(src, d string) ([]*FilePath, error) {
-	dest, err := createBuildDir(d + "/assets")
+func CopyStaticFiles(src string) ([]*FilePath, error) {
+	dest, err := createBuildDir(BuildDir + "/assets")
 	paths := []*FilePath{}
 	if err != nil {
 		logger.Fatal(err.Error())
@@ -92,26 +93,20 @@ func CopyStaticFiles(src, d string) ([]*FilePath, error) {
 	return paths, nil
 }
 
-func BuildHTML(v *view.View) (string, error) {
-	path := strings.ToLower(v.Path)
-	route := fmt.Sprintf("/%v", path)
-	if path == "index" || path == "readme" {
-		route = "/"
-		path = "index"
+func BuildHTMLFileContents(v *view.View) (string, error) {
+	p := fmt.Sprintf("%v/%v.html", BuildDir, v.Path)
+	f, err := os.Create(p)
+	if err != nil {
+		return v.Path, err
 	}
 
-	f, err := os.Create(fmt.Sprintf("%v/%v.html", BuildDir, path))
-	if err != nil {
-		logger.Fatalf("unable to create file for route %v\n%v",
-			route, err.Error(),
-		)
-	}
+	defer f.Close()
 
-	code, err := f.Write([]byte(v.HTML))
-	if err != nil {
-		logger.Fatalf("unable to write file for route %v\n%v (code: %v)",
-			route, err.Error(), code,
-		)
+	err = v.Build().Render(f)
+
+	if v.Path == "index" {
+		return "/", err
+	} else {
+		return "/" + v.Path, err
 	}
-	return route, err
 }

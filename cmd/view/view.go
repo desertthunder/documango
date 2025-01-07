@@ -1,8 +1,8 @@
 /*
-package view creates in-memory HTML documents for use by
+package View creates in-memory HTML documents for use by
 the server & build commands.
 
-In its simplest form, our view type contains a reference
+In its simplest form, our View type contains a reference
 to the contents of a markdown file and contains implementations
 for methods that create a document using one of the following:
 
@@ -34,26 +34,64 @@ import (
 var caser = cases.Title(language.AmericanEnglish)
 var Caser = caser
 
-type view struct {
-	Path        string
-	front       *Frontmatter
-	content     []byte
-	html        []byte
-	templateDir string
-	templ       *template.Template
+type View struct {
+	Path         string
+	front        *Frontmatter
+	content      []byte
+	html_content []byte
+	html_page    []byte
+	templateDir  string
+	templ        *template.Template
+	links        []*NavLink
 }
 
-var logger = logs.CreateConsoleLogger("[view]")
+var logger = logs.CreateConsoleLogger("[View]")
+
+func NewView(p string, c []byte, t string) View {
+	return View{Path: p, content: c, templateDir: t, links: []*NavLink{}}
+}
+
+// function BuildNavigation populates a NavLink
+// list in the View struct to build context when
+// rendering the layout
+func BuildNavigation(views []*View) []*View {
+	links := make([]*NavLink, len(views))
+	for i, v := range views {
+		path := strings.ToLower(v.name())
+		route := fmt.Sprintf("/%v", path)
+		l := NavLink{}
+
+		if path == "index" || path == "readme" {
+			route = "/"
+			path = "index"
+			l.Name = "Home"
+			v.Path = path
+		}
+		logger.Info(v.Path)
+		l.Path = route
+
+		links[i] = &l
+	}
+
+	for i, v := range views {
+		views[i].links = links
+
+		logger.Info(v.Path)
+
+	}
+
+	return views
+}
 
 // readContentDirectory recursively calls constructors on a
-// provided directory and creates pointers to Views
-func readContentDirectory(dir string, tdir string) []*view {
+// provided directory and creates pointers to views
+func readContentDirectory(dir string, tdir string) []*View {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		logger.Fatalf("unable to create views for directory %v: %v", dir, err.Error())
 	}
 
-	views := []*view{}
+	views := []*View{}
 	for _, entry := range entries {
 		fpath := fmt.Sprintf("%v/%v", dir, entry.Name())
 		if entry.IsDir() {
@@ -77,6 +115,7 @@ func readContentDirectory(dir string, tdir string) []*view {
 
 	}
 
+	views = BuildNavigation(views)
 	return views
 }
 
@@ -85,8 +124,8 @@ func isNotMarkdown(n string) bool {
 	return p[len(p)-1] != "md"
 }
 
-func openContentFile(p string, t string) *view {
-	var v view
+func openContentFile(p string, t string) *View {
+	var v View
 	data, err := os.ReadFile(p)
 	if err != nil {
 		logger.Errorf("unable to read data from %v: %v", p, err.Error())
@@ -97,37 +136,39 @@ func openContentFile(p string, t string) *view {
 
 	if err != nil {
 		logger.Warnf("unable to read content %v", err)
+		// p, nil, data, []byte{}, t, nil, []*NavLink{}
 
-		v = view{p, nil, data, []byte{}, t, nil}
+		v = NewView(p, data, t)
 		v.toHTML()
 		return &v
 	}
 
 	if frontmatter == nil {
-		v = view{p, nil, data, []byte{}, t, nil}
+		v = NewView(p, data, t)
 		v.toHTML()
 		return &v
 	}
 
 	logger.Info(frontmatter.Title)
-
-	v = view{p, frontmatter, content, []byte{}, t, nil}
+	v = NewView(p, content, t)
+	v.front = frontmatter
 	v.toHTML()
 	return &v
 }
 
-func (v *view) toHTML() {
-	ext := parser.CommonExtensions | parser.AutoHeadingIDs | parser.NoEmptyLineBeforeBlock
-	p := parser.NewWithExtensions(ext)
+func (v *View) toHTML() {
+	p := parser.NewWithExtensions(
+		parser.CommonExtensions | parser.AutoHeadingIDs | parser.NoEmptyLineBeforeBlock)
 	doc := p.Parse(v.content)
-	flags := html.CommonFlags | html.HrefTargetBlank
-	opts := html.RendererOptions{Flags: flags}
-	renderer := html.NewRenderer(opts)
+	renderer := html.NewRenderer(
+		html.RendererOptions{
+			Flags: html.CommonFlags | html.HrefTargetBlank,
+		})
 
-	v.html = markdown.Render(doc, renderer)
+	v.html_content = markdown.Render(doc, renderer)
 }
 
-func (v *view) getTemplate() {
+func (v *View) getTemplate() {
 	patterns := []string{v.name(), "base"}
 	var err error
 	for _, p := range patterns {
@@ -153,32 +194,36 @@ func (v *view) getTemplate() {
 	}
 }
 
-func (v *view) Build() *view {
+func (v *View) Build() *View {
 	v.toHTML()
 	v.getTemplate()
+	s := strings.Builder{}
+	err := v.Render(&s)
+	if err != nil {
+		logger.Fatalf("unable to render %v \n%v", v.name(), err.Error())
+	}
+	v.html_page = []byte(s.String())
 	return v
 }
 
 // Template Context
 type Context struct {
 	Contents template.HTML
+	Links    []*NavLink
 	// Configurable Attributes
 	Theme     string
 	DocTitle  string
 	PageTitle string
-	Links     []interface{}
 }
 
-func (c *Context) SetLinks() {}
-
 // func Render executes and writes the template
-func (v *view) Render(w io.Writer, c *Context) Context {
+func (v *View) Render(w io.Writer) error {
 	templ_ctx := Context{
-		Contents:  template.HTML(v.HTML()),
+		Contents:  template.HTML(v.HTMLContent()),
 		Theme:     "dark",
 		DocTitle:  "Owais J.",
 		PageTitle: "Owais J.",
-		Links:     []any{},
+		Links:     v.links,
 	}
 
 	if v.front != nil {
@@ -187,49 +232,44 @@ func (v *view) Render(w io.Writer, c *Context) Context {
 		}
 		templ_ctx.PageTitle = v.front.Title
 	}
-	v.templ.Execute(w, templ_ctx)
-	return templ_ctx
+
+	err := v.templ.Execute(w, templ_ctx)
+
+	s := strings.Builder{}
+	err = v.templ.Execute(&s, templ_ctx)
+	if err != nil {
+		logger.Fatalf("unable to render %v \n%v", v.name(), err.Error())
+	}
+	v.html_page = []byte(s.String())
+
+	return err
 }
 
-func (v view) name() string {
+func (v View) name() string {
 	p := strings.Split(v.Path, "/")
 	f := p[len(p)-1]
 	return strings.Split(f, ".")[0]
 }
 
-func (v view) Content() string {
+func (v View) Content() string {
 	return string(v.content)
 }
 
-func (v view) HTML() string {
-	return string(v.html)
+// function HTMLContent is a getter for the parsed and rendered
+// Markdown content as a string
+func (v View) HTMLContent() string {
+	return string(v.html_content)
 }
 
-type View struct {
+func (v View) HTML() []byte {
+	return v.html_page
+}
+
+type NavLink struct {
+	Name string
 	Path string
-	HTML string
-	v    *view
 }
 
-func (v View) getHTML(iv *view) string {
-	b := strings.Builder{}
-	iv.Render(&b, nil)
-	return b.String()
-}
-
-func fromInternal(iv *view) *View {
-	v := iv.Build()
-	newView := View{Path: v.name()}
-	newView.HTML = newView.getHTML(v)
-	newView.v = v
-	return &newView
-}
-
-func NewViews(c string, t string) []*View {
-	vs := readContentDirectory(c, t)
-	views := make([]*View, len(vs))
-	for i, v := range vs {
-		views[i] = fromInternal(v)
-	}
-	return views
+func NewViews(content, templates string) []*View {
+	return readContentDirectory(content, templates)
 }

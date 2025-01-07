@@ -48,7 +48,7 @@ func TestReadContentDirectory(t *testing.T) {
 			func(t *testing.T) {
 				for _, v := range views {
 					v.Build()
-					got := v.HTML()
+					got := v.HTMLContent()
 
 					if got == "" {
 						t.Fatal("nothing rendered")
@@ -64,7 +64,7 @@ func TestReadContentDirectory(t *testing.T) {
 				for _, v := range views {
 					b := strings.Builder{}
 
-					v.Render(&b, nil)
+					v.Render(&b)
 					got := b.String()
 
 					if got == "" {
