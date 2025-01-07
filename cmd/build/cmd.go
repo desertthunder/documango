@@ -46,6 +46,7 @@ var BuildFlags []cli.Flag = []cli.Flag{
 var BuildCommand = &cli.Command{
 	Name:   "build",
 	Usage:  fmt.Sprintf("build your site to dir %v", BuildDir),
+	Flags:  BuildFlags,
 	Action: Run,
 }
 

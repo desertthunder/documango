@@ -6,16 +6,15 @@ import (
 
 	// "github.com/desertthunder/documango/cmd/libs/debug"
 	"github.com/desertthunder/documango/cmd/build"
-	"github.com/desertthunder/documango/cmd/view"
 	"github.com/urfave/cli/v3"
 )
 
 const defaultPort int64 = 4242
 
 var ServerCommand = &cli.Command{
-	Name:      "run",
-	Authors:   []any{"Owais"},
-	Aliases:   []string{"r", "s", "serve"},
+	Name:      "server",
+	Authors:   []any{"Owais (github.com/desertthunder)"},
+	Aliases:   []string{"start", "serve"},
 	Usage:     "starts the server",
 	UsageText: "starts the development server at the provided port",
 	Description: strings.Join(
@@ -33,6 +32,5 @@ var ServerCommand = &cli.Command{
 		DefaultText: fmt.Sprintf("%v", defaultPort),
 		Value:       defaultPort,
 	}),
-	Commands: []*cli.Command{build.BuildCommand, view.ThemeCommand},
-	Action:   Run,
+	Action: Run,
 }

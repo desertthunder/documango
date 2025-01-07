@@ -2,6 +2,16 @@
 
 A simple static site, documentation and blog generator tool.
 
+## Usage
+
+```bash
+go build main.go
+go install
+go clean
+
+documango serve
+```
+
 ## Server
 
 ## Development

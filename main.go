@@ -21,11 +21,11 @@ import (
 	"os"
 
 	"github.com/charmbracelet/log"
-	"github.com/desertthunder/documango/cmd/server"
+	"github.com/desertthunder/documango/cmd/config"
 )
 
 func main() {
-	if err := server.ServerCommand.Run(context.Background(), os.Args); err != nil {
+	if err := config.ConfCommand.Run(context.Background(), os.Args); err != nil {
 		log.Fatalf("something went wrong %v", err.Error())
 	}
 }
