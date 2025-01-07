@@ -59,15 +59,16 @@ func BuildNavigation(views []*View) []*View {
 	for i, v := range views {
 		path := strings.ToLower(v.name())
 		route := fmt.Sprintf("/%v", path)
-		l := NavLink{}
+		l := NavLink{Name: Caser.String(path)}
 
 		if path == "index" || path == "readme" {
 			route = "/"
 			path = "index"
+
 			l.Name = "Home"
-			v.Path = path
 		}
-		logger.Info(v.Path)
+
+		v.Path = path
 		l.Path = route
 
 		links[i] = &l

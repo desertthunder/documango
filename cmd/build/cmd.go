@@ -85,9 +85,11 @@ func CollectStatic(s, b string) ([]*FilePath, error) {
 	}
 
 	theme := view.BuildTheme()
-	logger.Info(theme)
 	err = helpers.CreateAndWriteFile([]byte(theme), fmt.Sprintf("%v/assets/styles.css", b))
-	logger.Debugf("Generated Theme: \n%v", theme)
+
+	if err != nil {
+		logger.Fatalf("unable to generate theme %v", err.Error())
+	}
 
 	return static_paths, err
 }

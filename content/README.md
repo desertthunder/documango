@@ -2,8 +2,6 @@
 title = "Owais J."
 +++
 
-## About Me
-
 👋🏽 I'm Owais, a software engineer, writer, and artist from Austin, TX.
 I love to tinker, learn and create. Most recently I was a senior backend dev
 at [Edlink](https://ed.link/). I'm currently looking for my next role! Feel
@@ -18,7 +16,7 @@ Right now I'm focusing primarily on [`js_parser`](https://github.com/desertthund
 a tool to create an abstract syntax tree from JavaScript source code. In my journey
 into the world of OCaml and function programming, I discovered the wonderful Gleam
 community and have begun trying to add to their great ecosystem. You can read the
-*friendly* [docs](https://hexdocs.pm/js_parser) here if you're interested.
+friendly [docs](https://hexdocs.pm/js_parser) here if you're interested.
 
 ## Contact Me
 

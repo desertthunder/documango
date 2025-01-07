@@ -143,13 +143,15 @@ func (s *server) loadViewLayer() {
 
 	s.locks.documentLoader.Lock()
 	defer s.locks.documentLoader.Unlock()
+
 	s.views = view.NewViews(s.contentDir, s.templateDir)
+	s.staticPaths, _ = build.CopyStaticFiles(s.staticDir)
+
+	build.CollectStatic(s.staticDir, build.BuildDir)
 }
 
 func (s *server) reloadHandler(srv *http.Server) {
 	s.loadViewLayer()
-	s.staticPaths, _ = build.CopyStaticFiles(s.staticDir)
-	build.CollectStatic(s.staticDir, build.BuildDir)
 	s.addRoutes()
 	s.addLogger()
 

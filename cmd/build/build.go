@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/desertthunder/documango/cmd/libs/helpers"
 	"github.com/desertthunder/documango/cmd/libs/logs"
 	"github.com/desertthunder/documango/cmd/view"
 )
@@ -90,6 +91,18 @@ func CopyStaticFiles(src string) ([]*FilePath, error) {
 			errs = append(errs, err)
 		}
 	}
+
+	theme := view.BuildTheme()
+	theme_path := fmt.Sprintf("%v/styles.css", dest)
+	err = helpers.CreateAndWriteFile([]byte(theme), theme_path)
+
+	if err != nil {
+		logger.Warnf("unable to write theme to %v/styles.css \n%v", dest, err.Error())
+		return paths, nil
+	} else {
+		paths = append(paths, &FilePath{Name: "styles.css", FileP: theme_path})
+	}
+
 	return paths, nil
 }
 

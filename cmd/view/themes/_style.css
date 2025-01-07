@@ -1,4 +1,56 @@
 {{ .ThemeSnippet }}
+
+/*
+    Start Reset
+    http://meyerweb.com/eric/tools/css/reset/
+    v2.0 | 20110126
+    License: none (public domain)
+*/
+html, body, div, span, applet, object, iframe,
+h1, h2, h3, h4, h5, h6, p, blockquote, pre,
+a, abbr, acronym, address, big, cite, code,
+del, dfn, em, img, ins, kbd, q, s, samp,
+small, strike, strong, sub, sup, tt, var,
+b, u, i, center,
+dl, dt, dd, ol, ul, li,
+fieldset, form, label, legend,
+table, caption, tbody, tfoot, thead, tr, th, td,
+article, aside, canvas, details, embed,
+figure, figcaption, footer, header, hgroup,
+menu, nav, output, ruby, section, summary,
+time, mark, audio, video {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	font-size: 100%;
+	font: inherit;
+	vertical-align: baseline;
+}
+/* HTML5 display-role reset for older browsers */
+article, aside, details, figcaption, figure,
+footer, header, hgroup, menu, nav, section {
+	display: block;
+}
+body {
+	line-height: 1;
+}
+ol, ul {
+	list-style: none;
+}
+blockquote, q {
+	quotes: none;
+}
+blockquote:before, blockquote:after,
+q:before, q:after {
+	content: '';
+	content: none;
+}
+table {
+	border-collapse: collapse;
+	border-spacing: 0;
+}
+/* End Reset */
+
 html {
   transition: background-color 0.3s ease, color 0.3s ease;
   background-color: var(--base00);
@@ -13,9 +65,8 @@ html, body, * {
 }
 
 body {
-  font-family: "Noto Sans", sans-serif;
-  font-size: 1.125em;
-  font-weight: 400;
+  font-family: "IBM Plex Sans", sans-serif;
+  font-size: 1.15em;
   line-height: 1.5;
 }
 
@@ -61,8 +112,8 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: "Nunito", sans-serif;
-  font-weight: 600;
+  font-family: "Poppins", sans-serif;
+  font-weight: 500;
   letter-spacing: 0em;
   color: var(--base07);
 }
@@ -78,6 +129,7 @@ nav button {
 }
 
 em {
+  font-style: "italic";
   color: var(--base0D);
 }
 
@@ -101,20 +153,25 @@ code {
 nav a,
 button,
 footer {
-  font-family: "Nunito", sans-serif;
+  font-family: "Noto Sans", sans-serif;
 }
 
 a, a code,
 [data-toggle] {
+  color: var(--base0D);
+  text-decoration: none;
+}
+
+a code,
+[data-toggle] {
   font-weight: 500;
-  letter-spacing: -0.025rem;
-  color: var(--base08);
 }
 
 a:hover,
 a code:hover,
 [data-toggle]:hover {
   color: var(--base09);
+  text-decoration: underline;
 }
 
 nav {

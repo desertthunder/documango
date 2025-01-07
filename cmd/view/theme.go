@@ -65,10 +65,10 @@ var ThemeTempl []byte
 //go:embed themes/_style.css
 var DefaultStyleTempl []byte
 
-//go:embed themes/light/windows-nt.yml
+//go:embed themes/light/tokyo-city-light.yml
 var DefaultLightThemeFile []byte
 
-//go:embed themes/dark/oxocarbon-dark.yml
+//go:embed themes/dark/tokyo-city-dark.yml
 var DefaultDarkThemeFile []byte
 
 var ThemeCommand = &cli.Command{
