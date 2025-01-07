@@ -19,7 +19,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/desertthunder/documango/pkg/libs/logs"
+	"github.com/desertthunder/documango/cmd/libs/logs"
 
 	ts "github.com/smacker/go-tree-sitter"
 	ts_md "github.com/smacker/go-tree-sitter/markdown/tree-sitter-markdown"

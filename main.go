@@ -21,7 +21,7 @@ import (
 	"os"
 
 	"github.com/charmbracelet/log"
-	"github.com/desertthunder/documango/pkg/server"
+	"github.com/desertthunder/documango/cmd/server"
 )
 
 func main() {

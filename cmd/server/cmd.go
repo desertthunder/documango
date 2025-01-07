@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	// "github.com/desertthunder/documango/pkg/libs/debug"
-	"github.com/desertthunder/documango/pkg/build"
-	"github.com/desertthunder/documango/pkg/view"
+	// "github.com/desertthunder/documango/cmd/libs/debug"
+	"github.com/desertthunder/documango/cmd/build"
+	"github.com/desertthunder/documango/cmd/view"
 	"github.com/urfave/cli/v3"
 )
 

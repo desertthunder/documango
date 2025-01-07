@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/desertthunder/documango/pkg/libs/helpers"
+	"github.com/desertthunder/documango/cmd/libs/helpers"
 )
 
 func relPath(r, d string) string {

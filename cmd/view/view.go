@@ -23,7 +23,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/desertthunder/documango/pkg/libs/logs"
+	"github.com/desertthunder/documango/cmd/libs/logs"
 	"github.com/gomarkdown/markdown"
 	"github.com/gomarkdown/markdown/html"
 	"github.com/gomarkdown/markdown/parser"

@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/desertthunder/documango/pkg/libs/logs"
-	"github.com/desertthunder/documango/pkg/view"
+	"github.com/desertthunder/documango/cmd/libs/logs"
+	"github.com/desertthunder/documango/cmd/view"
 )
 
 var logger = logs.CreateConsoleLogger("[build]")

@@ -16,9 +16,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/desertthunder/documango/pkg/build"
-	"github.com/desertthunder/documango/pkg/libs/logs"
-	"github.com/desertthunder/documango/pkg/view"
+	"github.com/desertthunder/documango/cmd/build"
+	"github.com/desertthunder/documango/cmd/libs/logs"
+	"github.com/desertthunder/documango/cmd/view"
 	"github.com/fsnotify/fsnotify"
 	"github.com/urfave/cli/v3"
 )
