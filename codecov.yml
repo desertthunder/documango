@@ -1,0 +1,3 @@
+ignore:
+  - libs/debug/*.go
+  - libs/logs.go
