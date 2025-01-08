@@ -20,10 +20,12 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"net/http"
 	"os"
 	"slices"
 	"strings"
 
+	"github.com/desertthunder/documango/cmd/config"
 	"github.com/desertthunder/documango/cmd/libs"
 	"github.com/gomarkdown/markdown"
 	"github.com/gomarkdown/markdown/html"
@@ -75,11 +77,8 @@ func WithNavigation(views []*View) []*View {
 		links[i] = &l
 	}
 
-	for i, v := range views {
+	for i := range views {
 		views[i].links = links
-
-		logger.Info(v.Path)
-
 	}
 
 	return views
@@ -134,24 +133,20 @@ func openContentFile(p string, t string) *View {
 
 	if err != nil {
 		logger.Warnf("unable to read content %v", err)
-		// p, nil, data, []byte{}, t, nil, []*NavLink{}
 
 		v = NewView(p, data, t)
 		v.renderContentToHTML()
 		return &v
 	}
 
-	if frontmatter == nil {
-		v = NewView(p, data, t)
-		v.renderContentToHTML()
-		return &v
-	}
-
-	logger.Info(frontmatter.Title)
 	v = NewView(p, content, t)
-	v.front = frontmatter
+	v.SetFrontMatter(frontmatter)
 	v.renderContentToHTML()
 	return &v
+}
+
+func (v *View) SetFrontMatter(f *Frontmatter) {
+	v.front = f
 }
 
 func (v *View) renderContentToHTML() {
@@ -192,21 +187,6 @@ func (v *View) getTemplate() {
 	}
 }
 
-func (v *View) Build() *View {
-	v.renderContentToHTML()
-	v.getTemplate()
-
-	b := bytes.NewBuffer([]byte{})
-	err := v.Render(b)
-	if err != nil {
-		logger.Fatalf("unable to render %v \n%v", v.name(), err.Error())
-	}
-
-	v.html_page = b.Bytes()
-
-	return v
-}
-
 // Template Context
 type Context struct {
 	Contents template.HTML
@@ -218,12 +198,12 @@ type Context struct {
 }
 
 // func Render executes and writes the template with included frontmatter
-func (v *View) Render(w io.Writer) error {
+func (v *View) Render(w io.Writer, conf *config.Config) error {
 	templ_ctx := Context{
 		Contents:  template.HTML(v.HTMLContent()),
 		Theme:     "dark",
-		DocTitle:  "Owais J.",
-		PageTitle: "Owais J.",
+		DocTitle:  conf.Metadata.Name,
+		PageTitle: conf.Metadata.Name,
 		Links:     v.links,
 	}
 
@@ -266,4 +246,51 @@ type NavLink struct {
 
 func NewViews(content, templates string) []*View {
 	return readContentDirectory(content, templates)
+}
+
+func (v View) HandleFunc(w http.ResponseWriter, r *http.Request) {
+	if code, err := w.Write(v.HTML()); err != nil {
+		data := libs.CreateErrorJSON(http.StatusInternalServerError, err)
+
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write(data)
+
+		logger.Errorf("unable to execute template with code %v: %v",
+			err.Error(), code,
+		)
+	}
+}
+
+func (v *View) BuildHTMLFileContents(c *config.Config) (string, error) {
+	p := fmt.Sprintf("%v/%v.html", config.BuildDir, v.Path)
+	f, err := os.Create(p)
+	if err != nil {
+		return v.Path, err
+	}
+
+	defer f.Close()
+
+	logger.Debugf("writing file %v", p)
+
+	v.renderContentToHTML()
+	v.getTemplate()
+
+	b := bytes.NewBuffer([]byte{})
+	err = v.Render(b, c)
+	if err != nil {
+		logger.Fatalf("unable to render %v \n%v", v.name(), err.Error())
+	}
+
+	v.html_page = b.Bytes()
+
+	_, err = f.Write(v.html_page)
+	if err != nil {
+		logger.Fatalf("unable to render %v \n%v", v.name(), err.Error())
+	}
+
+	if v.Path == "index" {
+		return "/", err
+	} else {
+		return "/" + v.Path, err
+	}
 }

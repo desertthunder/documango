@@ -2,19 +2,20 @@
 
 A simple static site, documentation and blog generator tool.
 
-Go from a README to a vibrant website with one command.
-
-## Usage
+## Installation
 
 ```bash
 go build main.go
 go install
 go clean
+```
 
+Go from a README to a vibrant website with one command.
+
+```bash
 documango serve
-
-# To build the site to ./dist
-documango build -c /path/to/your/content
+# To build /content as a site to /dist
+documango build
 ```
 
 ## Server
@@ -22,6 +23,30 @@ documango build -c /path/to/your/content
 The local development server is configurable via the `[dev]` table in a
 `config.toml` file found in the root of your project. See [this](./config.toml)
 for an up to date example.
+
+### Options
+
+The `dev` section is entirely optional. The default values are as follows:
+
+```toml
+[dev]
+port = 4242
+content_dir = "content"
+template_dir = "templates"
+static_dir = "static"
+level = "INFO"
+```
+
+Configuration options are populated through `context`.ß
+
+#### Logging
+
+Valid log levels are `DEBUG`, `INFO`, `WARN` and `ERROR`, and are case-insensitive.
+
+```toml
+[dev]
+level = "info" # same as ⬆️
+```
 
 ## Development
 

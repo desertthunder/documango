@@ -3,75 +3,61 @@ package build
 import (
 	"context"
 	"fmt"
+	"time"
 
+	"github.com/charmbracelet/log"
+	"github.com/desertthunder/documango/cmd/config"
 	"github.com/desertthunder/documango/cmd/libs"
 	"github.com/urfave/cli/v3"
 )
 
-const (
-	DefaultContentDir  string = "examples"
-	DefaultTemplateDir string = "templates"
-	DefaultStaticDir   string = "static"
-	BuildDir           string = "dist"
-)
-
-var BuildFlags []cli.Flag = []cli.Flag{
-	&cli.StringFlag{
-		Name:        "content",
-		Aliases:     []string{"c", "md"},
-		Required:    false,
-		DefaultText: DefaultContentDir,
-		Value:       DefaultContentDir,
-	},
-	&cli.StringFlag{
-		Name:        "templates",
-		Aliases:     []string{"t", "html"},
-		Required:    false,
-		DefaultText: DefaultTemplateDir,
-		Value:       DefaultTemplateDir,
-	},
-	&cli.StringFlag{
-		Name:     "static",
-		Aliases:  []string{"s", "assets"},
-		Required: false,
-		DefaultText: fmt.Sprintf(
-			"static files directory, defaults to %v",
-			DefaultStaticDir,
-		),
-		Value: DefaultStaticDir,
-	},
-}
+var logger *log.Logger
 
 var BuildCommand = &cli.Command{
 	Name:   "build",
-	Usage:  fmt.Sprintf("build your site to dir %v", BuildDir),
-	Flags:  BuildFlags,
+	Usage:  fmt.Sprintf("build your site to dir %v", config.BuildDir),
+	Flags:  config.BuildFlags(true),
 	Action: Run,
 }
 
-// MergeFlags allows other commands to use the build commands directory
-// paths to run while including their own flags by returning a new
-// list of Flags
-func MergeFlags(flag cli.Flag) []cli.Flag {
-	return append(BuildFlags, flag)
+func pause() {
+	if logger.GetLevel() == log.DebugLevel {
+		return
+	}
+
+	time.Sleep(time.Millisecond * 500)
 }
 
 func Run(ctx context.Context, c *cli.Command) error {
-	dirs := []string{c.String("content"), c.String("templates"), c.String("static")}
-	contentDir, templateDir, staticDir := dirs[0], dirs[1], dirs[2]
-	views := NewViews(contentDir, templateDir)
+	logger = ctx.Value("LOGGER").(*log.Logger)
+	conf := ctx.Value(config.ConfKey).(*config.Config)
+	opts := conf.Options
+	views := NewViews(opts.ContentDir, opts.TemplateDir)
 
-	if _, err := CollectStatic(staticDir, BuildDir); err != nil {
+	conf.UpdateLogLevel(logger)
+
+	logger.Infof("building site %v", conf.Metadata.Name)
+
+	pause()
+	if _, err := CollectStatic(opts.StaticDir, config.BuildDir); err != nil {
 		logger.Fatalf("unable to collect static files %v", err.Error())
+	} else {
+		logger.Info("collected static files ✅")
 	}
-
-	defer logger.Infof("built site to %v ✅", BuildDir)
 
 	for _, v := range views {
-		if _, err := BuildHTMLFileContents(v); err != nil {
+		pause()
+		if _, err := v.BuildHTMLFileContents(conf); err != nil {
 			logger.Fatalf("unable to build view %v %v", v.Path, err.Error())
 		}
+
+		logger.Infof("built page %v.html (%v)", v.Path, v.name())
 	}
+
+	pause()
+
+	logger.Infof("built site to %v ✅", config.BuildDir)
+
 	return nil
 }
 

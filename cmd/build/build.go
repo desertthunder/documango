@@ -5,10 +5,9 @@ import (
 	"io"
 	"os"
 
+	"github.com/desertthunder/documango/cmd/config"
 	"github.com/desertthunder/documango/cmd/libs"
 )
-
-var logger = libs.CreateConsoleLogger("[build]")
 
 type FilePath struct {
 	FileP string
@@ -47,7 +46,6 @@ func CopyFile(fname, src, dest string) (string, error) {
 	}
 
 	logger.Debugf("created file at %v", dest_path)
-	defer logger.Debugf("wrote contents %v to file at %v", string(data), src_path)
 
 	code, err := io.WriteString(f, string(data))
 	if err != nil {
@@ -55,13 +53,15 @@ func CopyFile(fname, src, dest string) (string, error) {
 			dest_path, code, err.Error(),
 		)
 	}
+
+	logger.Debugf("wrote contents to file at %v", src_path)
 	return dest_path, nil
 }
 
 // CopyStaticFiles creates the build dir at d, the provided destination
 // directory as well as the static files directory at {dest}/assets
 func CopyStaticFiles(src string) ([]*FilePath, error) {
-	dest, err := createBuildDir(BuildDir + "/assets")
+	dest, err := createBuildDir(config.BuildDir + "/assets")
 	paths := []*FilePath{}
 	if err != nil {
 		logger.Fatal(err.Error())
@@ -103,22 +103,4 @@ func CopyStaticFiles(src string) ([]*FilePath, error) {
 	}
 
 	return paths, nil
-}
-
-func BuildHTMLFileContents(v *View) (string, error) {
-	p := fmt.Sprintf("%v/%v.html", BuildDir, v.Path)
-	f, err := os.Create(p)
-	if err != nil {
-		return v.Path, err
-	}
-
-	defer f.Close()
-
-	v.Build()
-
-	if v.Path == "index" {
-		return "/", err
-	} else {
-		return "/" + v.Path, err
-	}
 }

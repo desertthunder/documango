@@ -1,10 +1,9 @@
 package server
 
 import (
-	"fmt"
 	"strings"
 
-	"github.com/desertthunder/documango/cmd/build"
+	"github.com/desertthunder/documango/cmd/config"
 	"github.com/urfave/cli/v3"
 )
 
@@ -14,7 +13,6 @@ const defaultPort int64 = 4242
 // TODO: set log level
 var ServerCommand = &cli.Command{
 	Name:      "server",
-	Authors:   []any{"Owais (github.com/desertthunder)"},
 	Aliases:   []string{"start", "serve"},
 	Usage:     "starts the server",
 	UsageText: "starts the development server at the provided port",
@@ -26,12 +24,11 @@ var ServerCommand = &cli.Command{
 		"\n",
 	),
 	ArgsUsage: "[config]",
-	Flags: build.MergeFlags(&cli.IntFlag{
-		Name:        "port",
-		Aliases:     []string{"p", "addr"},
-		Required:    false,
-		DefaultText: fmt.Sprintf("%v", defaultPort),
-		Value:       defaultPort,
-	}),
+	Flags: config.MergeFlags(
+		&cli.IntFlag{
+			Name:     "port",
+			Aliases:  []string{"p", "addr"},
+			Required: false,
+		}, true),
 	Action: Run,
 }

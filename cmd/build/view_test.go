@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/desertthunder/documango/cmd/config"
 	"github.com/desertthunder/documango/cmd/libs"
 )
 
@@ -14,6 +15,7 @@ func relPath(r, d string) string {
 }
 
 func TestReadContentDirectory(t *testing.T) {
+	test_config := config.Config{Metadata: config.Meta{Name: "Test Site "}}
 	t.Run("creates a list of Views", func(t *testing.T) {
 		wd, err := os.Getwd()
 		if err != nil {
@@ -44,27 +46,12 @@ func TestReadContentDirectory(t *testing.T) {
 			},
 		)
 
-		t.Run("each view allows caller to create an HTML string",
-			func(t *testing.T) {
-				for _, v := range views {
-					v.Build()
-					got := v.HTMLContent()
-
-					if got == "" {
-						t.Fatal("nothing rendered")
-					} else {
-						logger.Debugf("HTML:\n%v", got)
-					}
-				}
-			},
-		)
-
 		t.Run("each view allows caller to create a viewable HTML file",
 			func(t *testing.T) {
 				for _, v := range views {
 					b := strings.Builder{}
 
-					v.Render(&b)
+					v.Render(&b, &test_config)
 					got := b.String()
 
 					if got == "" {

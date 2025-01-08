@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/log"
@@ -63,4 +64,20 @@ func CreateLoggers(conf LogConfig) *log.Logger {
 		ReportTimestamp: true,
 		TimeFormat:      layout,
 	})
+}
+
+func SetLogLevel(l *log.Logger, s string) {
+	switch strings.ToLower(s) {
+	case log.DebugLevel.String():
+		l.SetLevel(log.DebugLevel)
+		break
+	case log.WarnLevel.String():
+		l.SetLevel(log.WarnLevel)
+		break
+	case log.ErrorLevel.String():
+		l.SetLevel(log.ErrorLevel)
+		break
+	default:
+		l.SetLevel(log.InfoLevel)
+	}
 }

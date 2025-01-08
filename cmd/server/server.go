@@ -13,14 +13,16 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/charmbracelet/log"
 	"github.com/desertthunder/documango/cmd/build"
+	"github.com/desertthunder/documango/cmd/config"
 	"github.com/desertthunder/documango/cmd/libs"
 	"github.com/fsnotify/fsnotify"
 	"github.com/urfave/cli/v3"
 )
 
 var (
-	logger     = libs.CreateConsoleLogger("[server]")
+	logger     *log.Logger
 	stopSignal = make(chan os.Signal, 1)
 )
 
@@ -39,10 +41,12 @@ type state struct {
 }
 
 type server struct {
-	port        int64
+	port        int32
 	contentDir  string
 	templateDir string
 	staticDir   string
+	staticRoot  string
+	config      *config.Config
 	views       []*build.View
 	staticPaths []*build.FilePath
 	watcher     fsnotify.Watcher
@@ -94,14 +98,23 @@ func (s *server) addLogger() {
 // function createServer instantiates a server instance
 // with the given port/addr and a filesystem directory to
 // watch. It also instantiates a new mux instance
-func createServer(p int64, dirs ...string) *server {
-	if len(dirs) != 3 {
-		logger.Fatalf("invalid configuration. should only be 3 dirs")
+func createServer(config *config.Config) server {
+	s := server{
+		config:      config,
+		port:        config.Options.Port,
+		contentDir:  config.Options.ContentDir,
+		staticDir:   config.Options.StaticDir,
+		templateDir: config.Options.TemplateDir,
+		staticRoot:  config.Options.GetStaticPath(),
 	}
-	s := server{port: p}
-	s.contentDir, s.templateDir, s.staticDir = dirs[0], dirs[1], dirs[2]
-	s.setup()
-	return &s
+
+	s.createLocks()
+	s.loadViewLayer()
+	s.staticPaths, _ = build.CopyStaticFiles(s.staticDir)
+	s.addRoutes()
+	s.addLogger()
+
+	return s
 }
 
 // function loadViewLayer loads the markup in the content dir
@@ -118,15 +131,7 @@ func (s *server) loadViewLayer() {
 	s.views = build.NewViews(s.contentDir, s.templateDir)
 	s.staticPaths, _ = build.CopyStaticFiles(s.staticDir)
 
-	build.CollectStatic(s.staticDir, build.BuildDir)
-}
-
-func (s *server) setup() {
-	s.createLocks()
-	s.loadViewLayer()
-	s.staticPaths, _ = build.CopyStaticFiles(s.staticDir)
-	s.addRoutes()
-	s.addLogger()
+	build.CollectStatic(s.staticDir, config.BuildDir)
 }
 
 func (s *server) reloadHandler(srv *http.Server) {
@@ -143,32 +148,17 @@ func (s *server) reloadHandler(srv *http.Server) {
 func (s *server) addRoutes() {
 	logger.Debug("registering routes")
 
-	static_fpath := fmt.Sprintf("./%v/assets", build.BuildDir)
-
 	mux := http.NewServeMux()
-	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir(static_fpath))))
-	logger.Infof("Serving static files from %v at /assets/", static_fpath)
+	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir(s.staticRoot))))
+	logger.Infof("Serving static files from %v at /assets/", s.staticRoot)
 
-	for _, view := range s.views {
-		route, err := build.BuildHTMLFileContents(view)
-		if err != nil {
+	for _, v := range s.views {
+		if route, err := v.BuildHTMLFileContents(s.config); err != nil {
 			logger.Fatalf("unable to build file for route %v \n%v", route, err.Error())
+		} else {
+			mux.HandleFunc(route, v.HandleFunc)
+			logger.Infof("Registered Route: %v", route)
 		}
-
-		mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
-			if code, err := w.Write(view.HTML()); err != nil {
-				data := libs.CreateErrorJSON(http.StatusInternalServerError, err)
-
-				w.WriteHeader(http.StatusInternalServerError)
-				w.Write(data)
-
-				logger.Errorf("unable to execute template with code %v: %v",
-					err.Error(), code,
-				)
-			}
-		})
-
-		logger.Infof("Registered Route: %v", route)
 	}
 
 	s.handler = mux
@@ -294,12 +284,12 @@ func (s server) listen(ctx context.Context, reload chan struct{}) {
 // provided address. When a change is detected in the filesystem, the server is
 // locked and gracefully shutsdown.
 func Run(ctx context.Context, c *cli.Command) error {
-	dirs := []string{
-		c.String("content"),
-		c.String("templates"),
-		c.String("static"),
-	}
-	s := createServer(c.Int("port"), dirs...)
+	logger = ctx.Value(config.LoggerKey).(*log.Logger)
+	conf := ctx.Value(config.ConfKey).(*config.Config)
+
+	libs.SetLogLevel(logger, conf.Options.Level)
+
+	s := createServer(conf)
 	machine := createMachine()
 	reload := make(chan struct{}, 1)
 

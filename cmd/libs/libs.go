@@ -108,3 +108,8 @@ func FindWDRoot(l ...*log.Logger) (roots string) {
 
 	return FindModuleRoot(wd, logger)
 }
+
+func ToJSONString(v any) string {
+	data, _ := json.MarshalIndent(v, "", "  ")
+	return string(data)
+}
