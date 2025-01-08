@@ -106,7 +106,9 @@ func (s *styleCtx) with(t string) *styleCtx {
 	return s
 }
 
-// function BuildTheme takes a theme slug to select a theme and then executes
+// function BuildTheme parses the default theme files and returns a theme
+//
+// TODO: take a theme slug to select a theme and then executes
 // the theme variable & stylesheet templates. These are concatenated and then
 // the contents are returns as a string.
 func BuildTheme(args ...string) string {
@@ -116,6 +118,7 @@ func BuildTheme(args ...string) string {
 
 	light_theme, err := ParseTheme(DefaultLightThemeFile)
 	errs := theme_ctx.buildStack([]error{}, err, light_theme)
+
 	dark_theme, err := ParseTheme(DefaultDarkThemeFile)
 	errs = theme_ctx.buildStack(errs, err, dark_theme)
 

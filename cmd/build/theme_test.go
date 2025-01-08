@@ -1,6 +1,9 @@
 package build
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestTheme(t *testing.T) {
 	invalid_yaml := []byte(`
@@ -67,5 +70,17 @@ palette:
 				t.Error("parse theme should parse a yaml spec for a base16 theme")
 			}
 		})
+	})
+
+	t.Run("build theme", func(t *testing.T) {
+		got := BuildTheme()
+
+		if !strings.Contains(got, "body {") {
+			t.Error("concatenated stylesheet should have valid css selector for body")
+		}
+
+		if !strings.Contains(got, "--base00") {
+			t.Error("should contain base16 theming variables")
+		}
 	})
 }
