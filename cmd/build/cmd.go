@@ -15,7 +15,7 @@ var logger *log.Logger
 
 var BuildCommand = &cli.Command{
 	Name:   "build",
-	Usage:  fmt.Sprintf("build your site to dir %v", config.BuildDir),
+	Usage:  "build your site to your configured directory (defaults to dist)",
 	Flags:  config.BuildFlags(true),
 	Action: Run,
 }
@@ -39,7 +39,7 @@ func Run(ctx context.Context, c *cli.Command) error {
 	logger.Infof("building site %v", conf.Metadata.Name)
 
 	pause()
-	if _, err := CollectStatic(opts.StaticDir, config.BuildDir); err != nil {
+	if _, err := CollectStatic(opts.StaticDir, conf); err != nil {
 		logger.Fatalf("unable to collect static files %v", err.Error())
 	} else {
 		logger.Info("collected static files ✅")
@@ -56,14 +56,15 @@ func Run(ctx context.Context, c *cli.Command) error {
 
 	pause()
 
-	logger.Infof("built site to %v ✅", config.BuildDir)
+	logger.Infof("built site to %v ✅", opts.BuildDir)
 
 	return nil
 }
 
-func CollectStatic(s, b string) ([]*FilePath, error) {
+func CollectStatic(s string, c *config.Config) ([]*FilePath, error) {
+	b := c.Options.BuildDir
 	defer logger.Infof("copied static files from %v to %v", s, b)
-	static_paths, err := CopyStaticFiles(s)
+	static_paths, err := CopyStaticFiles(c)
 
 	if err != nil {
 		logger.Warnf("collecting static files failed\n %v", err.Error())

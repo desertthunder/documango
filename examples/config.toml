@@ -10,8 +10,8 @@ light = "tokyo-city-light"
 
 [dev]
 port = 4242
-content_dir = "content"
-template_dir = "templates"
-static_dir = "static"
-build_dir = "dist"
+content_dir = "docs"
+template_dir = "views"
+static_dir = "assets"
+build_dir = "tmp"
 level = "INFO"

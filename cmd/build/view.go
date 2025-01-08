@@ -262,7 +262,7 @@ func (v View) HandleFunc(w http.ResponseWriter, r *http.Request) {
 }
 
 func (v *View) BuildHTMLFileContents(c *config.Config) (string, error) {
-	p := fmt.Sprintf("%v/%v.html", config.BuildDir, v.Path)
+	p := fmt.Sprintf("%v/%v.html", c.Options.BuildDir, v.Path)
 	f, err := os.Create(p)
 	if err != nil {
 		return v.Path, err

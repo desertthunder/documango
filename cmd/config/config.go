@@ -6,7 +6,6 @@
 package config
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/BurntSushi/toml"
@@ -43,6 +42,7 @@ type DevOptions struct {
 	StaticDir   string `toml:"static_dir"`
 	TemplateDir string `toml:"template_dir"`
 	ContentDir  string `toml:"content_dir"`
+	BuildDir    string `toml:"build_dir"`
 	Level       string `toml:"level"`
 }
 
@@ -50,7 +50,7 @@ const (
 	DefaultContentDir  string = "examples"
 	DefaultTemplateDir string = "templates"
 	DefaultStaticDir   string = "static"
-	BuildDir           string = "dist"
+	DefaultBuildDir    string = "dist"
 )
 
 func BuildFlags(show bool) []cli.Flag {
@@ -99,17 +99,18 @@ func NewDefaultConfig() Config {
 		StaticDir:   DefaultStaticDir,
 		ContentDir:  DefaultContentDir,
 		TemplateDir: DefaultTemplateDir,
+		BuildDir:    DefaultBuildDir,
 		Level:       log.InfoLevel.String(),
 	}}
 }
 
 // function ListThemes peeks in the theme directory and tells the user
 // which options they have available.
-func ListThemes() {}
+// func ListThemes() {}
 
-func OpenConfig() *Config {
+func OpenConfig(p string) *Config {
 	c := NewDefaultConfig()
-	f, err := libs.OpenFileSafe("config.toml")
+	f, err := libs.OpenFileSafe(p)
 
 	if err != nil {
 		logger.Fatalf("unable to open config %v", err.Error())
@@ -123,22 +124,8 @@ func OpenConfig() *Config {
 	return &c
 }
 
-// function render config renders the config file to std out
-func RenderConfig() error {
-	c := OpenConfig()
-	data, err := json.MarshalIndent(c, "", "  ")
-
-	if err != nil {
-		return err
-	}
-
-	logger.Infof("Config: \n%v", string(data))
-
-	return nil
-}
-
 func (d DevOptions) GetStaticPath() string {
-	return fmt.Sprintf("./%v/assets", BuildDir)
+	return fmt.Sprintf("./%v/assets", d.BuildDir)
 }
 
 func (c Config) UpdateLogLevel(l *log.Logger) {

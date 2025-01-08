@@ -110,7 +110,7 @@ func createServer(config *config.Config) server {
 
 	s.createLocks()
 	s.loadViewLayer()
-	s.staticPaths, _ = build.CopyStaticFiles(s.staticDir)
+	s.staticPaths, _ = build.CopyStaticFiles(s.config)
 	s.addRoutes()
 	s.addLogger()
 
@@ -129,9 +129,9 @@ func (s *server) loadViewLayer() {
 	defer s.locks.documentLoader.Unlock()
 
 	s.views = build.NewViews(s.contentDir, s.templateDir)
-	s.staticPaths, _ = build.CopyStaticFiles(s.staticDir)
+	s.staticPaths, _ = build.CopyStaticFiles(s.config)
 
-	build.CollectStatic(s.staticDir, config.BuildDir)
+	build.CollectStatic(s.staticDir, s.config)
 }
 
 func (s *server) reloadHandler(srv *http.Server) {

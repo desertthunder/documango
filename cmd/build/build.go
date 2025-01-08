@@ -60,8 +60,9 @@ func CopyFile(fname, src, dest string) (string, error) {
 
 // CopyStaticFiles creates the build dir at d, the provided destination
 // directory as well as the static files directory at {dest}/assets
-func CopyStaticFiles(src string) ([]*FilePath, error) {
-	dest, err := createBuildDir(config.BuildDir + "/assets")
+func CopyStaticFiles(conf *config.Config) ([]*FilePath, error) {
+	src := conf.Options.StaticDir
+	dest, err := createBuildDir(conf.Options.BuildDir + "/assets")
 	paths := []*FilePath{}
 	if err != nil {
 		logger.Fatal(err.Error())

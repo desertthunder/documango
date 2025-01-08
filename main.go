@@ -49,7 +49,7 @@ var rootCommand = &cli.Command{
 }
 
 func setContext(parent context.Context, c *cli.Command) (context.Context, error) {
-	conf := config.OpenConfig()
+	conf := config.OpenConfig(c.String("file"))
 	ctx := context.WithValue(parent, config.ConfKey, conf)
 	ctx = context.WithValue(ctx, config.LoggerKey, logger)
 	logger.Debugf("Set context %v", libs.ToJSONString(conf))

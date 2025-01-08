@@ -14,7 +14,7 @@ func ExampleParse() {
 
 	wd, _ := os.Getwd()
 	root := libs.FindModuleRoot(wd, logger)
-	f, err := os.Open(fmt.Sprintf("%v/examples/test.md", root))
+	f, err := os.Open(fmt.Sprintf("%v/examples/docs/about.md", root))
 
 	if err != nil {
 		logger.Fatalf("unable to open file %v", err.Error())
