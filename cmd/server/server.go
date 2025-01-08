@@ -15,13 +15,12 @@ import (
 
 	"github.com/desertthunder/documango/cmd/build"
 	"github.com/desertthunder/documango/cmd/libs"
-	"github.com/desertthunder/documango/cmd/libs/logs"
 	"github.com/fsnotify/fsnotify"
 	"github.com/urfave/cli/v3"
 )
 
 var (
-	logger     = logs.CreateConsoleLogger("[server]")
+	logger     = libs.CreateConsoleLogger("[server]")
 	stopSignal = make(chan os.Signal, 1)
 )
 

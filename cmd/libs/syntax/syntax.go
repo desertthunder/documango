@@ -19,13 +19,12 @@ import (
 	"os"
 	"strings"
 
-	"github.com/desertthunder/documango/cmd/libs/logs"
-
+	"github.com/desertthunder/documango/cmd/libs"
 	ts "github.com/smacker/go-tree-sitter"
 	ts_md "github.com/smacker/go-tree-sitter/markdown/tree-sitter-markdown"
 )
 
-var logger = logs.CreateConsoleLogger("[view]")
+var logger = libs.CreateConsoleLogger("[view]")
 
 // type markup contains attributes about a
 // markdown file in the configured markup dir

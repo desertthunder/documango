@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/desertthunder/documango/cmd/libs/helpers"
+	"github.com/desertthunder/documango/cmd/libs"
 	"github.com/urfave/cli/v3"
 )
 
@@ -84,7 +84,7 @@ func CollectStatic(s, b string) ([]*FilePath, error) {
 	}
 
 	theme := BuildTheme()
-	err = helpers.CreateAndWriteFile([]byte(theme), fmt.Sprintf("%v/assets/styles.css", b))
+	err = libs.CreateAndWriteFile([]byte(theme), fmt.Sprintf("%v/assets/styles.css", b))
 
 	if err != nil {
 		logger.Fatalf("unable to generate theme %v", err.Error())

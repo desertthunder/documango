@@ -1,6 +1,8 @@
 // package config implements methods that handle reading and writing
 // from a config.toml file in the root of a project. This will be
 // the root command.
+//
+// TODO: this could be converted to an init &/or check command
 package config
 
 import (
@@ -9,8 +11,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/desertthunder/documango/cmd/build"
-	"github.com/desertthunder/documango/cmd/libs/helpers"
-	"github.com/desertthunder/documango/cmd/libs/logs"
+	"github.com/desertthunder/documango/cmd/libs"
 	"github.com/desertthunder/documango/cmd/server"
 	"github.com/urfave/cli/v3"
 )
@@ -32,7 +33,7 @@ type Theme struct {
 	Dark  string `toml:"dark"`
 }
 
-var logger = logs.CreateConsoleLogger("[documango 🥭]")
+var logger = libs.CreateConsoleLogger("[documango 🥭]")
 
 var ConfCommand = &cli.Command{
 	Name:        "documango",
@@ -64,7 +65,7 @@ func ListThemes() {}
 
 // function render config renders the config file to std out
 func RenderConfig() error {
-	f, err := helpers.OpenFileSafe("config.toml")
+	f, err := libs.OpenFileSafe("config.toml")
 
 	if err != nil {
 		logger.Fatalf("unable to open config %v", err.Error())

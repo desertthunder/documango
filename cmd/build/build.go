@@ -5,11 +5,10 @@ import (
 	"io"
 	"os"
 
-	"github.com/desertthunder/documango/cmd/libs/helpers"
-	"github.com/desertthunder/documango/cmd/libs/logs"
+	"github.com/desertthunder/documango/cmd/libs"
 )
 
-var logger = logs.CreateConsoleLogger("[build]")
+var logger = libs.CreateConsoleLogger("[build]")
 
 type FilePath struct {
 	FileP string
@@ -94,7 +93,7 @@ func CopyStaticFiles(src string) ([]*FilePath, error) {
 
 	theme := BuildTheme()
 	theme_path := fmt.Sprintf("%v/styles.css", dest)
-	err = helpers.CreateAndWriteFile([]byte(theme), theme_path)
+	err = libs.CreateAndWriteFile([]byte(theme), theme_path)
 
 	if err != nil {
 		logger.Warnf("unable to write theme to %v/styles.css \n%v", dest, err.Error())

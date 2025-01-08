@@ -2,6 +2,8 @@
 
 A simple static site, documentation and blog generator tool.
 
+Go from a README to a vibrant website with one command.
+
 ## Usage
 
 ```bash

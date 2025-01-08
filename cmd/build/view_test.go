@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/desertthunder/documango/cmd/libs/helpers"
+	"github.com/desertthunder/documango/cmd/libs"
 )
 
 func relPath(r, d string) string {
@@ -20,7 +20,7 @@ func TestReadContentDirectory(t *testing.T) {
 			t.Fatalf("unable to get working dir %v", err.Error())
 		}
 
-		root := helpers.FindModuleRoot(wd, logger)
+		root := libs.FindModuleRoot(wd, logger)
 		views := readContentDirectory(relPath(root, "examples"),
 			relPath(root, "templates"))
 
