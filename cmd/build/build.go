@@ -61,9 +61,9 @@ func CopyStaticFiles(conf *config.Config) ([]*FilePath, error) {
 	return paths, nil
 }
 
-func CollectStatic(s string, c *config.Config) ([]*FilePath, error) {
+func CollectStatic(c *config.Config) ([]*FilePath, error) {
 	b := c.Options.BuildDir
-	defer logger.Infof("copied static files from %v to %v", s, b)
+	defer logger.Infof("copied static files from %v to %v", c.Options.StaticDir, b)
 	static_paths, err := CopyStaticFiles(c)
 
 	if err != nil {

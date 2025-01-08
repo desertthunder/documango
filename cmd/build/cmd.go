@@ -30,7 +30,7 @@ func Run(ctx context.Context, c *cli.Command) error {
 
 	libs.Pause(lvl)
 
-	if _, err := CollectStatic(conf.Options.StaticDir, conf); err != nil {
+	if _, err := CollectStatic(conf); err != nil {
 		logger.Fatalf("unable to collect static files %v", err.Error())
 	} else {
 		logger.Info("collected static files ✅")

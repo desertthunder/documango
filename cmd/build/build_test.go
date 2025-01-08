@@ -5,6 +5,7 @@
 package build
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -33,27 +34,24 @@ func TestBuild(t *testing.T) {
 		opts := conf.Options
 
 		if opts.ContentDir == defaultOpts.ContentDir {
-			t.Log("content directory not updated")
-			t.Fail()
+			t.Error("content directory not updated")
 		}
 
 		if opts.TemplateDir == defaultOpts.TemplateDir {
-			t.Log("template directory not updated")
-			t.Fail()
+			t.Error("template directory not updated")
+
 		}
 
 		if opts.StaticDir == defaultOpts.StaticDir {
-			t.Log("static directory not updated")
-			t.Fail()
+			t.Error("static directory not updated")
 		}
 
 		if opts.BuildDir == defaultOpts.BuildDir {
-			t.Log("build directory not updated")
-			t.Fail()
+			t.Error("build directory not updated")
 		}
 
 		if sp := opts.GetStaticPath(); sp == defaultOpts.GetStaticPath() {
-			t.Logf("%v should have changed", sp)
+			t.Errorf("%v should have changed", sp)
 		}
 	})
 
@@ -65,8 +63,7 @@ func TestBuild(t *testing.T) {
 		got := logger.GetLevel()
 
 		if got == original {
-			t.Logf("%v should not be %v", got.String(), original.String())
-			t.Fail()
+			t.Errorf("%v should not be %v", got.String(), original.String())
 		}
 	})
 
@@ -89,8 +86,7 @@ func TestBuild(t *testing.T) {
 			desc := fmt.Sprintf("creates HTML markup from markdown for %v", v.name())
 			t.Run(desc, func(t *testing.T) {
 				if len(v.html_content) == 0 {
-					t.Logf("%v should have content but it does not", v.name())
-					t.Fail()
+					t.Errorf("%v should have content but it does not", v.name())
 				}
 
 				// We know there are headings in our test files, so we check
@@ -98,8 +94,7 @@ func TestBuild(t *testing.T) {
 				// of the HTML
 				if !strings.Contains(string(v.content), "# ") {
 					if !strings.Contains(string(v.html_content), "id=") {
-						t.Logf("%v should have occurrences of id= for anchors/linking", v.name())
-						t.Fail()
+						t.Errorf("%v should have occurrences of id= for anchors/linking", v.name())
 					}
 				}
 			})
@@ -108,8 +103,7 @@ func TestBuild(t *testing.T) {
 			t.Run(desc, func(t *testing.T) {
 				if v.front != nil {
 					if len(v.front.Title) == 0 {
-						t.Logf("%v should have a title but it does not", v.name())
-						t.Fail()
+						t.Errorf("%v should have a title but it does not", v.name())
 					}
 				}
 			})
@@ -118,16 +112,14 @@ func TestBuild(t *testing.T) {
 			t.Run(desc, func(t *testing.T) {
 				v.getTemplate()
 				if v.templ == nil {
-					t.Logf("%v should have a defined pointer to a template", v.name())
-					t.Fail()
+					t.Errorf("%v should have a defined pointer to a template", v.name())
 				}
 			})
 
 			desc = fmt.Sprintf("adds navigation links to %v", v.name())
 			t.Run(desc, func(t *testing.T) {
 				if len(v.links) != len(views) {
-					t.Logf("there should be a link for each view (%v total) but there is not", len(views))
-					t.Fail()
+					t.Errorf("there should be a link for each view (%v total) but there is not", len(views))
 				}
 			})
 
@@ -145,8 +137,7 @@ func TestBuild(t *testing.T) {
 					if strings.HasSuffix(f.Name(), ".md") != libs.IsNotMarkdown(f.Name()) {
 						continue
 					} else {
-						t.Logf("%v should be marked as not markdown but it was", f.Name())
-						t.Fail()
+						t.Errorf("%v should be marked as not markdown but it was", f.Name())
 					}
 				}
 
@@ -162,22 +153,70 @@ func TestBuild(t *testing.T) {
 
 	})
 
-	t.Run("collects static files", func(t *testing.T) {
-		t.Skip()
-		t.Run("copies static files from source to dest (build)", func(t *testing.T) {
-		})
-
-		t.Run("builds a theme based on configured options", func(t *testing.T) {
-
-			t.Run("stores stylesheet it in the static build dir", func(t *testing.T) {
-			})
-		})
-
-	})
-
 	t.Run("builds site to configured build directory", func(t *testing.T) {
 		t.Skip()
 		t.Run("stores copy of full markup in view", func(t *testing.T) {
 		})
+	})
+
+	t.Run("build command", func(t *testing.T) {
+		s := strings.Builder{}
+		sb := strings.Builder{}
+		logger.SetOutput(&s)
+
+		ctx := context.Background()
+		ctx = context.WithValue(ctx, config.LoggerKey, logger)
+		ctx = context.WithValue(ctx, config.ConfKey, conf)
+
+		cmd := BuildCommand
+		cmd.Writer = &sb
+
+		args := os.Args[0:1]
+		args = append(args, "--file")
+		args = append(args, fmt.Sprintf("%v/%v", base_path, "config.toml"))
+
+		err := Run(ctx, BuildCommand)
+
+		if err != nil {
+			t.Errorf("command should run %v", err.Error())
+		}
+
+		dir := conf.Options.BuildDir
+
+		d, err := os.Stat(dir)
+
+		if err != nil {
+			t.Errorf("unable to check build dir presence %v", err.Error())
+		}
+
+		if !d.IsDir() {
+			t.Errorf("should have created tmp dir %v", err.Error())
+		}
+	})
+
+	t.Run("collects static files", func(t *testing.T) {
+		t.Run("copies static files from source to dest (build)", func(t *testing.T) {
+			fp, err := CollectStatic(conf)
+
+			if err != nil {
+				t.Errorf("failed to copy files %v", err.Error())
+			}
+
+			if len(fp) < 1 {
+				t.Error("nothing was copied")
+			}
+
+			found := false
+			for _, f := range fp {
+				if strings.Contains(f.FileP, "css") {
+					found = true
+				}
+			}
+
+			if !found {
+				t.Error("no css file copied")
+			}
+		})
+
 	})
 }

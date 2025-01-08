@@ -131,7 +131,7 @@ func (s *server) loadViewLayer() {
 	s.views = build.NewViews(s.contentDir, s.templateDir)
 	s.staticPaths, _ = build.CopyStaticFiles(s.config)
 
-	build.CollectStatic(s.staticDir, s.config)
+	build.CollectStatic(s.config)
 }
 
 func (s *server) reloadHandler(srv *http.Server) {

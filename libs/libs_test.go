@@ -60,7 +60,6 @@ func TestLibsPackage(t *testing.T) {
 				continue
 			} else {
 				t.Errorf("%v should be marked as not markdown but it was", f)
-				t.Fail()
 			}
 		}
 

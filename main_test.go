@@ -35,21 +35,18 @@ func TestMain(t *testing.T) {
 		ctx, err = setContext(ctx, cmd)
 
 		if err != nil {
-			t.Logf("unable to set context \n%v", err.Error())
-			t.Fail()
+			t.Errorf("unable to set context \n%v", err.Error())
 		}
 
 		logger = ctx.Value(config.LoggerKey).(*log.Logger)
 
 		if logger == nil {
-			t.Log("logger should be defined but it is not")
-			t.Fail()
+			t.Error("logger should be defined but it is not")
 		}
 
 		conf := ctx.Value(config.ConfKey).(*config.Config)
 		if conf == nil {
-			t.Log("conf should be defined but it is not")
-			t.Fail()
+			t.Error("conf should be defined but it is not")
 		}
 
 		output := sb.String()
@@ -57,7 +54,7 @@ func TestMain(t *testing.T) {
 		for _, c := range []string{"documango", "OPTIONS", "static site", "help"} {
 			t.Run("output of no subcommand should have "+c, func(t *testing.T) {
 				if !strings.Contains(output, c) {
-					t.Logf("%v should contain %s but does not", output[1:10]+"..."+output[20:], c)
+					t.Errorf("%v should contain %s but does not", output[1:10]+"..."+output[20:], c)
 				}
 			})
 		}
