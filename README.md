@@ -1,5 +1,9 @@
 # Documango 🥭
 
+[![go report card](https://goreportcard.com/badge/desertthunder/documango)](https://goreportcard.com/report/github.com/desertthunder/documango)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Codecov](https://img.shields.io/codecov/c/github/desertthunder/documango?style=flat&logo=codecov&logoColor=%23F01F7A)](https://app.codecov.io/github/desertthunder/documango)
+
 A simple static site, documentation and blog generator tool.
 
 ## Installation
