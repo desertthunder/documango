@@ -83,3 +83,5 @@ These are all version 1 onward
 
 - Pages list?
 - Which theme files should be embedded in the binary?
+- [ ] Move JetBrains mono import to _style.css
+- [ ] Figure out best user experience for font loading

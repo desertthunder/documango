@@ -70,7 +70,7 @@ func TestReadContentDirectory(t *testing.T) {
 					if got == "" {
 						t.Fatal("nothing rendered")
 					} else {
-						logger.Infof("HTML:\n%v", got)
+						logger.Debugf("HTML:\n%v", got)
 					}
 				}
 			},

@@ -126,7 +126,6 @@ func (m *markup) visitNode(n *ts.Node, depth int, parent *astNode) {
 	}
 
 	if ast_n.ElType != "" {
-		logger.Info(ast_n.ElType)
 		if parent != nil {
 			parent.Children = append(parent.Children, ast_n)
 		} else {

@@ -7,3 +7,6 @@ URL = "https://example.com"
 [theme]
 dark = "tokyo-city-dark"
 light = "tokyo-city-light"
+
+[dev]
+port = 4242

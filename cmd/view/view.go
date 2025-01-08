@@ -16,6 +16,7 @@ be it file, stdout or stderr.
 package view
 
 import (
+	"bytes"
 	"fmt"
 	"html/template"
 	"io"
@@ -23,6 +24,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/desertthunder/documango/cmd/libs"
 	"github.com/desertthunder/documango/cmd/libs/logs"
 	"github.com/gomarkdown/markdown"
 	"github.com/gomarkdown/markdown/html"
@@ -31,8 +33,7 @@ import (
 	"golang.org/x/text/language"
 )
 
-var caser = cases.Title(language.AmericanEnglish)
-var Caser = caser
+var Caser = cases.Title(language.AmericanEnglish)
 
 type View struct {
 	Path         string
@@ -45,16 +46,19 @@ type View struct {
 	links        []*NavLink
 }
 
-var logger = logs.CreateConsoleLogger("[View]")
+var logger = logs.CreateConsoleLogger("[view]")
 
+// function NewView is a constructor for a View
+// taking a path (filename), its file contents, and
+// template directory.
 func NewView(p string, c []byte, t string) View {
 	return View{Path: p, content: c, templateDir: t, links: []*NavLink{}}
 }
 
-// function BuildNavigation populates a NavLink
+// function WithNavigation populates a NavLink
 // list in the View struct to build context when
 // rendering the layout
-func BuildNavigation(views []*View) []*View {
+func WithNavigation(views []*View) []*View {
 	links := make([]*NavLink, len(views))
 	for i, v := range views {
 		path := strings.ToLower(v.name())
@@ -101,7 +105,7 @@ func readContentDirectory(dir string, tdir string) []*View {
 			continue
 		}
 
-		if isNotMarkdown(entry.Name()) {
+		if libs.IsNotMarkdown(entry.Name()) {
 			continue
 		}
 
@@ -116,13 +120,9 @@ func readContentDirectory(dir string, tdir string) []*View {
 
 	}
 
-	views = BuildNavigation(views)
-	return views
-}
+	views = WithNavigation(views)
 
-func isNotMarkdown(n string) bool {
-	p := strings.Split(n, ".")
-	return p[len(p)-1] != "md"
+	return views
 }
 
 func openContentFile(p string, t string) *View {
@@ -140,24 +140,24 @@ func openContentFile(p string, t string) *View {
 		// p, nil, data, []byte{}, t, nil, []*NavLink{}
 
 		v = NewView(p, data, t)
-		v.toHTML()
+		v.renderContentToHTML()
 		return &v
 	}
 
 	if frontmatter == nil {
 		v = NewView(p, data, t)
-		v.toHTML()
+		v.renderContentToHTML()
 		return &v
 	}
 
 	logger.Info(frontmatter.Title)
 	v = NewView(p, content, t)
 	v.front = frontmatter
-	v.toHTML()
+	v.renderContentToHTML()
 	return &v
 }
 
-func (v *View) toHTML() {
+func (v *View) renderContentToHTML() {
 	p := parser.NewWithExtensions(
 		parser.CommonExtensions | parser.AutoHeadingIDs | parser.NoEmptyLineBeforeBlock)
 	doc := p.Parse(v.content)
@@ -196,28 +196,31 @@ func (v *View) getTemplate() {
 }
 
 func (v *View) Build() *View {
-	v.toHTML()
+	v.renderContentToHTML()
 	v.getTemplate()
-	s := strings.Builder{}
-	err := v.Render(&s)
+
+	b := bytes.NewBuffer([]byte{})
+	err := v.Render(b)
 	if err != nil {
 		logger.Fatalf("unable to render %v \n%v", v.name(), err.Error())
 	}
-	v.html_page = []byte(s.String())
+
+	v.html_page = b.Bytes()
+
 	return v
 }
 
 // Template Context
 type Context struct {
 	Contents template.HTML
-	Links    []*NavLink
 	// Configurable Attributes
+	Links     []*NavLink
 	Theme     string
 	DocTitle  string
 	PageTitle string
 }
 
-// func Render executes and writes the template
+// func Render executes and writes the template with included frontmatter
 func (v *View) Render(w io.Writer) error {
 	templ_ctx := Context{
 		Contents:  template.HTML(v.HTMLContent()),
@@ -235,13 +238,6 @@ func (v *View) Render(w io.Writer) error {
 	}
 
 	err := v.templ.Execute(w, templ_ctx)
-
-	s := strings.Builder{}
-	err = v.templ.Execute(&s, templ_ctx)
-	if err != nil {
-		logger.Fatalf("unable to render %v \n%v", v.name(), err.Error())
-	}
-	v.html_page = []byte(s.String())
 
 	return err
 }

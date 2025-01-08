@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"strings"
 
-	// "github.com/desertthunder/documango/cmd/libs/debug"
 	"github.com/desertthunder/documango/cmd/build"
 	"github.com/urfave/cli/v3"
 )
 
+// TODO: port from config.toml
 const defaultPort int64 = 4242
 
+// TODO: set log level
 var ServerCommand = &cli.Command{
 	Name:      "server",
 	Authors:   []any{"Owais (github.com/desertthunder)"},

@@ -17,6 +17,10 @@ documango build -c /path/to/your/content
 
 ## Server
 
+The local development server is configurable via the `[dev]` table in a
+`config.toml` file found in the root of your project. See [this](./config.toml)
+for an up to date example.
+
 ## Development
 
 ```bash

@@ -5,9 +5,6 @@ package server
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -17,6 +14,7 @@ import (
 	"time"
 
 	"github.com/desertthunder/documango/cmd/build"
+	"github.com/desertthunder/documango/cmd/libs"
 	"github.com/desertthunder/documango/cmd/libs/logs"
 	"github.com/desertthunder/documango/cmd/view"
 	"github.com/fsnotify/fsnotify"
@@ -27,24 +25,6 @@ var (
 	logger     = logs.CreateConsoleLogger("[server]")
 	stopSignal = make(chan os.Signal, 1)
 )
-
-// function GenerateLogID generates a random 8 digit identifier for
-// logs.
-//
-// TODO: Move to libs
-func GenerateLogID() (string, error) {
-	var id [8]byte
-	_, err := rand.Read(id[:])
-
-	if err != nil {
-		logger.Errorf("error generating random ID: %v", err)
-		return "", err
-	}
-
-	encoded := hex.EncodeToString(id[:])
-
-	return encoded, nil
-}
 
 type middleware struct {
 	h http.Handler
@@ -72,11 +52,6 @@ type server struct {
 	handler     http.Handler
 }
 
-type errorData struct {
-	Status int    `json:"statusCode"`
-	Err    string `json:"ErrorMessage"`
-}
-
 func (m middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	method := r.Method
 	path := r.URL.String()
@@ -96,8 +71,6 @@ func (m middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func createMachine() state {
 	s := state{}
 	s.ctx, s.canceller = context.WithCancel(context.Background())
-
-	logger.Debug("created state machine")
 
 	return s
 }
@@ -150,18 +123,20 @@ func (s *server) loadViewLayer() {
 	build.CollectStatic(s.staticDir, build.BuildDir)
 }
 
+func (s *server) setup() {
+	s.createLocks()
+	s.loadViewLayer()
+	s.staticPaths, _ = build.CopyStaticFiles(s.staticDir)
+	s.addRoutes()
+	s.addLogger()
+}
+
 func (s *server) reloadHandler(srv *http.Server) {
 	s.loadViewLayer()
 	s.addRoutes()
 	s.addLogger()
 
 	srv.Handler = s.handler
-}
-
-func createErrorJSON(s int, e error) []byte {
-	errData := errorData{s, e.Error()}
-	data, _ := json.Marshal(errData)
-	return data
 }
 
 // function addRoutes parses a directory of template files and
@@ -184,9 +159,11 @@ func (s *server) addRoutes() {
 
 		mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
 			if code, err := w.Write(view.HTML()); err != nil {
-				data := createErrorJSON(http.StatusInternalServerError, err)
+				data := libs.CreateErrorJSON(http.StatusInternalServerError, err)
+
 				w.WriteHeader(http.StatusInternalServerError)
 				w.Write(data)
+
 				logger.Errorf("unable to execute template with code %v: %v",
 					err.Error(), code,
 				)
@@ -229,7 +206,7 @@ func (s *server) watchFiles(ctx context.Context, reload chan struct{}) {
 	for {
 		select {
 		case <-ctx.Done():
-			logger.Infof("stopping watcher...")
+			logger.Debug("stopping watcher...")
 			return
 		case event, ok := <-watcher.Events:
 			if !ok {
@@ -298,6 +275,7 @@ func (s server) listen(ctx context.Context, reload chan struct{}) {
 
 	go func() {
 		for range reload {
+			fmt.Print("\033[H\033[2J")
 			logger.Infof("reloading documents...")
 			s.reloadHandler(srv)
 		}
@@ -311,23 +289,12 @@ func (s server) listen(ctx context.Context, reload chan struct{}) {
 			logger.Fatalf("something went wrong %v", err.Error())
 		}
 	}
-
 }
 
-func (s *server) setup() {
-	s.createLocks()
-	s.loadViewLayer()
-	s.staticPaths, _ = build.CopyStaticFiles(s.staticDir)
-	s.addRoutes()
-	s.addLogger()
-}
-
-// function Run creates filesystem watcher for the provided
-// directory and a server that handles requests to the provided
-// address. When a change is detected in the filesystem,
-// the server is locked and gracefully shutsdown.
-//
-// Is an ActionFunc for the cli library
+// function Run is an ActionFunc for the cli library. It creates a filesystem
+// watcher for the provided directory and a server that handles requests to the
+// provided address. When a change is detected in the filesystem, the server is
+// locked and gracefully shutsdown.
 func Run(ctx context.Context, c *cli.Command) error {
 	dirs := []string{
 		c.String("content"),

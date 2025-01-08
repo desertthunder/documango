@@ -68,7 +68,8 @@ func CopyStaticFiles(src string) ([]*FilePath, error) {
 	if err != nil {
 		logger.Fatal(err.Error())
 	}
-	logger.Infof("created directory %v", dest)
+
+	logger.Debugf("created directory %v", dest)
 
 	entries, err := os.ReadDir(src)
 	if err != nil {
@@ -115,7 +116,7 @@ func BuildHTMLFileContents(v *view.View) (string, error) {
 
 	defer f.Close()
 
-	err = v.Build().Render(f)
+	v.Build()
 
 	if v.Path == "index" {
 		return "/", err

@@ -102,10 +102,6 @@ main {
   hyphens: auto;
 }
 
-article {
-  padding: 2rem;
-}
-
 h1,
 h2,
 h3,
@@ -254,6 +250,7 @@ tr:nth-child(even) {
 article {
   display: flex;
   flex-direction: column;
+  padding: 2rem;
   gap: 1rem;
 }
 
