@@ -174,21 +174,16 @@ func (s *server) watchFiles(ctx context.Context, reload chan struct{}) {
 
 	defer watcher.Close()
 
-	// TODO: we need to create this dir if it doesn't exist
 	if err = watcher.Add(s.contentDir); err != nil {
 		logger.Fatalf("unable to read content dir %v", s.contentDir)
 	}
 
-	// TODO: we need to create this dir
-	// TODO: should this be watched if the user chooses to use the preconfigured
-	// templates?
 	if err = watcher.Add(s.templateDir); err != nil {
-		logger.Fatalf("unable to read template dir %v", s.templateDir)
+		logger.Warnf("unable to read template dir %v", s.templateDir)
 	}
 
-	// TODO: same as templateDir
 	if err = watcher.Add(s.staticDir); err != nil {
-		logger.Fatalf("unable to read static dir %v", s.staticDir)
+		logger.Warnf("unable to read static dir %v", s.staticDir)
 	}
 
 	for {

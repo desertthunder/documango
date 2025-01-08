@@ -2,7 +2,6 @@ package build
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/charmbracelet/log"
@@ -59,23 +58,4 @@ func Run(ctx context.Context, c *cli.Command) error {
 	logger.Infof("built site to %v ✅", opts.BuildDir)
 
 	return nil
-}
-
-func CollectStatic(s string, c *config.Config) ([]*FilePath, error) {
-	b := c.Options.BuildDir
-	defer logger.Infof("copied static files from %v to %v", s, b)
-	static_paths, err := CopyStaticFiles(c)
-
-	if err != nil {
-		logger.Warnf("collecting static files failed\n %v", err.Error())
-	}
-
-	theme := BuildTheme()
-	err = libs.CreateAndWriteFile([]byte(theme), fmt.Sprintf("%v/assets/styles.css", b))
-
-	if err != nil {
-		logger.Fatalf("unable to generate theme %v", err.Error())
-	}
-
-	return static_paths, err
 }

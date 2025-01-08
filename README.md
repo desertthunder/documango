@@ -57,6 +57,16 @@ go build -o tmp
 ./tmp/documango -h
 ```
 
+## Templates
+
+There are three templates embedded in the binary using go's embed package. Two of which are
+used for [themes](README#Theming), and one as a layout for your pages. When running through
+the build process, templates are searched in this order:
+
+1. Matches the name of the markdown file (ex. about.md looks for `{template_dir}/about.html`)
+2. Looks for the template in the file's frontmatter (`layout` key).
+3. Uses `{template_dir}/base.html` if it exists
+
 ## Theming
 
 Themes come from the auto-generated repo from [tinted-theming](https://github.com/tinted-theming/schemes).

@@ -8,22 +8,25 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+	"gopkg.in/yaml.v3"
 )
 
 type Frontmatter struct {
-	Title string `toml:"title"`
-	Draft bool   `toml:"draft"`
+	Title  string `toml:"title" yaml:"title"`
+	Layout string `toml:"layout" yaml:"layout"`
+	Draft  bool   `toml:"draft" yaml:"draft"`
 }
 
 func SplitFrontmatter(content []byte) (*Frontmatter, []byte, error) {
 	reader := bufio.NewReader(bytes.NewReader(content))
-
 	start, err := reader.ReadString('\n')
 	if err != nil && err != io.EOF {
 		return nil, nil, err
 	}
 
-	if !strings.HasPrefix(strings.TrimSpace(start), "+++") {
+	is_toml := strings.HasPrefix(strings.TrimSpace(start), "+++")
+	is_yaml := strings.HasPrefix(strings.TrimSpace(start), "---")
+	if !is_toml && !is_yaml {
 		return nil, content, nil
 	}
 
@@ -42,6 +45,11 @@ func SplitFrontmatter(content []byte) (*Frontmatter, []byte, error) {
 			continue
 		}
 
+		if strings.HasPrefix(strings.TrimSpace(line), "---") {
+			in_fm = false
+			continue
+		}
+
 		if in_fm {
 			fm.WriteString(line)
 		} else {
@@ -54,7 +62,12 @@ func SplitFrontmatter(content []byte) (*Frontmatter, []byte, error) {
 	}
 
 	t := Frontmatter{Draft: false}
-	toml.Unmarshal(bytes.TrimSpace(fm.Bytes()), &t)
+
+	if is_toml {
+		toml.Unmarshal(bytes.TrimSpace(fm.Bytes()), &t)
+	} else if is_yaml {
+		yaml.Unmarshal(bytes.TrimSpace(fm.Bytes()), &t)
+	}
 
 	return &t, bytes.TrimSpace(b.Bytes()), nil
 }

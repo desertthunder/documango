@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,20 +20,14 @@ type ErrorData struct {
 	Err    string `json:"ErrorMessage"`
 }
 
-// function GenerateLogID generates a random 8 digit identifier for
-// logs.
-func GenerateLogID(logger *log.Logger) (string, error) {
+// function GenerateLogID generates a random 8 digit identifier for logs.
+func GenerateLogID(logger *log.Logger) string {
 	var id [8]byte
-	_, err := rand.Read(id[:])
-
-	if err != nil {
-		logger.Errorf("error generating random ID: %v", err)
-		return "", err
-	}
+	rand.Read(id[:])
 
 	encoded := hex.EncodeToString(id[:])
 
-	return encoded, nil
+	return encoded
 }
 
 func CreateErrorJSON(status int, msg error) []byte {
@@ -75,7 +70,7 @@ func CreateAndWriteFile(contents []byte, path string) error {
 	return nil
 }
 
-func FindModuleRoot(dir string, logger *log.Logger) (roots string) {
+func FindModuleRoot(dir string, logger *log.Logger) string {
 	dir = filepath.Clean(dir)
 	for {
 		p := filepath.Join(dir, "go.mod")
@@ -96,7 +91,7 @@ func FindModuleRoot(dir string, logger *log.Logger) (roots string) {
 	return ""
 }
 
-func FindWDRoot(l ...*log.Logger) (roots string) {
+func FindWDRoot(l ...*log.Logger) string {
 	var logger *log.Logger
 	if l == nil {
 		logger = log.Default()
@@ -112,4 +107,42 @@ func FindWDRoot(l ...*log.Logger) (roots string) {
 func ToJSONString(v any) string {
 	data, _ := json.MarshalIndent(v, "", "  ")
 	return string(data)
+}
+
+func CreateDir(d string) (string, error) {
+	err := os.MkdirAll(d, os.ModePerm)
+	if err != nil {
+		return "", fmt.Errorf("unable to create build & static assets dir at %v",
+			err.Error(),
+		)
+	}
+	return d, err
+}
+
+func CopyFile(fname, src, dest string) (string, error) {
+	src_path := fmt.Sprintf("%v/%v", src, fname)
+	dest_path := fmt.Sprintf("%v/%v", dest, fname)
+	data, err := os.ReadFile(src_path)
+	if err != nil {
+		return "", fmt.Errorf("unable to read file at %v %v",
+			src_path, err.Error(),
+		)
+	}
+
+	_ = os.Remove(dest_path)
+	f, err := os.Create(dest_path)
+	if err != nil {
+		return "", fmt.Errorf("unable to create file at %v %v",
+			src_path, err.Error(),
+		)
+	}
+
+	code, err := io.WriteString(f, string(data))
+	if err != nil {
+		return "", fmt.Errorf("unable to write file at %v with code %v %v",
+			dest_path, code, err.Error(),
+		)
+	}
+
+	return dest_path, nil
 }

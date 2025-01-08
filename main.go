@@ -44,7 +44,7 @@ var rootCommand = &cli.Command{
 			Value:       "config.toml",
 			DefaultText: "default text",
 		}, false),
-	Commands: []*cli.Command{server.ServerCommand, build.ThemeCommand, build.BuildCommand},
+	Commands: []*cli.Command{server.ServerCommand, build.BuildCommand},
 	Before:   setContext,
 }
 

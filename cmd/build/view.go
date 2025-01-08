@@ -32,9 +32,29 @@ import (
 	"github.com/gomarkdown/markdown/parser"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
+
+	_ "embed"
 )
 
 var Caser = cases.Title(language.AmericanEnglish)
+
+//go:embed views/base.html
+var DefaultLayoutTemplate []byte
+
+type NavLink struct {
+	Name string
+	Path string
+}
+
+// Template Context
+type Context struct {
+	Contents template.HTML
+	// Configurable Attributes
+	Links     []*NavLink
+	Theme     string
+	DocTitle  string
+	PageTitle string
+}
 
 type View struct {
 	Path         string
@@ -52,6 +72,10 @@ type View struct {
 // template directory.
 func NewView(p string, c []byte, t string) View {
 	return View{Path: p, content: c, templateDir: t, links: []*NavLink{}}
+}
+
+func NewViews(content, templates string) []*View {
+	return readContentDirectory(content, templates)
 }
 
 // function WithNavigation populates a NavLink
@@ -161,40 +185,42 @@ func (v *View) renderContentToHTML() {
 	v.html_content = markdown.Render(doc, renderer)
 }
 
+// function getTemplate checks for the presence of a template dir, then
+// for the following patterns before following back to the default
+// embedded above
+//
+//  1. {template_dir}/{layout}.html
+//  2. {template_dir}/{name}.html
+//  3. {template_dir}/base.html
+//  4. DefaultLayoutTemplate (/cmd/build/views/base.html)
 func (v *View) getTemplate() {
-	patterns := []string{v.name(), "base"}
-	var err error
-	for _, p := range patterns {
-		v.templ, err = template.ParseGlob(
-			fmt.Sprintf("%v/%v.html",
-				v.templateDir, p,
-			),
-		)
+	_, err := os.ReadDir(v.templateDir)
+	n := v.name()
+	if err != nil {
+		if v.front != nil && v.front.Layout != "" {
+			v.templ, err = template.ParseGlob(fmt.Sprintf("%v/%v.html", v.templateDir, v.front.Layout))
 
-		if err != nil {
-			logger.Debugf("unable to parse parse glob for %v: %v",
-				p, err.Error(),
-			)
+			if err != nil {
+				logger.Warnf("layout (%v) defined in frontmatter for %v not found: %v", v.front.Layout, v.name(), err.Error())
+			}
 		}
 
-		if v.templ != nil {
-			return
+		for _, p := range []string{v.name(), "base"} {
+			v.templ, err = template.ParseGlob(fmt.Sprintf("%v/%v.html", v.templateDir, p))
+			if err != nil {
+				logger.Debugf("unable to parse parse glob for %v: %v", p, err.Error())
+			}
+
+			if v.templ != nil {
+				return
+			}
 		}
 	}
 
 	if v.templ == nil {
-		logger.Fatalf("unable to find patterns %v in %v", patterns, v.templateDir)
+		logger.Warnf("no patterns matched for view %v. using default.", n)
+		v.templ, _ = template.New("layout").Parse(string(DefaultLayoutTemplate))
 	}
-}
-
-// Template Context
-type Context struct {
-	Contents template.HTML
-	// Configurable Attributes
-	Links     []*NavLink
-	Theme     string
-	DocTitle  string
-	PageTitle string
 }
 
 // func Render executes and writes the template with included frontmatter
@@ -217,48 +243,6 @@ func (v *View) Render(w io.Writer, conf *config.Config) error {
 	err := v.templ.Execute(w, templ_ctx)
 
 	return err
-}
-
-func (v View) name() string {
-	p := strings.Split(v.Path, "/")
-	f := p[len(p)-1]
-	return strings.Split(f, ".")[0]
-}
-
-func (v View) Content() string {
-	return string(v.content)
-}
-
-// function HTMLContent is a getter for the parsed and rendered
-// Markdown content as a string
-func (v View) HTMLContent() string {
-	return string(v.html_content)
-}
-
-func (v View) HTML() []byte {
-	return v.html_page
-}
-
-type NavLink struct {
-	Name string
-	Path string
-}
-
-func NewViews(content, templates string) []*View {
-	return readContentDirectory(content, templates)
-}
-
-func (v View) HandleFunc(w http.ResponseWriter, r *http.Request) {
-	if code, err := w.Write(v.HTML()); err != nil {
-		data := libs.CreateErrorJSON(http.StatusInternalServerError, err)
-
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write(data)
-
-		logger.Errorf("unable to execute template with code %v: %v",
-			err.Error(), code,
-		)
-	}
 }
 
 func (v *View) BuildHTMLFileContents(c *config.Config) (string, error) {
@@ -292,5 +276,38 @@ func (v *View) BuildHTMLFileContents(c *config.Config) (string, error) {
 		return "/", err
 	} else {
 		return "/" + v.Path, err
+	}
+}
+
+func (v View) name() string {
+	p := strings.Split(v.Path, "/")
+	f := p[len(p)-1]
+	return strings.Split(f, ".")[0]
+}
+
+func (v View) Content() string {
+	return string(v.content)
+}
+
+// function HTMLContent is a getter for the parsed and rendered
+// Markdown content as a string
+func (v View) HTMLContent() string {
+	return string(v.html_content)
+}
+
+func (v View) HTML() []byte {
+	return v.html_page
+}
+
+func (v View) HandleFunc(w http.ResponseWriter, r *http.Request) {
+	if code, err := w.Write(v.HTML()); err != nil {
+		data := libs.CreateErrorJSON(http.StatusInternalServerError, err)
+
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write(data)
+
+		logger.Errorf("unable to execute template with code %v: %v",
+			err.Error(), code,
+		)
 	}
 }

@@ -7,7 +7,6 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/urfave/cli/v3"
 	"gopkg.in/yaml.v3"
 )
 
@@ -48,16 +47,6 @@ type styleCtx struct {
 	ThemeSnippet string
 }
 
-// Unmarshal YAML file into a Theme struct
-func ParseTheme(data []byte) (*Theme, error) {
-	t := Theme{}
-	err := yaml.Unmarshal(data, &t)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing theme: %w", err)
-	}
-	return &t, nil
-}
-
 //go:embed themes/_theme.css
 var ThemeTempl []byte
 
@@ -70,10 +59,14 @@ var DefaultLightThemeFile []byte
 //go:embed themes/dark/tokyo-city-dark.yml
 var DefaultDarkThemeFile []byte
 
-var ThemeCommand = &cli.Command{
-	Name:   "theme",
-	Usage:  "generate stylesheet",
-	Action: Run,
+// Unmarshal YAML file into a Theme struct
+func ParseTheme(data []byte) (*Theme, error) {
+	t := Theme{}
+	err := yaml.Unmarshal(data, &t)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing theme: %w", err)
+	}
+	return &t, nil
 }
 
 func buildStack(errs []error, err error) []error {
