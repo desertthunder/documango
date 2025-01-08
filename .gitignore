@@ -26,3 +26,4 @@ go.work.sum
 
 tmp/
 dist/
+local.coverage.txt

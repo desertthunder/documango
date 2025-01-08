@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/desertthunder/documango/cmd/libs"
+	"github.com/desertthunder/documango/libs"
 )
 
 func relPath(r, d string) string {

@@ -10,7 +10,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/charmbracelet/log"
-	"github.com/desertthunder/documango/cmd/libs"
+	"github.com/desertthunder/documango/libs"
 	"github.com/urfave/cli/v3"
 )
 

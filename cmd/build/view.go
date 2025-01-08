@@ -26,7 +26,7 @@ import (
 	"strings"
 
 	"github.com/desertthunder/documango/cmd/config"
-	"github.com/desertthunder/documango/cmd/libs"
+	"github.com/desertthunder/documango/libs"
 	"github.com/gomarkdown/markdown"
 	"github.com/gomarkdown/markdown/html"
 	"github.com/gomarkdown/markdown/parser"

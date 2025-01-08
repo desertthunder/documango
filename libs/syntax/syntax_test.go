@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/charmbracelet/log"
-	"github.com/desertthunder/documango/cmd/libs"
+	"github.com/desertthunder/documango/libs"
 )
 
 func ExampleParse() {

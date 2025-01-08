@@ -12,7 +12,7 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/desertthunder/documango/cmd/config"
-	"github.com/desertthunder/documango/cmd/libs"
+	"github.com/desertthunder/documango/libs"
 )
 
 func TestBuild(t *testing.T) {

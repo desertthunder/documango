@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/desertthunder/documango/cmd/config"
-	"github.com/desertthunder/documango/cmd/libs"
+	"github.com/desertthunder/documango/libs"
 )
 
 type FilePath struct {

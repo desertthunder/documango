@@ -3,7 +3,7 @@ package server
 import (
 	"testing"
 
-	"github.com/desertthunder/documango/cmd/libs"
+	"github.com/desertthunder/documango/libs"
 )
 
 func TestServer(t *testing.T) {
