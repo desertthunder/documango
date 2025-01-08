@@ -2,6 +2,7 @@ package libs
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -66,6 +67,52 @@ func TestLibsPackage(t *testing.T) {
 	})
 
 	t.Run("CreateErrorJSON", func(t *testing.T) {
-		t.Skip()
+		data := CreateErrorJSON(http.StatusNotFound, fmt.Errorf("not found"))
+		if !strings.Contains(string(data), "404") {
+			t.Error("should have status code")
+		}
+
+		if !strings.Contains(string(data), "not found") {
+			t.Error("should message")
+		}
+	})
+
+	root := FindWDRoot()
+	t.Run("open file unsafe", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r != nil {
+				t.Error("this should not panic")
+			}
+		}()
+		_ = OpenFileUnsafe(fmt.Sprintf("%v/README.md", root))
+
+	})
+
+	t.Run("open file safe", func(t *testing.T) {
+
+		f, err := OpenFileSafe(fmt.Sprintf("%v/README.md", root))
+
+		if err != nil {
+			t.Errorf("failed to open file %v", err.Error())
+		}
+
+		if len(f) < 1 {
+			t.Error("file opened should have content")
+		}
+	})
+
+	t.Run("create dir", func(t *testing.T) {
+		d, err := CreateDir(fmt.Sprintf("%v/test", root))
+
+		if err != nil {
+			t.Errorf("couldn't create dir %v", err.Error())
+		} else {
+			err = os.Remove(d)
+
+			if err != nil {
+				t.Logf("clean up failed %v", err.Error())
+			}
+		}
+
 	})
 }
