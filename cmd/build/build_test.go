@@ -1,7 +1,7 @@
-// package build tests read from the examples directory and builds a site
+// package build tests read from the example directory and builds a site
 // in the temp directory
 //
-// {root}/examples
+// {root}/example
 package build
 
 import (
@@ -20,7 +20,7 @@ func TestBuild(t *testing.T) {
 	logger.SetLevel(log.ErrorLevel)
 
 	root := libs.FindWDRoot()
-	base_path := fmt.Sprintf("%v/examples", root)
+	base_path := fmt.Sprintf("%v/example", root)
 
 	var conf *config.Config
 	var views []*View

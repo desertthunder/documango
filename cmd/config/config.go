@@ -47,7 +47,7 @@ type DevOptions struct {
 }
 
 const (
-	DefaultContentDir  string = "examples"
+	DefaultContentDir  string = "example"
 	DefaultTemplateDir string = "templates"
 	DefaultStaticDir   string = "static"
 	DefaultBuildDir    string = "dist"

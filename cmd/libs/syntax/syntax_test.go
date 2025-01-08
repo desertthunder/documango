@@ -14,7 +14,7 @@ func ExampleParse() {
 
 	wd, _ := os.Getwd()
 	root := libs.FindModuleRoot(wd, logger)
-	f, err := os.Open(fmt.Sprintf("%v/examples/docs/about.md", root))
+	f, err := os.Open(fmt.Sprintf("%v/example/docs/about.md", root))
 
 	if err != nil {
 		logger.Fatalf("unable to open file %v", err.Error())
@@ -30,7 +30,7 @@ func ExampleParse() {
 			logger.Fatalf("unable to marshal json: %v", err.Error())
 		}
 
-		fpath := fmt.Sprintf("%v/examples/test-ast.json", root)
+		fpath := fmt.Sprintf("%v/example/test-ast.json", root)
 
 		if err = os.WriteFile(fpath, data, 0644); err != nil {
 			logger.Fatalf("unable to marshal json: %v", err.Error())
