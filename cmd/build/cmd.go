@@ -2,7 +2,6 @@ package build
 
 import (
 	"context"
-	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/desertthunder/documango/cmd/config"
@@ -19,33 +18,27 @@ var BuildCommand = &cli.Command{
 	Action: Run,
 }
 
-func pause() {
-	if logger.GetLevel() == log.DebugLevel {
-		return
-	}
-
-	time.Sleep(time.Millisecond * 500)
-}
-
 func Run(ctx context.Context, c *cli.Command) error {
 	logger = ctx.Value("LOGGER").(*log.Logger)
+	lvl := logger.GetLevel()
 	conf := ctx.Value(config.ConfKey).(*config.Config)
-	opts := conf.Options
-	views := NewViews(opts.ContentDir, opts.TemplateDir)
+	views := NewViews(conf.Options.ContentDir, conf.Options.TemplateDir)
 
 	conf.UpdateLogLevel(logger)
 
 	logger.Infof("building site %v", conf.Metadata.Name)
 
-	pause()
-	if _, err := CollectStatic(opts.StaticDir, conf); err != nil {
+	libs.Pause(lvl)
+
+	if _, err := CollectStatic(conf.Options.StaticDir, conf); err != nil {
 		logger.Fatalf("unable to collect static files %v", err.Error())
 	} else {
 		logger.Info("collected static files ✅")
 	}
 
 	for _, v := range views {
-		pause()
+		libs.Pause(lvl)
+
 		if _, err := v.BuildHTMLFileContents(conf); err != nil {
 			logger.Fatalf("unable to build view %v %v", v.Path, err.Error())
 		}
@@ -53,9 +46,9 @@ func Run(ctx context.Context, c *cli.Command) error {
 		logger.Infof("built page %v.html (%v)", v.Path, v.name())
 	}
 
-	pause()
+	libs.Pause(lvl)
 
-	logger.Infof("built site to %v ✅", opts.BuildDir)
+	logger.Infof("built site to %v ✅", conf.Options.BuildDir)
 
 	return nil
 }

@@ -81,3 +81,11 @@ func SetLogLevel(l *log.Logger, s string) {
 		l.SetLevel(log.InfoLevel)
 	}
 }
+
+func Pause(l log.Level) {
+	if l == log.DebugLevel {
+		return
+	}
+
+	time.Sleep(time.Millisecond * 500)
+}
