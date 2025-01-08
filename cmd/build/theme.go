@@ -1,7 +1,6 @@
-package view
+package build
 
 import (
-	"context"
 	_ "embed"
 	"fmt"
 	"strings"
@@ -164,10 +163,4 @@ func BuildTheme(args ...string) string {
 	}
 
 	return b.String()
-}
-
-func Run(ctx context.Context, c *cli.Command) error {
-	theme := BuildTheme()
-	logger.Infof("generated stylesheet \n%v", theme)
-	return nil
 }

@@ -16,7 +16,6 @@ import (
 	"github.com/desertthunder/documango/cmd/build"
 	"github.com/desertthunder/documango/cmd/libs"
 	"github.com/desertthunder/documango/cmd/libs/logs"
-	"github.com/desertthunder/documango/cmd/view"
 	"github.com/fsnotify/fsnotify"
 	"github.com/urfave/cli/v3"
 )
@@ -45,7 +44,7 @@ type server struct {
 	contentDir  string
 	templateDir string
 	staticDir   string
-	views       []*view.View
+	views       []*build.View
 	staticPaths []*build.FilePath
 	watcher     fsnotify.Watcher
 	locks       locks
@@ -117,7 +116,7 @@ func (s *server) loadViewLayer() {
 	s.locks.documentLoader.Lock()
 	defer s.locks.documentLoader.Unlock()
 
-	s.views = view.NewViews(s.contentDir, s.templateDir)
+	s.views = build.NewViews(s.contentDir, s.templateDir)
 	s.staticPaths, _ = build.CopyStaticFiles(s.staticDir)
 
 	build.CollectStatic(s.staticDir, build.BuildDir)

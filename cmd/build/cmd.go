@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/desertthunder/documango/cmd/libs/helpers"
-	"github.com/desertthunder/documango/cmd/view"
 	"github.com/urfave/cli/v3"
 )
 
@@ -60,7 +59,7 @@ func MergeFlags(flag cli.Flag) []cli.Flag {
 func Run(ctx context.Context, c *cli.Command) error {
 	dirs := []string{c.String("content"), c.String("templates"), c.String("static")}
 	contentDir, templateDir, staticDir := dirs[0], dirs[1], dirs[2]
-	views := view.NewViews(contentDir, templateDir)
+	views := NewViews(contentDir, templateDir)
 
 	if _, err := CollectStatic(staticDir, BuildDir); err != nil {
 		logger.Fatalf("unable to collect static files %v", err.Error())
@@ -84,7 +83,7 @@ func CollectStatic(s, b string) ([]*FilePath, error) {
 		logger.Warnf("collecting static files failed\n %v", err.Error())
 	}
 
-	theme := view.BuildTheme()
+	theme := BuildTheme()
 	err = helpers.CreateAndWriteFile([]byte(theme), fmt.Sprintf("%v/assets/styles.css", b))
 
 	if err != nil {

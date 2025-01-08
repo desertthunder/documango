@@ -1,5 +1,5 @@
 /*
-Package view handles the generation of the site's rendered
+package build handles the generation of the site's rendered
 markdown files.
 
 From the filesystem, a markdown is file is loaded into a markup struct

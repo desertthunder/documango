@@ -1,5 +1,5 @@
 // Methods for handling TOML frontmatter
-package view
+package build
 
 import (
 	"bufio"

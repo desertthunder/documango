@@ -7,7 +7,6 @@ import (
 
 	"github.com/desertthunder/documango/cmd/libs/helpers"
 	"github.com/desertthunder/documango/cmd/libs/logs"
-	"github.com/desertthunder/documango/cmd/view"
 )
 
 var logger = logs.CreateConsoleLogger("[build]")
@@ -93,7 +92,7 @@ func CopyStaticFiles(src string) ([]*FilePath, error) {
 		}
 	}
 
-	theme := view.BuildTheme()
+	theme := BuildTheme()
 	theme_path := fmt.Sprintf("%v/styles.css", dest)
 	err = helpers.CreateAndWriteFile([]byte(theme), theme_path)
 
@@ -107,7 +106,7 @@ func CopyStaticFiles(src string) ([]*FilePath, error) {
 	return paths, nil
 }
 
-func BuildHTMLFileContents(v *view.View) (string, error) {
+func BuildHTMLFileContents(v *View) (string, error) {
 	p := fmt.Sprintf("%v/%v.html", BuildDir, v.Path)
 	f, err := os.Create(p)
 	if err != nil {

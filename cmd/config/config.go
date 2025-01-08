@@ -12,7 +12,6 @@ import (
 	"github.com/desertthunder/documango/cmd/libs/helpers"
 	"github.com/desertthunder/documango/cmd/libs/logs"
 	"github.com/desertthunder/documango/cmd/server"
-	"github.com/desertthunder/documango/cmd/view"
 	"github.com/urfave/cli/v3"
 )
 
@@ -49,7 +48,7 @@ var ConfCommand = &cli.Command{
 			DefaultText: "default text",
 		},
 	},
-	Commands: []*cli.Command{server.ServerCommand, view.ThemeCommand, build.BuildCommand},
+	Commands: []*cli.Command{server.ServerCommand, build.ThemeCommand, build.BuildCommand},
 	Action: func(ctx context.Context, c *cli.Command) error {
 		err := RenderConfig()
 		if err != nil {

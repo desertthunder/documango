@@ -1,5 +1,5 @@
 /*
-package View creates in-memory HTML documents for use by
+package build creates in-memory HTML documents for use by
 the server & build commands.
 
 In its simplest form, our View type contains a reference
@@ -13,7 +13,7 @@ for methods that create a document using one of the following:
 Then executes (renders) the template by placing it in some stream,
 be it file, stdout or stderr.
 */
-package view
+package build
 
 import (
 	"bytes"
@@ -25,7 +25,6 @@ import (
 	"strings"
 
 	"github.com/desertthunder/documango/cmd/libs"
-	"github.com/desertthunder/documango/cmd/libs/logs"
 	"github.com/gomarkdown/markdown"
 	"github.com/gomarkdown/markdown/html"
 	"github.com/gomarkdown/markdown/parser"
@@ -45,8 +44,6 @@ type View struct {
 	templ        *template.Template
 	links        []*NavLink
 }
-
-var logger = logs.CreateConsoleLogger("[view]")
 
 // function NewView is a constructor for a View
 // taking a path (filename), its file contents, and
