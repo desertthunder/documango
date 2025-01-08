@@ -70,14 +70,18 @@ func CreateAndWriteFile(contents []byte, path string) error {
 	return nil
 }
 
-func FindModuleRoot(dir string, logger *log.Logger) string {
+func FindModuleRoot(dir string, l ...*log.Logger) string {
+	var logger *log.Logger
+	if l == nil {
+		logger = log.Default()
+	} else {
+		logger = l[len(l)-1]
+	}
 	dir = filepath.Clean(dir)
 	for {
 		p := filepath.Join(dir, "go.mod")
 		if fi, err := os.Stat(p); err == nil && !fi.IsDir() {
-			if logger != nil {
-				logger.Info(dir)
-			}
+			logger.Info(dir)
 			return dir
 		} else if err != nil {
 			d := filepath.Dir(dir)
