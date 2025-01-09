@@ -34,8 +34,8 @@ func mutateConf(conf *config.Config) {
 }
 
 func TestBuild(t *testing.T) {
-	logger = libs.CreateConsoleLogger("[test]")
-	logger.SetLevel(log.ErrorLevel)
+	BuildLogger = libs.CreateConsoleLogger("[test]")
+	BuildLogger.SetLevel(log.ErrorLevel)
 
 	_, base_path, conf := setupConf()
 
@@ -69,11 +69,11 @@ func TestBuild(t *testing.T) {
 	})
 
 	t.Run("updates log level based on config", func(t *testing.T) {
-		original := logger.GetLevel()
+		original := BuildLogger.GetLevel()
 
-		conf.UpdateLogLevel(logger)
+		conf.UpdateLogLevel(BuildLogger)
 
-		got := logger.GetLevel()
+		got := BuildLogger.GetLevel()
 
 		if got == original {
 			t.Errorf("%v should not be %v", got.String(), original.String())
@@ -165,10 +165,10 @@ func TestBuild(t *testing.T) {
 	t.Run("build command", func(t *testing.T) {
 		s := strings.Builder{}
 		sb := strings.Builder{}
-		logger.SetOutput(&s)
+		BuildLogger.SetOutput(&s)
 
 		ctx := context.Background()
-		ctx = context.WithValue(ctx, config.LoggerKey, logger)
+		ctx = context.WithValue(ctx, config.LoggerKey, BuildLogger)
 		ctx = context.WithValue(ctx, config.ConfKey, conf)
 
 		cmd := BuildCommand

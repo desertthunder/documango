@@ -7,10 +7,6 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-// TODO: port from config.toml
-const defaultPort int64 = 4242
-
-// TODO: set log level
 var ServerCommand = &cli.Command{
 	Name:      "server",
 	Aliases:   []string{"start", "serve"},

@@ -9,6 +9,11 @@ import (
 	"testing"
 )
 
+type TestValue struct {
+	Some  string `json:"some"`
+	Value string `json:"value"`
+}
+
 func TestLibsPackage(t *testing.T) {
 	logger := CreateConsoleLogger("[libs test]")
 
@@ -113,6 +118,50 @@ func TestLibsPackage(t *testing.T) {
 				t.Logf("clean up failed %v", err.Error())
 			}
 		}
+	})
 
+	t.Run("create & write file", func(t *testing.T) {
+		err := CreateAndWriteFile([]byte("{}"), "tmp.json")
+
+		if err != nil {
+			t.Errorf("failed to create file %v", err.Error())
+		}
+
+		f, _ := os.ReadFile("tmp.json")
+
+		if string(f) != "{}" {
+			t.Error("wrong contents written")
+		}
+
+		os.Remove("tmp.json")
+	})
+
+	t.Run("ToJSONString", func(t *testing.T) {
+		want := TestValue{"test", "value"}
+
+		got := ToJSONString(want)
+
+		if !strings.Contains(got, "test") {
+			t.Errorf("invalid serialization %v", got)
+		}
+	})
+
+	t.Run("CreateDir", func(t *testing.T) {
+		d, err := CreateDir("temp")
+		if err != nil {
+			t.Errorf("failed to create dir %v %v", "temp", err.Error())
+		}
+
+		i, err := os.Stat(d)
+
+		if err != nil {
+			t.Error(err.Error())
+		}
+
+		if i.IsDir() != true {
+			t.Errorf("%v should be a dir but it is not", d)
+		}
+
+		os.Remove("temp")
 	})
 }

@@ -1,3 +1,6 @@
+@import url("https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Source+Code+Pro&display=swap");
+
 {{ .ThemeSnippet }}
 
 /*
@@ -58,14 +61,12 @@ html {
 }
 
 html, body, * {
-  /* TODO: Display, Sans, Monospace fonts */
-  /* TODO: Reset */
   margin: 0;
   padding: 0;
 }
 
 body {
-  font-family: "IBM Plex Sans", sans-serif;
+  font-family: "Atkinson Hyperlegible", sans-serif;
   font-size: 1.15em;
   line-height: 1.5;
 }
@@ -108,8 +109,6 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: "Poppins", sans-serif;
-  font-weight: 500;
   letter-spacing: 0em;
   color: var(--base07);
 }
@@ -144,23 +143,14 @@ code {
   color: var(--base03);
   background-color: var(--base01);
   padding: 0.25rem;
+  font-family: "Source Code Pro", monospace;
 }
 
-nav a,
-button,
-footer {
-  font-family: "Noto Sans", sans-serif;
-}
 
 a, a code,
 [data-toggle] {
   color: var(--base0D);
   text-decoration: none;
-}
-
-a code,
-[data-toggle] {
-  font-weight: 500;
 }
 
 a:hover,

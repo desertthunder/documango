@@ -113,7 +113,7 @@ func WithNavigation(views []*View) []*View {
 func readContentDirectory(dir string, tdir string) []*View {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		logger.Fatalf("unable to create views for directory %v: %v", dir, err.Error())
+		BuildLogger.Fatalf("unable to create views for directory %v: %v", dir, err.Error())
 	}
 
 	views := []*View{}
@@ -149,14 +149,14 @@ func openContentFile(p string, t string) *View {
 	var v View
 	data, err := os.ReadFile(p)
 	if err != nil {
-		logger.Errorf("unable to read data from %v: %v", p, err.Error())
+		BuildLogger.Errorf("unable to read data from %v: %v", p, err.Error())
 		return nil
 	}
 
 	frontmatter, content, err := SplitFrontmatter(data)
 
 	if err != nil {
-		logger.Warnf("unable to read content %v", err)
+		BuildLogger.Warnf("unable to read content %v", err)
 
 		v = NewView(p, data, t)
 		v.renderContentToHTML()
@@ -201,14 +201,14 @@ func (v *View) getTemplate() {
 			v.templ, err = template.ParseGlob(fmt.Sprintf("%v/%v.html", v.templateDir, v.front.Layout))
 
 			if err != nil {
-				logger.Warnf("layout (%v) defined in frontmatter for %v not found: %v", v.front.Layout, v.name(), err.Error())
+				BuildLogger.Warnf("layout (%v) defined in frontmatter for %v not found: %v", v.front.Layout, v.name(), err.Error())
 			}
 		}
 
 		for _, p := range []string{v.name(), "base"} {
 			v.templ, err = template.ParseGlob(fmt.Sprintf("%v/%v.html", v.templateDir, p))
 			if err != nil {
-				logger.Debugf("unable to parse parse glob for %v: %v", p, err.Error())
+				BuildLogger.Debugf("unable to parse parse glob for %v: %v", p, err.Error())
 			}
 
 			if v.templ != nil {
@@ -218,7 +218,7 @@ func (v *View) getTemplate() {
 	}
 
 	if v.templ == nil {
-		logger.Warnf("no patterns matched for view %v. using default.", n)
+		BuildLogger.Warnf("no patterns matched for view %v. using default.", n)
 		v.templ, _ = template.New("layout").Parse(string(DefaultLayoutTemplate))
 	}
 }
@@ -254,7 +254,7 @@ func (v *View) BuildHTMLFileContents(c *config.Config) (string, error) {
 
 	defer f.Close()
 
-	logger.Debugf("writing file %v", p)
+	BuildLogger.Debugf("writing file %v", p)
 
 	v.renderContentToHTML()
 	v.getTemplate()
@@ -262,14 +262,14 @@ func (v *View) BuildHTMLFileContents(c *config.Config) (string, error) {
 	b := bytes.NewBuffer([]byte{})
 	err = v.Render(b, c)
 	if err != nil {
-		logger.Fatalf("unable to render %v \n%v", v.name(), err.Error())
+		BuildLogger.Fatalf("unable to render %v \n%v", v.name(), err.Error())
 	}
 
 	v.html_page = b.Bytes()
 
 	_, err = f.Write(v.html_page)
 	if err != nil {
-		logger.Fatalf("unable to render %v \n%v", v.name(), err.Error())
+		BuildLogger.Fatalf("unable to render %v \n%v", v.name(), err.Error())
 	}
 
 	if v.Path == "index" {
@@ -306,7 +306,7 @@ func (v View) HandleFunc(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write(data)
 
-		logger.Errorf("unable to execute template with code %v: %v",
+		BuildLogger.Errorf("unable to execute template with code %v: %v",
 			err.Error(), code,
 		)
 	}

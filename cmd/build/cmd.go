@@ -9,7 +9,7 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-var logger *log.Logger = libs.CreateConsoleLogger("[build]")
+var BuildLogger *log.Logger = libs.CreateConsoleLogger("[build]")
 
 var BuildCommand = &cli.Command{
 	Name:   "build",
@@ -19,36 +19,36 @@ var BuildCommand = &cli.Command{
 }
 
 func Run(ctx context.Context, c *cli.Command) error {
-	logger = ctx.Value("LOGGER").(*log.Logger)
-	lvl := logger.GetLevel()
+	BuildLogger = ctx.Value("LOGGER").(*log.Logger)
+	lvl := BuildLogger.GetLevel()
 	conf := ctx.Value(config.ConfKey).(*config.Config)
 	views := NewViews(conf.Options.ContentDir, conf.Options.TemplateDir)
 
-	conf.UpdateLogLevel(logger)
+	conf.UpdateLogLevel(BuildLogger)
 
-	logger.Infof("building site %v", conf.Metadata.Name)
+	BuildLogger.Infof("building site %v", conf.Metadata.Name)
 
 	libs.Pause(lvl)
 
 	if _, err := CollectStatic(conf); err != nil {
-		logger.Fatalf("unable to collect static files %v", err.Error())
+		BuildLogger.Fatalf("unable to collect static files %v", err.Error())
 	} else {
-		logger.Info("collected static files ✅")
+		BuildLogger.Info("collected static files ✅")
 	}
 
 	for _, v := range views {
 		libs.Pause(lvl)
 
 		if _, err := v.BuildHTMLFileContents(conf); err != nil {
-			logger.Fatalf("unable to build view %v %v", v.Path, err.Error())
+			BuildLogger.Fatalf("unable to build view %v %v", v.Path, err.Error())
 		}
 
-		logger.Infof("built page %v.html (%v)", v.Path, v.name())
+		BuildLogger.Infof("built page %v.html (%v)", v.Path, v.name())
 	}
 
 	libs.Pause(lvl)
 
-	logger.Infof("built site to %v ✅", conf.Options.BuildDir)
+	BuildLogger.Infof("built site to %v ✅", conf.Options.BuildDir)
 
 	return nil
 }

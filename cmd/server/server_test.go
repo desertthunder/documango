@@ -8,8 +8,10 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/charmbracelet/log"
+	"github.com/desertthunder/documango/cmd/build"
 	"github.com/desertthunder/documango/cmd/config"
 	"github.com/desertthunder/documango/libs"
 )
@@ -20,8 +22,6 @@ func setupConf() (string, string, *config.Config) {
 	conf := config.OpenConfig(fmt.Sprintf("%v/%v", base_path, "config.toml"))
 	return root, base_path, conf
 }
-
-var wg = sync.WaitGroup{}
 
 func mutateConf(conf *config.Config) {
 	root := libs.FindWDRoot()
@@ -34,11 +34,12 @@ func mutateConf(conf *config.Config) {
 }
 
 func TestServer(t *testing.T) {
-	wg.Add(1)
+	wg := sync.WaitGroup{}
 
 	sb := strings.Builder{}
 	ServerLogger = log.Default()
 	ServerLogger.SetOutput(&sb)
+	build.BuildLogger = ServerLogger
 	_, _, conf := setupConf()
 
 	var machine state
@@ -126,7 +127,7 @@ func TestServer(t *testing.T) {
 
 		t.Run("listen opens a connection to the server address", func(t *testing.T) {
 			reload := make(chan struct{}, 1)
-
+			wg.Add(1)
 			go func() {
 				defer wg.Done()
 				s.listen(machine.ctx, reload)
@@ -139,6 +140,7 @@ func TestServer(t *testing.T) {
 				t.Fatalf("the server should have handled this %v", err.Error())
 			}
 
+			time.Sleep(3 * time.Second)
 			s.server.Shutdown(machine.ctx)
 		})
 
@@ -154,6 +156,35 @@ func TestServer(t *testing.T) {
 
 		if !strings.Contains(out, "Header") {
 			t.Errorf("output from logger: %v should have request headers", out)
+		}
+	})
+
+	t.Run("Run Command", func(t *testing.T) {
+		wg.Wait()
+		sb := strings.Builder{}
+		ServerLogger = log.Default()
+		ServerLogger.SetOutput(&sb)
+		_, _, conf := setupConf()
+		mutateConf(conf)
+		ctx := context.TODO()
+		ctx = context.WithValue(ctx, config.ConfKey, conf)
+		ctx = context.WithValue(ctx, config.LoggerKey, ServerLogger)
+		ctx, cancelFunc := context.WithCancel(ctx)
+		var err error
+
+		wg.Add(1)
+		go func() {
+			<-ctx.Done()
+			defer wg.Done()
+			err = ServerCommand.Run(ctx, []string{})
+		}()
+
+		time.Sleep(2 * time.Second)
+
+		cancelFunc()
+
+		if err != nil {
+			t.Errorf("execution failed %v", err.Error())
 		}
 	})
 }

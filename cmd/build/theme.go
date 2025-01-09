@@ -123,7 +123,7 @@ func BuildTheme(args ...string) string {
 	errs = theme_ctx.buildStack(errs, err, dark_theme)
 
 	if len(errs) == 2 {
-		logger.Fatalf(
+		BuildLogger.Fatalf(
 			"theme parsing failed \nLight: %v \nDark:%v",
 			errs[0], errs[1],
 		)
@@ -132,11 +132,11 @@ func BuildTheme(args ...string) string {
 	theme_template, err := template.New("theme").Parse(string(ThemeTempl))
 
 	if err != nil {
-		logger.Fatalf("unable to read template dir %v", err)
+		BuildLogger.Fatalf("unable to read template dir %v", err)
 	}
 
 	if err = theme_template.Execute(&b, theme_ctx.withTime(time.Kitchen)); err != nil {
-		logger.Fatalf("unable to execute template %v", err)
+		BuildLogger.Fatalf("unable to execute template %v", err)
 	}
 
 	theme := b.String()
@@ -147,15 +147,15 @@ func BuildTheme(args ...string) string {
 	if err != nil && strings.Contains(err.Error(), "no files") {
 		style_template, _ = template.New("styles").Parse(string(DefaultStyleTempl))
 
-		logger.Debugf("custom template not found: %v \n using default %v",
+		BuildLogger.Debugf("custom template not found: %v \n using default %v",
 			err.Error(), style_template.Name(),
 		)
 	} else if err != nil {
-		logger.Fatalf("unable to parse: %v", err)
+		BuildLogger.Fatalf("unable to parse: %v", err)
 	}
 
 	if err = style_template.Execute(&b, style_ctx.with(theme)); err != nil {
-		logger.Fatalf("unable to execute template %v", err)
+		BuildLogger.Fatalf("unable to execute template %v", err)
 	}
 
 	return b.String()

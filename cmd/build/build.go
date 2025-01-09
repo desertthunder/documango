@@ -4,7 +4,9 @@ import (
 	_ "embed"
 	"fmt"
 	"os"
+	"strings"
 
+	"github.com/charmbracelet/log"
 	"github.com/desertthunder/documango/cmd/config"
 	"github.com/desertthunder/documango/libs"
 )
@@ -17,18 +19,28 @@ type FilePath struct {
 	Name  string
 }
 
-// CopyStaticFiles creates the build dir at d, the provided destination
-// directory as well as the static files directory at {dest}/assets
-func CopyStaticFiles(conf *config.Config) ([]*FilePath, error) {
-	src := conf.Options.StaticDir
-	dest, err := libs.CreateDir(conf.Options.BuildDir + "/assets")
-	paths := []*FilePath{}
+type Builder struct {
+	Config *config.Config
+	Logger *log.Logger
+}
+
+func createStaticBuildDir(c *config.Config) string {
+	dest, err := libs.CreateDir(c.Options.BuildDir + "/assets")
 	if err != nil {
-		logger.Fatal(err.Error())
+		BuildLogger.Fatal(err.Error())
 	}
 
-	logger.Debugf("created directory %v", dest)
+	BuildLogger.Debugf("created directory %v", dest)
 
+	return dest
+}
+
+// CopyStaticFiles creates the build dir at d, the provided destination
+// directory as well as the static files directory at {dest}/assets
+func CopyStaticFiles(c *config.Config) ([]*FilePath, error) {
+	src := c.Options.StaticDir
+	dest := createStaticBuildDir(c)
+	paths := []*FilePath{}
 	entries, err := os.ReadDir(src)
 	if err != nil {
 		return paths, fmt.Errorf("unable to read directory %v %v",
@@ -46,7 +58,7 @@ func CopyStaticFiles(conf *config.Config) ([]*FilePath, error) {
 		path, err := libs.CopyFile(fname, src, dest)
 		paths = append(paths, &FilePath{path, fname})
 		if err != nil {
-			logger.Warnf("unable to copy %v from %v to %v", fname, src, dest)
+			BuildLogger.Warnf("unable to copy %v from %v to %v", fname, src, dest)
 			errs = append(errs, err)
 		}
 	}
@@ -56,7 +68,7 @@ func CopyStaticFiles(conf *config.Config) ([]*FilePath, error) {
 	err = libs.CreateAndWriteFile([]byte(theme), theme_path)
 
 	if err != nil {
-		logger.Warnf("unable to write theme to %v/styles.css \n%v", dest, err.Error())
+		BuildLogger.Warnf("unable to write theme to %v/styles.css \n%v", dest, err.Error())
 		return paths, nil
 	} else {
 		paths = append(paths, &FilePath{Name: "styles.css", FileP: theme_path})
@@ -67,18 +79,20 @@ func CopyStaticFiles(conf *config.Config) ([]*FilePath, error) {
 
 func CollectStatic(c *config.Config) ([]*FilePath, error) {
 	b := c.Options.BuildDir
-	defer logger.Infof("copied static files from %v to %v", c.Options.StaticDir, b)
+	defer BuildLogger.Infof("copied static files from %v to %v", c.Options.StaticDir, b)
 	static_paths, err := CopyStaticFiles(c)
 
 	if err != nil {
-		logger.Warnf("collecting static files failed\n %v", err.Error())
+		BuildLogger.Warnf("collecting static files failed: %v", err.Error())
+
+		_ = CopyJS(c)
 	}
 
 	theme := BuildTheme()
 	err = libs.CreateAndWriteFile([]byte(theme), fmt.Sprintf("%v/assets/styles.css", b))
 
 	if err != nil {
-		logger.Fatalf("unable to generate theme %v", err.Error())
+		BuildLogger.Fatalf("unable to generate theme %v", err.Error())
 	}
 
 	return static_paths, err
@@ -89,26 +103,32 @@ func CollectStatic(c *config.Config) ([]*FilePath, error) {
 func CopyJS(conf *config.Config) error {
 	fs, err := os.Stat(conf.Options.TemplateDir)
 
-	if err != nil || fs.IsDir() {
-		logger.Info("template directory present, using custom theme")
+	if err != nil {
+		if strings.Contains(err.Error(), "no such file or directory") {
+			fpath := fmt.Sprintf("%v/assets/theme.js", conf.Options.BuildDir)
+			f, err := os.Create(fpath)
 
-		return nil
+			if err != nil {
+				BuildLogger.Errorf("sww %v", err.Error())
+				return err
+			}
+
+			if _, err = f.Write([]byte(ScriptFile)); err != nil {
+				BuildLogger.Errorf("sww %v", err.Error())
+				return err
+			}
+
+			BuildLogger.Info("copied theme.js to /dist/")
+			return nil
+		} else {
+			BuildLogger.Errorf("sww %v", err.Error())
+			return err
+		}
 	}
 
-	if err == os.ErrNotExist {
-		fpath := fmt.Sprintf("%v/assets/theme.js", conf.Options.BuildDir)
-		f, err := os.Create(fpath)
-
-		if err != nil {
-			return err
-		}
-
-		if _, err = f.Write([]byte(ScriptFile)); err != nil {
-			return err
-		}
-
-	} else {
-		return err
+	if fs.IsDir() {
+		BuildLogger.Info("template directory present, using custom theme")
+		return nil
 	}
 
 	return nil

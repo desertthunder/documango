@@ -13,14 +13,14 @@ func relPath(r, d string) string {
 }
 
 func TestReadContentDirectory(t *testing.T) {
-	logger = libs.CreateConsoleLogger("[test]")
+	BuildLogger = libs.CreateConsoleLogger("[test]")
 	t.Run("creates a list of Views", func(t *testing.T) {
 		wd, err := os.Getwd()
 		if err != nil {
 			t.Fatalf("unable to get working dir %v", err.Error())
 		}
 
-		root := libs.FindModuleRoot(wd, logger)
+		root := libs.FindModuleRoot(wd, BuildLogger)
 		views := readContentDirectory(relPath(root, "example"),
 			relPath(root, "templates"))
 
@@ -38,7 +38,7 @@ func TestReadContentDirectory(t *testing.T) {
 					if got == "" {
 						t.Fatal("expected content but got none")
 					} else {
-						logger.Debugf("Markdown:\n%v", got)
+						BuildLogger.Debugf("Markdown:\n%v", got)
 					}
 				}
 			},
