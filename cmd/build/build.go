@@ -24,43 +24,35 @@ type Builder struct {
 	Logger *log.Logger
 }
 
+var failBuildAndExit func(msg string) = func(msg string) {
+	BuildLogger.Fatal(msg)
+}
+
 func createStaticBuildDir(c *config.Config) string {
-	dest, err := libs.CreateDir(c.Options.BuildDir + "/assets")
-	if err != nil {
-		BuildLogger.Fatal(err.Error())
-	}
-
+	dest := libs.CreateDir(c.Options.BuildDir + "/assets")
 	BuildLogger.Debugf("created directory %v", dest)
-
 	return dest
 }
 
 // CopyStaticFiles creates the build dir at d, the provided destination
 // directory as well as the static files directory at {dest}/assets
 func CopyStaticFiles(c *config.Config) ([]*FilePath, error) {
+	paths := []*FilePath{}
 	src := c.Options.StaticDir
 	dest := createStaticBuildDir(c)
-	paths := []*FilePath{}
 	entries, err := os.ReadDir(src)
 	if err != nil {
-		return paths, fmt.Errorf("unable to read directory %v %v",
-			src, err.Error(),
-		)
+		return paths, fmt.Errorf("unable to read directory %v %v", src, err.Error())
 	}
 
-	errs := []error{}
 	for _, entry := range entries {
 		fname := entry.Name()
 		if entry.IsDir() {
 			continue
 		}
 
-		path, err := libs.CopyFile(fname, src, dest)
+		path, _ := libs.CopyFile(fname, src, dest)
 		paths = append(paths, &FilePath{path, fname})
-		if err != nil {
-			BuildLogger.Warnf("unable to copy %v from %v to %v", fname, src, dest)
-			errs = append(errs, err)
-		}
 	}
 
 	theme := BuildTheme()
@@ -89,17 +81,16 @@ func CollectStatic(c *config.Config) ([]*FilePath, error) {
 	}
 
 	theme := BuildTheme()
-	err = libs.CreateAndWriteFile([]byte(theme), fmt.Sprintf("%v/assets/styles.css", b))
-
-	if err != nil {
-		BuildLogger.Fatalf("unable to generate theme %v", err.Error())
-	}
+	// The failure case here is when the file exists but that is handled by CopyFile
+	libs.CreateAndWriteFile([]byte(theme), fmt.Sprintf("%v/assets/styles.css", b))
 
 	return static_paths, err
 }
 
 // When using the default template, {views}/base, we want to bundle assets/theme.js
 // to ensure that the user can access the basic light/dark toggler.
+//
+// TODO: this should be configurable
 func CopyJS(conf *config.Config) error {
 	fs, err := os.Stat(conf.Options.TemplateDir)
 

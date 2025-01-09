@@ -18,7 +18,7 @@ func TestBuildCommand(t *testing.T) {
 		BuildLogger.SetOutput(&sb)
 		_, _, c := setupConf()
 
-		mutateConf(c)
+		mutateConf(c, "build")
 
 		ctx := context.TODO()
 		ctx = context.WithValue(ctx, config.ConfKey, c)
@@ -33,9 +33,9 @@ func TestBuildCommand(t *testing.T) {
 			err = BuildCommand.Run(ctx, []string{})
 
 			if err != nil {
+				t.Log(sb.String())
 				t.Errorf("execution failed %v", err.Error())
 			}
-
 			cancelFunc()
 		}()
 

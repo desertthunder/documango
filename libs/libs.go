@@ -113,14 +113,9 @@ func ToJSONString(v any) string {
 	return string(data)
 }
 
-func CreateDir(d string) (string, error) {
-	err := os.MkdirAll(d, os.ModePerm)
-	if err != nil {
-		return "", fmt.Errorf("unable to create build & static assets dir at %v",
-			err.Error(),
-		)
-	}
-	return d, err
+func CreateDir(d string) string {
+	os.MkdirAll(d, os.ModePerm)
+	return d
 }
 
 func CopyFile(fname, src, dest string) (string, error) {

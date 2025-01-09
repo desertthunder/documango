@@ -107,16 +107,11 @@ func TestLibsPackage(t *testing.T) {
 	})
 
 	t.Run("create dir", func(t *testing.T) {
-		d, err := CreateDir(fmt.Sprintf("%v/test", root))
+		d := CreateDir(fmt.Sprintf("%v/test", root))
 
+		err := os.Remove(d)
 		if err != nil {
-			t.Errorf("couldn't create dir %v", err.Error())
-		} else {
-			err = os.Remove(d)
-
-			if err != nil {
-				t.Logf("clean up failed %v", err.Error())
-			}
+			t.Logf("clean up failed %v", err.Error())
 		}
 	})
 
@@ -147,10 +142,7 @@ func TestLibsPackage(t *testing.T) {
 	})
 
 	t.Run("CreateDir", func(t *testing.T) {
-		d, err := CreateDir("temp")
-		if err != nil {
-			t.Errorf("failed to create dir %v %v", "temp", err.Error())
-		}
+		d := CreateDir("temp")
 
 		i, err := os.Stat(d)
 

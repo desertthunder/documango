@@ -23,19 +23,21 @@ func setupConf() (string, string, *config.Config) {
 	return root, base_path, conf
 }
 
-func mutateConf(conf *config.Config) {
+func mutateConf(conf *config.Config, contextDir string) {
 	root := libs.FindWDRoot()
 	base_path := fmt.Sprintf("%v/example", root)
 
-	conf.Options.BuildDir = fmt.Sprintf("%v/%v", base_path, conf.Options.BuildDir)
+	conf.Options.BuildDir = fmt.Sprintf("%v/%v/%v", base_path, conf.Options.BuildDir, contextDir)
 	conf.Options.TemplateDir = fmt.Sprintf("%v/%v", base_path, conf.Options.TemplateDir)
 	conf.Options.ContentDir = fmt.Sprintf("%v/%v", base_path, conf.Options.ContentDir)
 	conf.Options.StaticDir = fmt.Sprintf("%v/%v", base_path, conf.Options.StaticDir)
 }
 
 func TestBuild(t *testing.T) {
-	BuildLogger = libs.CreateConsoleLogger("[test]")
+	sb := strings.Builder{}
+	BuildLogger = log.Default()
 	BuildLogger.SetLevel(log.ErrorLevel)
+	BuildLogger.SetOutput(&sb)
 
 	_, base_path, conf := setupConf()
 
@@ -83,7 +85,7 @@ func TestBuild(t *testing.T) {
 	// NOTE: At this point, we're not working from the root directory
 	// like a user would be so we're going to mutate the opts in the
 	// config struct
-	mutateConf(conf)
+	mutateConf(conf, "build")
 
 	t.Run("creates new views from content & template dir", func(t *testing.T) {
 		views = NewViews(conf.Options.ContentDir, conf.Options.TemplateDir)
@@ -255,6 +257,26 @@ func TestBuild(t *testing.T) {
 				}
 			}
 
+		})
+	})
+
+	t.Run("error states", func(t *testing.T) {
+		sb := strings.Builder{}
+		failBuildAndExit = func(msg string) {
+			sb.WriteString(msg)
+		}
+
+		t.Run("CopyStaticFiles returns an error if the dir doesn't exist", func(t *testing.T) {
+			c := config.NewDefaultConfig()
+			mutateConf(&c, "build")
+			c.Options.StaticDir = "nonsense"
+			fp, err := CopyStaticFiles(&c)
+
+			if err == nil {
+				t.Fatal("CopyStaticFiles should fail because the dir in the config does not exist")
+			} else {
+				t.Logf("error received with fp: %v", fp)
+			}
 		})
 	})
 }

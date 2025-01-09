@@ -105,7 +105,7 @@ func TestServer(t *testing.T) {
 		}
 
 		if jsFile == nil {
-			t.Error("there should be a js file in the test dir but there is not")
+			t.Fatal("there should be a js file in the test dir but there is not")
 		}
 
 		s.loadViewLayer()
@@ -113,7 +113,7 @@ func TestServer(t *testing.T) {
 		_, err = os.ReadFile(fmt.Sprintf("%v/assets/%v", s.config.Options.BuildDir, jsFile.Name()))
 
 		if err != nil {
-			t.Errorf("unable to find js file %v in %v/assets: %v", jsFile.Name(), s.config.Options.BuildDir, err.Error())
+			t.Fatalf("unable to find js file %v in %v/assets: %v", jsFile.Name(), s.config.Options.BuildDir, err.Error())
 		}
 	})
 

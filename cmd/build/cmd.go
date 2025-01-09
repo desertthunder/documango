@@ -19,10 +19,10 @@ var BuildCommand = &cli.Command{
 }
 
 func Run(ctx context.Context, c *cli.Command) error {
-	BuildLogger = ctx.Value("LOGGER").(*log.Logger)
-	lvl := BuildLogger.GetLevel()
+	BuildLogger = ctx.Value(config.LoggerKey).(*log.Logger)
 	conf := ctx.Value(config.ConfKey).(*config.Config)
 	views := NewViews(conf.Options.ContentDir, conf.Options.TemplateDir)
+	lvl := BuildLogger.GetLevel()
 
 	conf.UpdateLogLevel(BuildLogger)
 
