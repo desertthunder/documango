@@ -16,19 +16,33 @@ import (
 	"github.com/desertthunder/documango/libs"
 )
 
+func setupConf() (string, string, *config.Config) {
+	root := libs.FindWDRoot()
+	base_path := fmt.Sprintf("%v/example", root)
+	conf := config.OpenConfig(fmt.Sprintf("%v/%v", base_path, "config.toml"))
+	return root, base_path, conf
+}
+
+func mutateConf(conf *config.Config) {
+	root := libs.FindWDRoot()
+	base_path := fmt.Sprintf("%v/example", root)
+
+	conf.Options.BuildDir = fmt.Sprintf("%v/%v", base_path, conf.Options.BuildDir)
+	conf.Options.TemplateDir = fmt.Sprintf("%v/%v", base_path, conf.Options.TemplateDir)
+	conf.Options.ContentDir = fmt.Sprintf("%v/%v", base_path, conf.Options.ContentDir)
+	conf.Options.StaticDir = fmt.Sprintf("%v/%v", base_path, conf.Options.StaticDir)
+}
+
 func TestBuild(t *testing.T) {
 	logger = libs.CreateConsoleLogger("[test]")
 	logger.SetLevel(log.ErrorLevel)
 
-	root := libs.FindWDRoot()
-	base_path := fmt.Sprintf("%v/example", root)
+	_, base_path, conf := setupConf()
 
-	var conf *config.Config
 	var views []*View
 
 	t.Run("load config from toml file", func(t *testing.T) {
 		defaultConf := config.NewDefaultConfig()
-		conf = config.OpenConfig(fmt.Sprintf("%v/%v", base_path, "config.toml"))
 
 		defaultOpts := defaultConf.Options
 		opts := conf.Options
@@ -39,7 +53,6 @@ func TestBuild(t *testing.T) {
 
 		if opts.TemplateDir == defaultOpts.TemplateDir {
 			t.Error("template directory not updated")
-
 		}
 
 		if opts.StaticDir == defaultOpts.StaticDir {
@@ -70,10 +83,7 @@ func TestBuild(t *testing.T) {
 	// NOTE: At this point, we're not working from the root directory
 	// like a user would be so we're going to mutate the opts in the
 	// config struct
-	conf.Options.BuildDir = fmt.Sprintf("%v/%v", base_path, conf.Options.BuildDir)
-	conf.Options.TemplateDir = fmt.Sprintf("%v/%v", base_path, conf.Options.TemplateDir)
-	conf.Options.ContentDir = fmt.Sprintf("%v/%v", base_path, conf.Options.ContentDir)
-	conf.Options.StaticDir = fmt.Sprintf("%v/%v", base_path, conf.Options.StaticDir)
+	mutateConf(conf)
 
 	t.Run("creates new views from content & template dir", func(t *testing.T) {
 		views = NewViews(conf.Options.ContentDir, conf.Options.TemplateDir)
@@ -150,13 +160,6 @@ func TestBuild(t *testing.T) {
 				)
 			}
 		})
-
-	})
-
-	t.Run("builds site to configured build directory", func(t *testing.T) {
-		t.Skip()
-		t.Run("stores copy of full markup in view", func(t *testing.T) {
-		})
 	})
 
 	t.Run("build command", func(t *testing.T) {
@@ -218,5 +221,40 @@ func TestBuild(t *testing.T) {
 			}
 		})
 
+		t.Run("creates a copy of the theme.js directory if there is no JS in the static files dir", func(t *testing.T) {
+			has_js := false
+
+			entries, err := os.ReadDir(conf.Options.StaticDir)
+
+			if err != nil && err == os.ErrNotExist {
+				err = nil
+			} else if err != nil {
+				t.Errorf("something went wrong %v", err.Error())
+			} else {
+				for _, entry := range entries {
+					if strings.HasSuffix(entry.Name(), ".js") {
+						has_js = true
+						break
+					}
+				}
+			}
+
+			err = CopyJS(conf)
+
+			if err != nil {
+				t.Errorf("operation failed %v", err.Error())
+			}
+
+			if !has_js {
+				_, err := os.ReadFile(fmt.Sprintf("%v/%v", conf.Options.BuildDir, "theme.js"))
+
+				if err != nil && err == os.ErrNotExist {
+					t.Errorf("the script should have been copied but it was not %v", err.Error())
+				} else if err != nil {
+					t.Errorf("something went wrong %v", err.Error())
+				}
+			}
+
+		})
 	})
 }

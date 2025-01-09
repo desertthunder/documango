@@ -1,12 +1,16 @@
 package build
 
 import (
+	_ "embed"
 	"fmt"
 	"os"
 
 	"github.com/desertthunder/documango/cmd/config"
 	"github.com/desertthunder/documango/libs"
 )
+
+//go:embed assets/theme.js
+var ScriptFile string
 
 type FilePath struct {
 	FileP string
@@ -78,4 +82,34 @@ func CollectStatic(c *config.Config) ([]*FilePath, error) {
 	}
 
 	return static_paths, err
+}
+
+// When using the default template, {views}/base, we want to bundle assets/theme.js
+// to ensure that the user can access the basic light/dark toggler.
+func CopyJS(conf *config.Config) error {
+	fs, err := os.Stat(conf.Options.TemplateDir)
+
+	if err != nil || fs.IsDir() {
+		logger.Info("template directory present, using custom theme")
+
+		return nil
+	}
+
+	if err == os.ErrNotExist {
+		fpath := fmt.Sprintf("%v/assets/theme.js", conf.Options.BuildDir)
+		f, err := os.Create(fpath)
+
+		if err != nil {
+			return err
+		}
+
+		if _, err = f.Write([]byte(ScriptFile)); err != nil {
+			return err
+		}
+
+	} else {
+		return err
+	}
+
+	return nil
 }

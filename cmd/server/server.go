@@ -108,12 +108,6 @@ func createServer(config *config.Config) server {
 		staticRoot:  config.Options.GetStaticPath(),
 	}
 
-	s.createLocks()
-	s.loadViewLayer()
-	s.staticPaths, _ = build.CopyStaticFiles(s.config)
-	s.addRoutes()
-	s.addLogger()
-
 	return s
 }
 
@@ -285,6 +279,12 @@ func Run(ctx context.Context, c *cli.Command) error {
 	libs.SetLogLevel(logger, conf.Options.Level)
 
 	s := createServer(conf)
+	s.createLocks()
+	s.loadViewLayer()
+	s.staticPaths, _ = build.CopyStaticFiles(s.config)
+	s.addRoutes()
+	s.addLogger()
+
 	machine := createMachine()
 	reload := make(chan struct{}, 1)
 
