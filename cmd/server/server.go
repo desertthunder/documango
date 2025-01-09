@@ -22,13 +22,9 @@ import (
 )
 
 var (
-	logger     *log.Logger
-	stopSignal = make(chan os.Signal, 1)
+	ServerLogger *log.Logger
+	stopSignal   = make(chan os.Signal, 1)
 )
-
-type middleware struct {
-	h http.Handler
-}
 
 type locks struct {
 	documentLoader *sync.RWMutex
@@ -52,19 +48,7 @@ type server struct {
 	watcher     fsnotify.Watcher
 	locks       locks
 	handler     http.Handler
-}
-
-func (m middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	method := r.Method
-	path := r.URL.String()
-
-	logger.Infof("[%v]: %v", method, path)
-
-	m.h.ServeHTTP(w, r)
-
-	for k, v := range w.Header() {
-		logger.Debugf("Header %v: %v", k, v)
-	}
+	server      *http.Server
 }
 
 // function createMachine creates a state machine that stores
@@ -81,18 +65,36 @@ func createMachine() state {
 // instance to ensure that there are no race conditions
 // between document loading and server lifecycle
 func (s *server) createLocks() {
-	logger.Debug("creating locks")
+	ServerLogger.Debug("creating locks")
 
 	s.locks.documentLoader = &sync.RWMutex{}
 	s.locks.serverStarter = &sync.RWMutex{}
 }
 
-// function addLogger adds logging middleware that wraps the
-// mux instance
-func (s *server) addLogger() {
-	logger.Debug("adding logger")
+type Middleware struct {
+	Handler http.Handler
+	MLogger *log.Logger
+}
 
-	s.handler = middleware{h: s.handler}
+func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	method := r.Method
+	path := r.URL.String()
+	m.MLogger.Infof("[%v]: %v", method, path)
+	m.Handler.ServeHTTP(w, r)
+
+	for k, v := range w.Header() {
+		m.MLogger.Infof("Header %v: %v", k, v)
+	}
+}
+
+// function addLoggingMiddleware adds logging middleware that wraps the mux instance
+func (s *server) addLoggingMiddleware() {
+	ServerLogger.Debug("adding logger")
+
+	if s.handler == nil {
+		panic("")
+	}
+	s.handler = Middleware{Handler: s.handler, MLogger: ServerLogger}
 }
 
 // function createServer instantiates a server instance
@@ -117,41 +119,41 @@ func createServer(config *config.Config) server {
 // Right now the contents of the file are stored in the struct
 // but this could prove to be less than performant and not scalable.
 func (s *server) loadViewLayer() {
-	logger.Debug("loading views")
+	ServerLogger.Debug("loading views")
 
 	s.locks.documentLoader.Lock()
 	defer s.locks.documentLoader.Unlock()
 
-	s.views = build.NewViews(s.contentDir, s.templateDir)
+	s.views = build.NewViews(s.config.Options.ContentDir, s.config.Options.TemplateDir)
 	s.staticPaths, _ = build.CopyStaticFiles(s.config)
 
 	build.CollectStatic(s.config)
 }
 
-func (s *server) reloadHandler(srv *http.Server) {
+func (s *server) reloadHandler() {
 	s.loadViewLayer()
 	s.addRoutes()
-	s.addLogger()
+	s.addLoggingMiddleware()
 
-	srv.Handler = s.handler
+	s.server.Handler = s.handler
 }
 
 // function addRoutes parses a directory of template files and
 // executes them based on html files found in the templates
 // directory (defaults to /templates)
 func (s *server) addRoutes() {
-	logger.Debug("registering routes")
+	ServerLogger.Debug("registering routes")
 
 	mux := http.NewServeMux()
 	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir(s.staticRoot))))
-	logger.Infof("Serving static files from %v at /assets/", s.staticRoot)
+	ServerLogger.Infof("Serving static files from %v at /assets/", s.staticRoot)
 
 	for _, v := range s.views {
 		if route, err := v.BuildHTMLFileContents(s.config); err != nil {
-			logger.Fatalf("unable to build file for route %v \n%v", route, err.Error())
+			ServerLogger.Fatalf("unable to build file for route %v \n%v", route, err.Error())
 		} else {
 			mux.HandleFunc(route, v.HandleFunc)
-			logger.Infof("Registered Route: %v", route)
+			ServerLogger.Infof("Registered Route: %v", route)
 		}
 	}
 
@@ -163,51 +165,51 @@ func (s *server) addRoutes() {
 func (s *server) watchFiles(ctx context.Context, reload chan struct{}) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		logger.Errorf("unable to create watcher: %v", err.Error())
+		ServerLogger.Errorf("unable to create watcher: %v", err.Error())
 	}
 
 	defer watcher.Close()
 
 	if err = watcher.Add(s.contentDir); err != nil {
-		logger.Fatalf("unable to read content dir %v", s.contentDir)
+		ServerLogger.Fatalf("unable to read content dir %v", s.contentDir)
 	}
 
 	if err = watcher.Add(s.templateDir); err != nil {
-		logger.Warnf("unable to read template dir %v", s.templateDir)
+		ServerLogger.Warnf("unable to read template dir %v", s.templateDir)
 	}
 
 	if err = watcher.Add(s.staticDir); err != nil {
-		logger.Warnf("unable to read static dir %v", s.staticDir)
+		ServerLogger.Warnf("unable to read static dir %v", s.staticDir)
 	}
 
 	for {
 		select {
 		case <-ctx.Done():
-			logger.Debug("stopping watcher...")
+			ServerLogger.Debug("stopping watcher...")
 			return
 		case event, ok := <-watcher.Events:
 			if !ok {
 				return
 			}
 
-			logger.Debugf("Event: %v | Operation: %v ", event.Name, event.Op.String())
+			ServerLogger.Debugf("Event: %v | Operation: %v ", event.Name, event.Op.String())
 			restart := false
 			switch event.Op {
 			case fsnotify.Create:
-				logger.Debugf("created file %v", event.Name)
+				ServerLogger.Debugf("created file %v", event.Name)
 				restart = true
 				break
 			case fsnotify.Remove:
-				logger.Debugf("removed file %v", event.Name)
+				ServerLogger.Debugf("removed file %v", event.Name)
 				restart = true
 				break
 			case fsnotify.Chmod:
 			case fsnotify.Write:
-				logger.Debugf("modified file %v", event.Name)
+				ServerLogger.Debugf("modified file %v", event.Name)
 				restart = true
 				break
 			default:
-				logger.Warnf("unsupported operation %v", event.Op.String())
+				ServerLogger.Warnf("unsupported operation %v", event.Op.String())
 			}
 
 			if restart {
@@ -222,7 +224,7 @@ func (s *server) watchFiles(ctx context.Context, reload chan struct{}) {
 			}
 
 			if err != nil {
-				logger.Errorf("something went wrong: %v", err.Error())
+				ServerLogger.Errorf("something went wrong: %v", err.Error())
 				return
 			}
 		}
@@ -234,18 +236,18 @@ func (s server) address() string {
 	return fmt.Sprintf(":%v", s.port)
 }
 
-func (s server) listen(ctx context.Context, reload chan struct{}) {
-	srv := &http.Server{Addr: s.address(), Handler: s.handler}
+func (s *server) listen(ctx context.Context, reload chan struct{}) {
+	s.server = &http.Server{Addr: s.address(), Handler: s.handler}
 
 	go func() {
 		<-ctx.Done()
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
 		defer cancel()
-		if err := srv.Shutdown(shutdownCtx); err != nil {
+		if err := s.server.Shutdown(shutdownCtx); err != nil {
 			if err == http.ErrServerClosed {
-				logger.Info("closing server...")
+				ServerLogger.Info("closing server...")
 			} else {
-				logger.Errorf("something went wrong %v", err.Error())
+				ServerLogger.Errorf("something went wrong %v", err.Error())
 			}
 		}
 	}()
@@ -253,17 +255,19 @@ func (s server) listen(ctx context.Context, reload chan struct{}) {
 	go func() {
 		for range reload {
 			fmt.Print("\033[H\033[2J")
-			logger.Infof("reloading documents...")
-			s.reloadHandler(srv)
+			ServerLogger.Infof("reloading documents...")
+
+			time.Sleep(500 * time.Millisecond)
+
+			s.reloadHandler()
 		}
 	}()
 
-	if err := srv.ListenAndServe(); err != nil {
+	if err := s.server.ListenAndServe(); err != nil {
 		if err == http.ErrServerClosed {
-			logger.Info("server closed")
-			os.Exit(0)
+			ServerLogger.Info("server closed")
 		} else {
-			logger.Fatalf("something went wrong %v", err.Error())
+			ServerLogger.Fatalf("something went wrong %v", err.Error())
 		}
 	}
 }
@@ -273,17 +277,17 @@ func (s server) listen(ctx context.Context, reload chan struct{}) {
 // provided address. When a change is detected in the filesystem, the server is
 // locked and gracefully shutsdown.
 func Run(ctx context.Context, c *cli.Command) error {
-	logger = ctx.Value(config.LoggerKey).(*log.Logger)
+	ServerLogger = ctx.Value(config.LoggerKey).(*log.Logger)
 	conf := ctx.Value(config.ConfKey).(*config.Config)
 
-	libs.SetLogLevel(logger, conf.Options.Level)
+	libs.SetLogLevel(ServerLogger, conf.Options.Level)
 
 	s := createServer(conf)
 	s.createLocks()
 	s.loadViewLayer()
 	s.staticPaths, _ = build.CopyStaticFiles(s.config)
 	s.addRoutes()
-	s.addLogger()
+	s.addLoggingMiddleware()
 
 	machine := createMachine()
 	reload := make(chan struct{}, 1)
