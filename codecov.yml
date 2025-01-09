@@ -1,3 +1,4 @@
 ignore:
   - libs/debug/*.go
   - libs/logs.go
+  - libs/syntax/*.go # currently unused

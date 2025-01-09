@@ -1,5 +1,5 @@
 @import url("https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Source+Code+Pro&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono&display=swap");
 
 {{ .ThemeSnippet }}
 
@@ -9,19 +9,12 @@
     v2.0 | 20110126
     License: none (public domain)
 */
-html, body, div, span, applet, object, iframe,
-h1, h2, h3, h4, h5, h6, p, blockquote, pre,
-a, abbr, acronym, address, big, cite, code,
-del, dfn, em, img, ins, kbd, q, s, samp,
-small, strike, strong, sub, sup, tt, var,
-b, u, i, center,
-dl, dt, dd, ol, ul, li,
-fieldset, form, label, legend,
-table, caption, tbody, tfoot, thead, tr, th, td,
-article, aside, canvas, details, embed,
-figure, figcaption, footer, header, hgroup,
-menu, nav, output, ruby, section, summary,
-time, mark, audio, video {
+html, body, div, span, applet, object, iframe, h1, h2, h3, h4, h5, h6, p, blockquote, pre,
+a, abbr, acronym, address, big, cite, code, del, dfn, em, img, ins, kbd, q, s, samp,
+small, strike, strong, sub, sup, tt, var, b, u, i, center, dl, dt, dd, ol, ul, li,
+fieldset, form, label, legend, table, caption, tbody, tfoot, thead, tr, th, td,
+article, aside, canvas, details, embed, figure, figcaption, footer, header, hgroup,
+menu, nav, output, ruby, section, summary, time, mark, audio, video {
 	margin: 0;
 	padding: 0;
 	border: 0;
@@ -138,12 +131,11 @@ blockquote {
   padding: 3px 1em 3px;
 }
 
-pre,
-code {
+pre, code {
   color: var(--base03);
   background-color: var(--base01);
   padding: 0.25rem;
-  font-family: "Source Code Pro", monospace;
+  font-family: "JetBrains Mono", monospace;
 }
 
 
@@ -153,9 +145,7 @@ a, a code,
   text-decoration: none;
 }
 
-a:hover,
-a code:hover,
-[data-toggle]:hover {
+a:hover, a code:hover, [data-toggle]:hover {
   color: var(--base09);
   text-decoration: underline;
 }
@@ -172,21 +162,18 @@ nav ul li {
   display: inline-block;
 }
 
-nav a,
-nav button {
+nav a, nav button {
   text-decoration: none;
   background: var(--base02);
   padding: 0.25rem 0.5rem;
   border-radius: 0.25rem;
 }
 
-nav a:hover,
-nav button:hover {
+nav a:hover, nav button:hover {
   background: var(--base03);
 }
 
-nav,
-footer {
+nav, footer {
   text-align: center;
 }
 
@@ -210,9 +197,7 @@ pre code {
   background: none;
 }
 
-img,
-iframe,
-video {
+img, iframe, video {
   max-width: 100%;
 }
 
@@ -226,14 +211,11 @@ table thead th {
   border-bottom: 0.125rem solid #ddd;
 }
 
-th,
-td {
+th, td {
   padding: 0.5rem;
 }
 
-thead,
-tfoot,
-tr:nth-child(even) {
+thead, tfoot, tr:nth-child(even) {
   background: var(--base02);
 }
 
