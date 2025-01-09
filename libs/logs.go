@@ -3,6 +3,7 @@ package libs
 import (
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -88,4 +89,20 @@ func Pause(l log.Level) {
 	}
 
 	time.Sleep(time.Millisecond * 500)
+}
+
+type Middleware struct {
+	Handler http.Handler
+	MLogger *log.Logger
+}
+
+func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	method := r.Method
+	path := r.URL.String()
+	m.MLogger.Infof("[%v]: %v", method, path)
+	m.Handler.ServeHTTP(w, r)
+
+	for k, v := range w.Header() {
+		m.MLogger.Infof("Header %v: %v", k, v)
+	}
 }

@@ -71,30 +71,11 @@ func (s *server) createLocks() {
 	s.locks.serverStarter = &sync.RWMutex{}
 }
 
-type Middleware struct {
-	Handler http.Handler
-	MLogger *log.Logger
-}
-
-func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	method := r.Method
-	path := r.URL.String()
-	m.MLogger.Infof("[%v]: %v", method, path)
-	m.Handler.ServeHTTP(w, r)
-
-	for k, v := range w.Header() {
-		m.MLogger.Infof("Header %v: %v", k, v)
-	}
-}
-
 // function addLoggingMiddleware adds logging middleware that wraps the mux instance
 func (s *server) addLoggingMiddleware() {
 	ServerLogger.Debug("adding logger")
 
-	if s.handler == nil {
-		panic("")
-	}
-	s.handler = Middleware{Handler: s.handler, MLogger: ServerLogger}
+	s.handler = libs.Middleware{Handler: s.handler, MLogger: ServerLogger}
 }
 
 // function createServer instantiates a server instance
