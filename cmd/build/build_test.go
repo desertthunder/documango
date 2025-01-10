@@ -279,4 +279,6 @@ func TestBuild(t *testing.T) {
 			}
 		})
 	})
+
+	t.Run("builder functions", func(t *testing.T) {})
 }

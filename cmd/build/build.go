@@ -1,8 +1,12 @@
 package build
 
 import (
+	"bytes"
+	"crypto/md5"
 	_ "embed"
 	"fmt"
+	"io"
+	"io/fs"
 	"os"
 	"strings"
 
@@ -22,6 +26,14 @@ type FilePath struct {
 type Builder struct {
 	Config *config.Config
 	Logger *log.Logger
+	state  *builderState
+}
+
+type builderState struct {
+	static bool
+	view   bool
+	asset  bool
+	errors []error
 }
 
 var failBuildAndExit func(msg string) = func(msg string) {
@@ -124,3 +136,120 @@ func CopyJS(conf *config.Config) error {
 
 	return nil
 }
+
+/*
+Builder actions
+
+With the exception of the template execution/view building action, we want to be able to
+recover from errors & panics.
+
+Each of these is a goroutine.
+*/
+
+func initialBuilderState() *builderState {
+	return &builderState{static: false, view: false, asset: false}
+}
+
+// function SetupBuilder is the Builder struct constructor
+// It handles preflight checks
+// (TODO) copies an existing build dir to from {name} to _name
+// (TODO) versioning builds?
+func SetupBuilder(c *config.Config, l *log.Logger) *Builder {
+	if l == nil {
+		return &Builder{Config: c, Logger: BuildLogger, state: initialBuilderState()}
+	} else {
+		return &Builder{Config: c, Logger: l}
+	}
+}
+
+func (b Builder) BuildDir() string {
+	return b.Config.Options.BuildDir
+}
+
+func (b Builder) StaticDir() string {
+	return b.Config.Options.StaticDir
+}
+
+// function BuildStatic copies static files to the build directory
+//  1. Checks that a static dir (defined in conf struct) exists
+//  2. Check that a build static dir exists and is not empty
+//  3. Reads the list of files in the static dir and generate hashes for each file's contents
+//  4. Does the same for the old static files, and compares hashes. If they are different, replace.
+//
+// Can recover
+func (b *Builder) BuildStatic() {
+	old_build_dir := fmt.Sprintf("_%v/assets", b.BuildDir())
+	new_build_dir := b.StaticDir()
+	// TODO: just straight copy old if is a new build
+	current_build_dir := fmt.Sprintf("%v/assets", b.BuildDir())
+
+	old_file_info, err := os.ReadDir(old_build_dir)
+	b.state.errors = append(b.state.errors, err)
+
+	new_file_info, err := os.ReadDir(new_build_dir)
+	b.state.errors = append(b.state.errors, err)
+
+	for _, new_file_entry := range new_file_info {
+		new_file_name := new_file_entry.Name()
+
+		var old_file_entry fs.DirEntry
+		for _, _f := range old_file_info {
+			if _f.Name() == new_file_name {
+				old_file_entry = _f
+				break
+			}
+		}
+
+		if old_file_entry == nil {
+			continue
+		}
+
+		new_file_hash := md5.New()
+		new_file_contents, err := os.ReadFile(fmt.Sprintf("%v/%v", new_build_dir, new_file_name))
+		b.state.errors = append(b.state.errors, err)
+
+		reader := bytes.NewReader(new_file_contents)
+
+		_, err = io.Copy(new_file_hash, reader)
+		b.state.errors = append(b.state.errors, err)
+
+		old_file_hash := md5.New()
+		old_file_contents, err := os.ReadFile(fmt.Sprintf("%v/%v", old_build_dir, old_file_entry.Name()))
+		b.state.errors = append(b.state.errors, err)
+
+		reader.Reset(old_file_contents)
+
+		_, err = io.Copy(new_file_hash, reader)
+		b.state.errors = append(b.state.errors, err)
+
+		if new_file_hash == old_file_hash {
+			continue
+		}
+
+		err = os.Remove(fmt.Sprintf("%v/%v", current_build_dir, old_file_entry.Name()))
+		b.state.errors = append(b.state.errors, err)
+
+		new_file, err := os.Create(fmt.Sprintf("%v/%v", current_build_dir, new_file_entry.Name()))
+		b.state.errors = append(b.state.errors, err)
+
+		_, err = new_file.Write(new_file_contents)
+		b.state.errors = append(b.state.errors, err)
+	}
+}
+
+func (b *Builder) rmNilErrors() {
+	// Remove nil errors
+	final_error_set := []error{}
+	for _, e := range b.state.errors {
+		if e == nil {
+			continue
+		} else {
+			final_error_set = append(final_error_set, e)
+		}
+	}
+
+	b.state.errors = final_error_set
+}
+
+// An error here *should* end execution
+func (b *Builder) BuildViews() {}
