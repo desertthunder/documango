@@ -6,6 +6,7 @@
 - [ ] default favicon.svg
 - [x] More sensible font sizing
 - [ ] Remove *your* links
+- [ ] What was the point of both, collectstatic & copystaticfiles fn?
 
 ## Minimal External Dependencies
 
