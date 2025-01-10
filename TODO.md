@@ -1,5 +1,12 @@
 # TODO (aka road to v1.0.0)
 
+## QA
+
+- [ ] config.toml watcher
+- [ ] default favicon.svg
+- [x] More sensible font sizing
+- [ ] Remove *your* links
+
 ## Minimal External Dependencies
 
 These are for version 1 and onwards.
@@ -29,7 +36,7 @@ The server should...
 - [x] do what the [build](#build) command does, while also serving
       the web pages
 - [x] use a toml config file
-- [ ] build a list of available links for the top level navigation
+- [x] build a list of available links for the top level navigation
 
 ### Watcher
 
@@ -81,7 +88,4 @@ These are all version 1 onward
 
 ## Parking Lot
 
-- Pages list?
 - Which theme files should be embedded in the binary?
-- [ ] Move JetBrains mono import to _style.css
-- [ ] Figure out best user experience for font loading
