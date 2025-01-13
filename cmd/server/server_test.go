@@ -187,4 +187,58 @@ func TestServer(t *testing.T) {
 			t.Errorf("execution failed %v", err.Error())
 		}
 	})
+
+	t.Run("watchFiles", func(t *testing.T) {
+		sb.Reset()
+		ServerLogger = log.Default()
+		ServerLogger.SetOutput(&sb)
+
+		_, _, conf := setupConf()
+
+		mutateConf(conf)
+
+		ctx := context.TODO()
+		ctx = context.WithValue(ctx, config.ConfKey, conf)
+		ctx = context.WithValue(ctx, config.LoggerKey, ServerLogger)
+		ctx, cancelFunc := context.WithCancel(ctx)
+
+		wg.Add(1)
+		s := createServer(conf)
+		s.createLocks()
+		s.addRoutes()
+		s.addLoggingMiddleware()
+
+		go func() {
+			<-ctx.Done()
+			defer wg.Done()
+			s.watchFiles(ctx, make(chan struct{}))
+		}()
+		tmp_path := fmt.Sprintf("%v/test.md", conf.Options.ContentDir)
+
+		time.Sleep(2 * time.Second)
+
+		// Modify file in docs dir
+		f, err := os.Create(tmp_path)
+		if err != nil {
+			t.Fatalf("unable to create file %v", err.Error())
+		}
+
+		_, err = f.Write([]byte("# Test"))
+		if err != nil {
+			os.Remove(tmp_path)
+			t.Fatalf("unable to write to file %v", err.Error())
+		}
+
+		f.Close()
+		time.Sleep(2 * time.Second)
+
+		cancelFunc()
+		os.Remove(tmp_path)
+
+		out := sb.String()
+
+		if !strings.Contains(out, "reload") {
+			t.Errorf("watchFiles should have logged a reload event %v", out)
+		}
+	})
 }
