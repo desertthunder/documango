@@ -36,7 +36,6 @@ func TestLibsPackage(t *testing.T) {
 		if strings.Contains(root, "cmd") {
 			t.Fatalf("incorrect root found")
 		}
-
 	})
 
 	t.Run("FindModuleRoot finds the root directory of the provided function", func(t *testing.T) {
@@ -68,7 +67,6 @@ func TestLibsPackage(t *testing.T) {
 				t.Errorf("%v should be marked as not markdown but it was", f)
 			}
 		}
-
 	})
 
 	t.Run("CreateErrorJSON", func(t *testing.T) {
@@ -90,11 +88,9 @@ func TestLibsPackage(t *testing.T) {
 			}
 		}()
 		_ = OpenFileUnsafe(fmt.Sprintf("%v/README.md", root))
-
 	})
 
 	t.Run("open file safe", func(t *testing.T) {
-
 		f, err := OpenFileSafe(fmt.Sprintf("%v/README.md", root))
 
 		if err != nil {
@@ -155,5 +151,47 @@ func TestLibsPackage(t *testing.T) {
 		}
 
 		os.Remove("temp")
+	})
+
+	t.Run("CopyFile", func(t *testing.T) {
+		err := CreateAndWriteFile([]byte("{}"), "tmp.json")
+
+		if err != nil {
+			t.Errorf("failed to create file %v", err.Error())
+		}
+
+		_, err = CopyFile("tmp.json", ".", ".")
+		if err != nil {
+			t.Errorf("failed to copy file %v", err.Error())
+		}
+
+		os.Remove("tmp.json")
+		os.Remove("tmp.json")
+	})
+
+	t.Run("Error states for lib functions", func(t *testing.T) {
+		t.Run("OpenFileUnsafe", func(t *testing.T) {
+			content := OpenFileUnsafe("non-existent-file.md")
+
+			if len(content) > 0 {
+				t.Error("should have failed to open file")
+			}
+		})
+
+		t.Run("OpenFileSafe", func(t *testing.T) {
+			_, err := OpenFileSafe("non-existent-file.md")
+
+			if err == nil {
+				t.Error("should have failed to open file")
+			}
+		})
+
+		t.Run("CreateAndWriteFile", func(t *testing.T) {
+			err := CreateAndWriteFile([]byte("{}"), "/tmp/")
+
+			if err == nil {
+				t.Error("should have failed to write file")
+			}
+		})
 	})
 }
