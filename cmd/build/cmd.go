@@ -5,11 +5,11 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/desertthunder/documango/internal/config"
-	"github.com/desertthunder/documango/libs"
+	"github.com/desertthunder/documango/internal/logs"
 	"github.com/urfave/cli/v3"
 )
 
-var BuildLogger *log.Logger = libs.CreateConsoleLogger("[build]")
+var BuildLogger *log.Logger = logs.CreateConsoleLogger("[build]")
 
 var BuildCommand = &cli.Command{
 	Name:   "build",
@@ -28,7 +28,7 @@ func Run(ctx context.Context, c *cli.Command) error {
 
 	BuildLogger.Infof("building site %v", conf.Metadata.Name)
 
-	libs.Pause(lvl)
+	logs.Pause(lvl)
 
 	if _, err := CollectStatic(conf); err != nil {
 		BuildLogger.Fatalf("unable to collect static files %v", err.Error())
@@ -37,7 +37,7 @@ func Run(ctx context.Context, c *cli.Command) error {
 	}
 
 	for _, v := range views {
-		libs.Pause(lvl)
+		logs.Pause(lvl)
 
 		if _, err := v.BuildHTMLFileContents(conf); err != nil {
 			BuildLogger.Fatalf("unable to build view %v %v", v.Path, err.Error())
@@ -46,7 +46,7 @@ func Run(ctx context.Context, c *cli.Command) error {
 		BuildLogger.Infof("built page %v.html (%v)", v.Path, v.name())
 	}
 
-	libs.Pause(lvl)
+	logs.Pause(lvl)
 
 	BuildLogger.Infof("built site to %v ✅", conf.Options.BuildDir)
 

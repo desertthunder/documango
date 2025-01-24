@@ -9,11 +9,11 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/desertthunder/documango/internal/config"
-	"github.com/desertthunder/documango/libs"
+	"github.com/desertthunder/documango/internal/utils"
 )
 
 func TestMain(t *testing.T) {
-	root := libs.FindWDRoot()
+	root := utils.FindWDRoot()
 	base_path := fmt.Sprintf("%v/example", root)
 
 	t.Run("setContext updates the context with a config and logger", func(t *testing.T) {

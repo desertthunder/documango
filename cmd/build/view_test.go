@@ -5,7 +5,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/desertthunder/documango/libs"
+	"github.com/desertthunder/documango/internal/logs"
+	"github.com/desertthunder/documango/internal/utils"
 )
 
 func relPath(r, d string) string {
@@ -13,14 +14,14 @@ func relPath(r, d string) string {
 }
 
 func TestReadContentDirectory(t *testing.T) {
-	BuildLogger = libs.CreateConsoleLogger("[test]")
+	BuildLogger = logs.CreateConsoleLogger("[test]")
 	t.Run("creates a list of Views", func(t *testing.T) {
 		wd, err := os.Getwd()
 		if err != nil {
 			t.Fatalf("unable to get working dir %v", err.Error())
 		}
 
-		root := libs.FindModuleRoot(wd, BuildLogger)
+		root := utils.FindModuleRoot(wd, BuildLogger)
 		views := readContentDirectory(relPath(root, "example"),
 			relPath(root, "templates"))
 

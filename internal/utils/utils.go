@@ -1,5 +1,5 @@
-// package libs contains helper functions and utilities used application wide.
-package libs
+// package utils contains helper functions and utilities used application wide.
+package utils
 
 import (
 	"crypto/rand"

@@ -13,18 +13,18 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/desertthunder/documango/internal/config"
-	"github.com/desertthunder/documango/libs"
+	"github.com/desertthunder/documango/internal/utils"
 )
 
 func setupConf() (string, string, *config.Config) {
-	root := libs.FindWDRoot()
+	root := utils.FindWDRoot()
 	base_path := fmt.Sprintf("%v/example", root)
 	conf := config.OpenConfig(fmt.Sprintf("%v/%v", base_path, "config.toml"))
 	return root, base_path, conf
 }
 
 func mutateConf(conf *config.Config, contextDir string) {
-	root := libs.FindWDRoot()
+	root := utils.FindWDRoot()
 	base_path := fmt.Sprintf("%v/example", root)
 
 	conf.Options.BuildDir = fmt.Sprintf("%v/%v/%v", base_path, conf.Options.BuildDir, contextDir)
@@ -146,7 +146,7 @@ func TestBuild(t *testing.T) {
 
 			t.Run("IsNotMarkdown returns false for files that aren't md files", func(t *testing.T) {
 				for _, f := range d {
-					if strings.HasSuffix(f.Name(), ".md") != libs.IsNotMarkdown(f.Name()) {
+					if strings.HasSuffix(f.Name(), ".md") != utils.IsNotMarkdown(f.Name()) {
 						continue
 					} else {
 						t.Errorf("%v should be marked as not markdown but it was", f.Name())

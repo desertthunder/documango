@@ -8,7 +8,7 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/desertthunder/documango/internal/config"
-	"github.com/desertthunder/documango/libs"
+	"github.com/desertthunder/documango/internal/utils"
 )
 
 //go:embed assets/theme.js
@@ -29,7 +29,7 @@ var failBuildAndExit func(msg string) = func(msg string) {
 }
 
 func createStaticBuildDir(c *config.Config) string {
-	dest := libs.CreateDir(c.Options.BuildDir + "/assets")
+	dest := utils.CreateDir(c.Options.BuildDir + "/assets")
 	BuildLogger.Debugf("created directory %v", dest)
 	return dest
 }
@@ -51,13 +51,13 @@ func CopyStaticFiles(c *config.Config) ([]*FilePath, error) {
 			continue
 		}
 
-		path, _ := libs.CopyFile(fname, src, dest)
+		path, _ := utils.CopyFile(fname, src, dest)
 		paths = append(paths, &FilePath{path, fname})
 	}
 
 	theme := BuildTheme()
 	theme_path := fmt.Sprintf("%v/styles.css", dest)
-	err = libs.CreateAndWriteFile([]byte(theme), theme_path)
+	err = utils.CreateAndWriteFile([]byte(theme), theme_path)
 
 	if err != nil {
 		BuildLogger.Warnf("unable to write theme to %v/styles.css \n%v", dest, err.Error())
@@ -82,7 +82,7 @@ func CollectStatic(c *config.Config) ([]*FilePath, error) {
 
 	theme := BuildTheme()
 	// The failure case here is when the file exists but that is handled by CopyFile
-	libs.CreateAndWriteFile([]byte(theme), fmt.Sprintf("%v/assets/styles.css", b))
+	utils.CreateAndWriteFile([]byte(theme), fmt.Sprintf("%v/assets/styles.css", b))
 
 	return static_paths, err
 }

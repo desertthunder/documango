@@ -13,18 +13,18 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/desertthunder/documango/cmd/build"
 	"github.com/desertthunder/documango/internal/config"
-	"github.com/desertthunder/documango/libs"
+	"github.com/desertthunder/documango/internal/utils"
 )
 
 func setupConf() (string, string, *config.Config) {
-	root := libs.FindWDRoot()
+	root := utils.FindWDRoot()
 	base_path := fmt.Sprintf("%v/example", root)
 	conf := config.OpenConfig(fmt.Sprintf("%v/%v", base_path, "config.toml"))
 	return root, base_path, conf
 }
 
 func mutateConf(conf *config.Config) {
-	root := libs.FindWDRoot()
+	root := utils.FindWDRoot()
 	base_path := fmt.Sprintf("%v/example", root)
 
 	conf.Options.BuildDir = fmt.Sprintf("%v/%v", base_path, conf.Options.BuildDir)

@@ -1,4 +1,4 @@
-package libs
+package utils
 
 import (
 	"fmt"
@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/desertthunder/documango/internal/logs"
 )
 
 type TestValue struct {
@@ -15,7 +17,7 @@ type TestValue struct {
 }
 
 func TestLibsPackage(t *testing.T) {
-	logger := CreateConsoleLogger("[libs test]")
+	logger := logs.CreateConsoleLogger("[libs test]")
 
 	t.Run("GenerateLogID", func(t *testing.T) {
 		id := GenerateLogID(logger)

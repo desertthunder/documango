@@ -6,14 +6,14 @@ import (
 	"os"
 
 	"github.com/charmbracelet/log"
-	"github.com/desertthunder/documango/libs"
+	"github.com/desertthunder/documango/internal/utils"
 )
 
 func ExampleParse() {
 	logger.SetLevel(log.InfoLevel)
 
 	wd, _ := os.Getwd()
-	root := libs.FindModuleRoot(wd, logger)
+	root := utils.FindModuleRoot(wd, logger)
 	f, err := os.Open(fmt.Sprintf("%v/example/docs/about.md", root))
 
 	if err != nil {

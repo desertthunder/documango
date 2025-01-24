@@ -16,7 +16,7 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/desertthunder/documango/cmd/build"
 	"github.com/desertthunder/documango/internal/config"
-	"github.com/desertthunder/documango/libs"
+	"github.com/desertthunder/documango/internal/logs"
 	"github.com/fsnotify/fsnotify"
 	"github.com/urfave/cli/v3"
 )
@@ -75,7 +75,7 @@ func (s *server) createLocks() {
 func (s *server) addLoggingMiddleware() {
 	ServerLogger.Debug("adding logger")
 
-	s.handler = libs.Middleware{Handler: s.handler, MLogger: ServerLogger}
+	s.handler = logs.Middleware{Handler: s.handler, MLogger: ServerLogger}
 }
 
 // function createServer instantiates a server instance
@@ -261,7 +261,7 @@ func Run(ctx context.Context, c *cli.Command) error {
 	ServerLogger = ctx.Value(config.LoggerKey).(*log.Logger)
 	conf := ctx.Value(config.ConfKey).(*config.Config)
 
-	libs.SetLogLevel(ServerLogger, conf.Options.Level)
+	logs.SetLogLevel(ServerLogger, conf.Options.Level)
 
 	s := createServer(conf)
 	s.createLocks()

@@ -24,11 +24,12 @@ import (
 	"github.com/desertthunder/documango/cmd/build"
 	"github.com/desertthunder/documango/cmd/server"
 	"github.com/desertthunder/documango/internal/config"
-	"github.com/desertthunder/documango/libs"
+	"github.com/desertthunder/documango/internal/logs"
+	"github.com/desertthunder/documango/internal/utils"
 	"github.com/urfave/cli/v3"
 )
 
-var logger = libs.CreateConsoleLogger("[documango 🥭]")
+var logger = logs.CreateConsoleLogger("[documango 🥭]")
 
 var rootCommand = &cli.Command{
 	Name:        "documango",
@@ -52,7 +53,7 @@ func setContext(parent context.Context, c *cli.Command) (context.Context, error)
 	conf := config.OpenConfig(c.String("file"))
 	ctx := context.WithValue(parent, config.ConfKey, conf)
 	ctx = context.WithValue(ctx, config.LoggerKey, logger)
-	logger.Debugf("Set context %v", libs.ToJSONString(conf))
+	logger.Debugf("Set context %v", utils.ToJSONString(conf))
 	return ctx, nil
 }
 

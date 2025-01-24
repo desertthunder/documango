@@ -9,7 +9,8 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/charmbracelet/log"
-	"github.com/desertthunder/documango/libs"
+	"github.com/desertthunder/documango/internal/logs"
+	"github.com/desertthunder/documango/internal/utils"
 	"github.com/urfave/cli/v3"
 )
 
@@ -19,7 +20,7 @@ const LoggerKey string = "LOGGER"
 //go:embed config.toml
 var DefaultConfigFile []byte
 
-var logger = libs.CreateConsoleLogger("[documango 🥭]")
+var logger = logs.CreateConsoleLogger("[documango 🥭]")
 
 type Config struct {
 	Metadata Meta       `toml:"meta"`
@@ -97,7 +98,7 @@ func NewDefaultConfig() Config {
 
 func OpenConfig(p string) *Config {
 	c := NewDefaultConfig()
-	f, err := libs.OpenFileSafe(p)
+	f, err := utils.OpenFileSafe(p)
 
 	if err != nil {
 		logger.Fatalf("unable to open config %v", err.Error())
@@ -116,5 +117,5 @@ func (d DevOptions) GetStaticPath() string {
 }
 
 func (c Config) UpdateLogLevel(l *log.Logger) {
-	libs.SetLogLevel(l, c.Options.Level)
+	logs.SetLogLevel(l, c.Options.Level)
 }

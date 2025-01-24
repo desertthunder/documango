@@ -26,7 +26,7 @@ import (
 	"strings"
 
 	"github.com/desertthunder/documango/internal/config"
-	"github.com/desertthunder/documango/libs"
+	"github.com/desertthunder/documango/internal/utils"
 	"github.com/gomarkdown/markdown"
 	"github.com/gomarkdown/markdown/html"
 	"github.com/gomarkdown/markdown/parser"
@@ -125,7 +125,7 @@ func readContentDirectory(dir string, tdir string) []*View {
 			continue
 		}
 
-		if libs.IsNotMarkdown(entry.Name()) {
+		if utils.IsNotMarkdown(entry.Name()) {
 			continue
 		}
 
@@ -301,7 +301,7 @@ func (v View) HTML() []byte {
 
 func (v View) HandleFunc(w http.ResponseWriter, r *http.Request) {
 	if code, err := w.Write(v.HTML()); err != nil {
-		data := libs.CreateErrorJSON(http.StatusInternalServerError, err)
+		data := utils.CreateErrorJSON(http.StatusInternalServerError, err)
 
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write(data)
