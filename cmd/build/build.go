@@ -1,3 +1,18 @@
+/*
+package build creates in-memory HTML documents for use by
+the server & build commands.
+
+In its simplest form, our View type contains a reference
+to the contents of a markdown file and contains implementations
+for methods that create a document using one of the following:
+
+ 1. a template in its frontmatter
+ 2. a template with the same name as the file (sans extensions)
+ 3. the base template
+
+Then executes (renders) the template by placing it in some stream,
+be it file, stdout or stderr.
+*/
 package build
 
 import (

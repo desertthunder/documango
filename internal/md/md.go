@@ -4,10 +4,17 @@ package md
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"io"
+	"os"
+	"slices"
 	"strings"
 
 	"github.com/BurntSushi/toml"
+	"github.com/desertthunder/documango/internal/utils"
+	"github.com/gomarkdown/markdown"
+	"github.com/gomarkdown/markdown/html"
+	"github.com/gomarkdown/markdown/parser"
 	"gopkg.in/yaml.v3"
 )
 
@@ -18,8 +25,9 @@ type Frontmatter struct {
 }
 
 type MD struct {
-	Frontmatter Frontmatter
-	Content     interface{}
+	FilePath    string
+	Frontmatter *Frontmatter
+	Content     []byte
 }
 
 func SplitFrontmatter(content []byte) (*Frontmatter, []byte, error) {
@@ -75,4 +83,76 @@ func SplitFrontmatter(content []byte) (*Frontmatter, []byte, error) {
 	}
 
 	return &t, bytes.TrimSpace(b.Bytes()), nil
+}
+
+func OpenContentFile(fp string) (*MD, error) {
+	var md MD
+	data, err := os.ReadFile(fp)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read data from %v: %v", fp, err.Error())
+	}
+
+	frontmatter, content, err := SplitFrontmatter(data)
+
+	md = MD{
+		FilePath:    fp,
+		Frontmatter: frontmatter,
+		Content:     content,
+	}
+
+	if err != nil {
+		err = fmt.Errorf("unable to read content %v", err)
+		return &md, err
+	}
+
+	return &md, nil
+}
+
+// ReadContentDirectory recursively calls constructors on a
+// provided directory and creates pointers to views
+func ReadContentDirectory(dir string, tdir string) ([]*MD, error) {
+	entries, err := os.ReadDir(dir)
+	mdFiles := []*MD{}
+	if err != nil {
+		return mdFiles, fmt.Errorf("unable to create views for directory %v: %v", dir, err.Error())
+	}
+
+	for _, entry := range entries {
+		fpath := fmt.Sprintf("%v/%v", dir, entry.Name())
+		if entry.IsDir() {
+			nestedMD, err := ReadContentDirectory(fpath, tdir)
+			if err != nil {
+				return []*MD{}, err
+			}
+
+			mdFiles = slices.Concat(mdFiles, nestedMD)
+			continue
+		}
+
+		if utils.IsNotMarkdown(entry.Name()) {
+			continue
+		}
+
+		mdFile, err := OpenContentFile(fpath)
+		if err != nil {
+			return []*MD{}, err
+		}
+
+		if mdFile == nil ||
+			(mdFile.Frontmatter != nil && mdFile.Frontmatter.Draft) {
+			continue
+		}
+
+		mdFiles = append(mdFiles, mdFile)
+
+	}
+
+	return mdFiles, nil
+}
+
+func (m MD) HTML() []byte {
+	p := parser.NewWithExtensions(parser.CommonExtensions | parser.AutoHeadingIDs | parser.NoEmptyLineBeforeBlock)
+	renderer := html.NewRenderer(html.RendererOptions{Flags: html.CommonFlags | html.HrefTargetBlank})
+	doc := p.Parse(m.Content)
+	return markdown.Render(doc, renderer)
 }

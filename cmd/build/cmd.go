@@ -6,6 +6,7 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/desertthunder/documango/internal/config"
 	"github.com/desertthunder/documango/internal/logs"
+	"github.com/desertthunder/documango/internal/view"
 	"github.com/urfave/cli/v3"
 )
 
@@ -21,7 +22,7 @@ var BuildCommand = &cli.Command{
 func Run(ctx context.Context, c *cli.Command) error {
 	BuildLogger = ctx.Value(config.LoggerKey).(*log.Logger)
 	conf := ctx.Value(config.ConfKey).(*config.Config)
-	views := NewViews(conf.Options.ContentDir, conf.Options.TemplateDir)
+	views, _ := view.NewViews(conf.Options.ContentDir, conf.Options.TemplateDir)
 	lvl := BuildLogger.GetLevel()
 
 	conf.UpdateLogLevel(BuildLogger)
@@ -43,7 +44,7 @@ func Run(ctx context.Context, c *cli.Command) error {
 			BuildLogger.Fatalf("unable to build view %v %v", v.Path, err.Error())
 		}
 
-		BuildLogger.Infof("built page %v.html (%v)", v.Path, v.name())
+		BuildLogger.Infof("built page %v.html (%v)", v.Path, v.Name())
 	}
 
 	logs.Pause(lvl)

@@ -14,6 +14,7 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/desertthunder/documango/internal/config"
 	"github.com/desertthunder/documango/internal/utils"
+	"github.com/desertthunder/documango/internal/view"
 )
 
 func setupConf() (string, string, *config.Config) {
@@ -41,7 +42,7 @@ func TestBuild(t *testing.T) {
 
 	_, base_path, conf := setupConf()
 
-	var views []*View
+	var views []*view.View
 
 	t.Run("load config from toml file", func(t *testing.T) {
 		defaultConf := config.NewDefaultConfig()
@@ -88,49 +89,57 @@ func TestBuild(t *testing.T) {
 	mutateConf(conf, "build")
 
 	t.Run("creates new views from content & template dir", func(t *testing.T) {
-		views = NewViews(conf.Options.ContentDir, conf.Options.TemplateDir)
-		views = WithNavigation(views)
+		var err error
+		views, err = view.NewViews(conf.Options.ContentDir, conf.Options.TemplateDir)
+		if err != nil {
+			t.Fatalf("unable to build views %v", err.Error())
+		}
+
 		if len(views) < 1 {
 			t.Fatalf("there should be at least 1 view, got %v", len(views))
 		}
 
 		for _, v := range views {
-			desc := fmt.Sprintf("creates HTML markup from markdown for %v", v.name())
+			desc := fmt.Sprintf("creates HTML markup from markdown for %v", v.Name())
 			t.Run(desc, func(t *testing.T) {
-				if len(v.html_content) == 0 {
-					t.Errorf("%v should have content but it does not", v.name())
+				if len(v.Markdown.Content) == 0 {
+					t.Errorf("%v should have content but it does not", v.Name())
 				}
 
 				// We know there are headings in our test files, so we check
 				// that there are id= occurrences in the string representation
 				// of the HTML
-				if !strings.Contains(string(v.content), "# ") {
-					if !strings.Contains(string(v.html_content), "id=") {
-						t.Errorf("%v should have occurrences of id= for anchors/linking", v.name())
+				if !strings.Contains(string(v.Markdown.Content), "# ") {
+					if !strings.Contains(string(v.HTML), "id=") {
+						t.Errorf("%v should have occurrences of id= for anchors/linking", v.Name())
 					}
 				}
 			})
 
-			desc = fmt.Sprintf("adds non-nil pointer to frontmatter if it exists for %v", v.name())
+			desc = fmt.Sprintf("adds non-nil pointer to frontmatter if it exists for %v", v.Name())
 			t.Run(desc, func(t *testing.T) {
-				if v.front != nil {
-					if len(v.front.Title) == 0 {
-						t.Errorf("%v should have a title but it does not", v.name())
+				if v.Markdown.Frontmatter != nil {
+					if len(v.Markdown.Frontmatter.Title) == 0 {
+						t.Errorf("%v should have a title but it does not", v.Name())
 					}
 				}
 			})
 
-			desc = fmt.Sprintf("should have a not nil pointer to a template %v", v.name())
+			desc = fmt.Sprintf("should have a not nil pointer to a template %v", v.Name())
 			t.Run(desc, func(t *testing.T) {
-				v.getTemplate()
-				if v.templ == nil {
-					t.Errorf("%v should have a defined pointer to a template", v.name())
+				err := v.GetTemplate()
+				if err != nil {
+					t.Errorf("failed to get template %v", err.Error())
+				}
+
+				if v.Templ == nil {
+					t.Errorf("%v should have a defined pointer to a template", v.Name())
 				}
 			})
 
-			desc = fmt.Sprintf("adds navigation links to %v", v.name())
+			desc = fmt.Sprintf("adds navigation links to %v", v.Name())
 			t.Run(desc, func(t *testing.T) {
-				if len(v.links) != len(views) {
+				if len(v.Links) != len(views) {
 					t.Errorf("there should be a link for each view (%v total) but there is not", len(views))
 				}
 			})

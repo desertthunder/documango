@@ -17,6 +17,7 @@ import (
 	"github.com/desertthunder/documango/cmd/build"
 	"github.com/desertthunder/documango/internal/config"
 	"github.com/desertthunder/documango/internal/logs"
+	"github.com/desertthunder/documango/internal/view"
 	"github.com/fsnotify/fsnotify"
 	"github.com/urfave/cli/v3"
 )
@@ -43,7 +44,7 @@ type server struct {
 	staticDir   string
 	staticRoot  string
 	config      *config.Config
-	views       []*build.View
+	views       []*view.View
 	staticPaths []*build.FilePath
 	watcher     fsnotify.Watcher
 	locks       locks
@@ -99,13 +100,15 @@ func createServer(config *config.Config) server {
 //
 // Right now the contents of the file are stored in the struct
 // but this could prove to be less than performant and not scalable.
+//
+// TODO: handle error value
 func (s *server) loadViewLayer() {
 	ServerLogger.Debug("loading views")
 
 	s.locks.documentLoader.Lock()
 	defer s.locks.documentLoader.Unlock()
 
-	s.views = build.NewViews(s.config.Options.ContentDir, s.config.Options.TemplateDir)
+	s.views, _ = view.NewViews(s.config.Options.ContentDir, s.config.Options.TemplateDir)
 	s.staticPaths, _ = build.CopyStaticFiles(s.config)
 
 	build.CollectStatic(s.config)
@@ -133,7 +136,7 @@ func (s *server) addRoutes() {
 		if route, err := v.BuildHTMLFileContents(s.config); err != nil {
 			ServerLogger.Fatalf("unable to build file for route %v \n%v", route, err.Error())
 		} else {
-			mux.HandleFunc(route, v.HandleFunc)
+			mux.HandleFunc(route, v.Handler(ServerLogger))
 			ServerLogger.Infof("Registered Route: %v", route)
 		}
 	}
