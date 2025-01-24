@@ -3,7 +3,7 @@ package server
 import (
 	"strings"
 
-	"github.com/desertthunder/documango/cmd/config"
+	"github.com/desertthunder/documango/internal/config"
 	"github.com/urfave/cli/v3"
 )
 

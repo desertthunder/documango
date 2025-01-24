@@ -22,8 +22,8 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/desertthunder/documango/cmd/build"
-	"github.com/desertthunder/documango/cmd/config"
 	"github.com/desertthunder/documango/cmd/server"
+	"github.com/desertthunder/documango/internal/config"
 	"github.com/desertthunder/documango/libs"
 	"github.com/urfave/cli/v3"
 )

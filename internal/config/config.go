@@ -1,11 +1,10 @@
 // package config implements methods that handle reading and writing
 // from a config.toml file in the root of a project. This will be
 // the root command. It passes the config file attrs into context.
-//
-// TODO: this could be converted to an init &/or check command
 package config
 
 import (
+	_ "embed"
 	"fmt"
 
 	"github.com/BurntSushi/toml"
@@ -16,6 +15,9 @@ import (
 
 const ConfKey string = "CONFIG"
 const LoggerKey string = "LOGGER"
+
+//go:embed config.toml
+var DefaultConfigFile []byte
 
 var logger = libs.CreateConsoleLogger("[documango 🥭]")
 
@@ -46,42 +48,32 @@ type DevOptions struct {
 	Level       string `toml:"level"`
 }
 
-const (
-	DefaultContentDir  string = "example"
-	DefaultTemplateDir string = "templates"
-	DefaultStaticDir   string = "static"
-	DefaultBuildDir    string = "dist"
-)
-
 func BuildFlags(show bool) []cli.Flag {
+	c := NewDefaultConfig()
 	return []cli.Flag{
 		&cli.StringFlag{
-			Name:     "content",
-			Aliases:  []string{"c", "md"},
-			Required: false,
-
-			DefaultText: DefaultContentDir,
-			Value:       DefaultContentDir,
+			Name:        "content",
+			Aliases:     []string{"c", "md"},
+			Required:    false,
+			DefaultText: c.Options.ContentDir,
+			Value:       c.Options.ContentDir,
 			Hidden:      show,
 		},
 		&cli.StringFlag{
 			Name:        "templates",
 			Aliases:     []string{"t", "html"},
 			Required:    false,
-			DefaultText: DefaultTemplateDir,
-			Value:       DefaultTemplateDir,
+			DefaultText: c.Options.TemplateDir,
+			Value:       c.Options.TemplateDir,
 			Hidden:      show,
 		},
 		&cli.StringFlag{
-			Name:     "static",
-			Aliases:  []string{"s", "assets"},
-			Required: false,
-			DefaultText: fmt.Sprintf(
-				"static files directory, defaults to %v",
-				DefaultStaticDir,
-			),
-			Value:  DefaultStaticDir,
-			Hidden: show,
+			Name:        "static",
+			Aliases:     []string{"s", "assets"},
+			Required:    false,
+			DefaultText: fmt.Sprintf("static files directory, defaults to %v", c.Options.StaticDir),
+			Value:       c.Options.StaticDir,
+			Hidden:      show,
 		},
 	}
 }
@@ -94,14 +86,9 @@ func MergeFlags(flag cli.Flag, show bool) []cli.Flag {
 }
 
 func NewDefaultConfig() Config {
-	return Config{Options: DevOptions{
-		Port:        4242,
-		StaticDir:   DefaultStaticDir,
-		ContentDir:  DefaultContentDir,
-		TemplateDir: DefaultTemplateDir,
-		BuildDir:    DefaultBuildDir,
-		Level:       log.InfoLevel.String(),
-	}}
+	c := Config{}
+	toml.Unmarshal([]byte(DefaultConfigFile), &c)
+	return c
 }
 
 // function ListThemes peeks in the theme directory and tells the user

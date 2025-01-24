@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/log"
-	"github.com/desertthunder/documango/cmd/config"
+	"github.com/desertthunder/documango/internal/config"
 	"github.com/desertthunder/documango/libs"
 )
 

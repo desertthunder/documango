@@ -25,7 +25,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/desertthunder/documango/cmd/config"
+	"github.com/desertthunder/documango/internal/config"
 	"github.com/desertthunder/documango/libs"
 	"github.com/gomarkdown/markdown"
 	"github.com/gomarkdown/markdown/html"

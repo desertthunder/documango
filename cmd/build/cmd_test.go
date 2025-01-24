@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/log"
-	"github.com/desertthunder/documango/cmd/config"
+	"github.com/desertthunder/documango/internal/config"
 )
 
 func TestBuildCommand(t *testing.T) {
