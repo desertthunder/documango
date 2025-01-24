@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono&display=swap");
 
 {{ .ThemeSnippet }}
@@ -10,7 +10,7 @@ html {
 }
 
 body {
-  font: 1.05em/1.55 "Atkinson Hyperlegible", sans-serif;
+  font: 1.05em/1.55 "Noto Sans JP", sans-serif;
   display: flex;
   flex-direction: column;
   min-height: 100vh;

@@ -1,4 +1,4 @@
-package build
+package theme
 
 import (
 	_ "embed"
@@ -47,16 +47,16 @@ type styleCtx struct {
 	ThemeSnippet string
 }
 
-//go:embed themes/_theme.css
+//go:embed css/_theme.css
 var ThemeTempl []byte
 
-//go:embed themes/_style.css
+//go:embed css/_style.css
 var DefaultStyleTempl []byte
 
-//go:embed themes/light/tokyo-city-light.yml
+//go:embed css/light/tokyo-city-light.yml
 var DefaultLightThemeFile []byte
 
-//go:embed themes/dark/tokyo-city-dark.yml
+//go:embed css/dark/tokyo-city-dark.yml
 var DefaultDarkThemeFile []byte
 
 // Unmarshal YAML file into a Theme struct
@@ -111,7 +111,7 @@ func (s *styleCtx) with(t string) *styleCtx {
 // TODO: take a theme slug to select a theme and then executes
 // the theme variable & stylesheet templates. These are concatenated and then
 // the contents are returns as a string.
-func BuildTheme(args ...string) string {
+func BuildTheme(args ...string) (string, error) {
 	theme_ctx := themeCtx{}
 	style_ctx := styleCtx{}
 	b := strings.Builder{}
@@ -123,7 +123,7 @@ func BuildTheme(args ...string) string {
 	errs = theme_ctx.buildStack(errs, err, dark_theme)
 
 	if len(errs) == 2 {
-		BuildLogger.Fatalf(
+		return "", fmt.Errorf(
 			"theme parsing failed \nLight: %v \nDark:%v",
 			errs[0], errs[1],
 		)
@@ -132,11 +132,11 @@ func BuildTheme(args ...string) string {
 	theme_template, err := template.New("theme").Parse(string(ThemeTempl))
 
 	if err != nil {
-		BuildLogger.Fatalf("unable to read template dir %v", err)
+		return "", fmt.Errorf("unable to read template dir %v", err)
 	}
 
 	if err = theme_template.Execute(&b, theme_ctx.withTime(time.Kitchen)); err != nil {
-		BuildLogger.Fatalf("unable to execute template %v", err)
+		return "", fmt.Errorf("unable to execute template %v", err)
 	}
 
 	theme := b.String()
@@ -147,16 +147,16 @@ func BuildTheme(args ...string) string {
 	if err != nil && strings.Contains(err.Error(), "no files") {
 		style_template, _ = template.New("styles").Parse(string(DefaultStyleTempl))
 
-		BuildLogger.Debugf("custom template not found: %v \n using default %v",
+		err = fmt.Errorf("custom template not found: %v \n using default %v",
 			err.Error(), style_template.Name(),
 		)
 	} else if err != nil {
-		BuildLogger.Fatalf("unable to parse: %v", err)
+		return "", fmt.Errorf("unable to parse: %v", err)
 	}
 
 	if err = style_template.Execute(&b, style_ctx.with(theme)); err != nil {
-		BuildLogger.Fatalf("unable to execute template %v", err)
+		return "", fmt.Errorf("unable to execute template %v", err)
 	}
 
-	return b.String()
+	return b.String(), err
 }

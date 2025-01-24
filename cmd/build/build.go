@@ -8,6 +8,7 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/desertthunder/documango/internal/config"
+	"github.com/desertthunder/documango/internal/theme"
 	"github.com/desertthunder/documango/internal/utils"
 )
 
@@ -55,7 +56,13 @@ func CopyStaticFiles(c *config.Config) ([]*FilePath, error) {
 		paths = append(paths, &FilePath{path, fname})
 	}
 
-	theme := BuildTheme()
+	theme, err := theme.BuildTheme()
+	if err != nil && theme == "" {
+		return paths, err
+	} else if err != nil {
+		BuildLogger.Warn(err.Error())
+	}
+
 	theme_path := fmt.Sprintf("%v/styles.css", dest)
 	err = utils.CreateAndWriteFile([]byte(theme), theme_path)
 
@@ -80,7 +87,13 @@ func CollectStatic(c *config.Config) ([]*FilePath, error) {
 		_ = CopyJS(c)
 	}
 
-	theme := BuildTheme()
+	theme, err := theme.BuildTheme()
+	if err != nil && theme == "" {
+		return static_paths, err
+	} else if err != nil {
+		BuildLogger.Warn(err.Error())
+	}
+
 	// The failure case here is when the file exists but that is handled by CopyFile
 	utils.CreateAndWriteFile([]byte(theme), fmt.Sprintf("%v/assets/styles.css", b))
 

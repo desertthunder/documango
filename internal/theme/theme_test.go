@@ -1,4 +1,4 @@
-package build
+package theme
 
 import (
 	"strings"
@@ -73,7 +73,11 @@ palette:
 	})
 
 	t.Run("build theme", func(t *testing.T) {
-		got := BuildTheme()
+		got, err := BuildTheme()
+
+		if err != nil {
+			t.Fatalf("failed to build theme with error %v", err.Error())
+		}
 
 		if !strings.Contains(got, "body {") {
 			t.Error("concatenated stylesheet should have valid css selector for body")
