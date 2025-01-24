@@ -98,13 +98,9 @@ func NewDefaultConfig() Config {
 
 func OpenConfig(p string) *Config {
 	c := NewDefaultConfig()
-	f, err := utils.OpenFileSafe(p)
+	f, _ := utils.OpenFileSafe(p)
 
-	if err != nil {
-		logger.Fatalf("unable to open config %v", err.Error())
-	}
-
-	err = toml.Unmarshal([]byte(f), &c)
+	err := toml.Unmarshal([]byte(f), &c)
 	if err != nil {
 		logger.Fatalf("unable to parse config %v", err.Error())
 	}
