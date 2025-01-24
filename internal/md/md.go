@@ -1,5 +1,5 @@
-// Methods for handling TOML frontmatter
-package build
+// package md handles markdown and frontmatter (TOML & YAML) parsing
+package md
 
 import (
 	"bufio"
@@ -15,6 +15,11 @@ type Frontmatter struct {
 	Title  string `toml:"title" yaml:"title"`
 	Layout string `toml:"layout" yaml:"layout"`
 	Draft  bool   `toml:"draft" yaml:"draft"`
+}
+
+type MD struct {
+	Frontmatter Frontmatter
+	Content     interface{}
 }
 
 func SplitFrontmatter(content []byte) (*Frontmatter, []byte, error) {

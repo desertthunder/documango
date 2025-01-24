@@ -12,6 +12,8 @@ for methods that create a document using one of the following:
 
 Then executes (renders) the template by placing it in some stream,
 be it file, stdout or stderr.
+
+TODO: Split up the markdown and HTML code
 */
 package build
 
@@ -26,6 +28,7 @@ import (
 	"strings"
 
 	"github.com/desertthunder/documango/internal/config"
+	"github.com/desertthunder/documango/internal/md"
 	"github.com/desertthunder/documango/internal/utils"
 	"github.com/gomarkdown/markdown"
 	"github.com/gomarkdown/markdown/html"
@@ -58,7 +61,7 @@ type Context struct {
 
 type View struct {
 	Path         string
-	front        *Frontmatter
+	front        *md.Frontmatter
 	content      []byte
 	html_content []byte
 	html_page    []byte
@@ -153,7 +156,7 @@ func openContentFile(p string, t string) *View {
 		return nil
 	}
 
-	frontmatter, content, err := SplitFrontmatter(data)
+	frontmatter, content, err := md.SplitFrontmatter(data)
 
 	if err != nil {
 		BuildLogger.Warnf("unable to read content %v", err)
@@ -169,7 +172,7 @@ func openContentFile(p string, t string) *View {
 	return &v
 }
 
-func (v *View) SetFrontMatter(f *Frontmatter) {
+func (v *View) SetFrontMatter(f *md.Frontmatter) {
 	v.front = f
 }
 
