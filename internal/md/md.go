@@ -4,6 +4,8 @@ package md
 import (
 	"bufio"
 	"bytes"
+	"embed"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -17,6 +19,9 @@ import (
 	"github.com/gomarkdown/markdown/parser"
 	"gopkg.in/yaml.v3"
 )
+
+//go:embed content
+var SampleContentDir embed.FS
 
 type Frontmatter struct {
 	Title  string `toml:"title" yaml:"title"`
@@ -113,7 +118,19 @@ func OpenContentFile(fp string) (*MD, error) {
 func ReadContentDirectory(dir string, tdir string) ([]*MD, error) {
 	entries, err := os.ReadDir(dir)
 	mdFiles := []*MD{}
-	if err != nil {
+	if err != nil && os.IsNotExist(err) {
+		fp := "README.md"
+		data, _ := SampleContentDir.ReadFile(fp)
+		frontmatter, content, _ := SplitFrontmatter(data)
+
+		mdFiles = append(mdFiles, &MD{
+			FilePath:    fp,
+			Frontmatter: frontmatter,
+			Content:     content,
+		})
+
+		return mdFiles, errors.New("using sample file for content")
+	} else if err != nil {
 		return mdFiles, fmt.Errorf("unable to create views for directory %v: %v", dir, err.Error())
 	}
 
@@ -121,7 +138,7 @@ func ReadContentDirectory(dir string, tdir string) ([]*MD, error) {
 		fpath := fmt.Sprintf("%v/%v", dir, entry.Name())
 		if entry.IsDir() {
 			nestedMD, err := ReadContentDirectory(fpath, tdir)
-			if err != nil {
+			if err != nil && len(nestedMD) == 0 {
 				return []*MD{}, err
 			}
 

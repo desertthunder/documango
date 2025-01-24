@@ -103,12 +103,17 @@ func createServer(config *config.Config) server {
 //
 // TODO: handle error value
 func (s *server) loadViewLayer() {
+	var err error
 	ServerLogger.Debug("loading views")
 
 	s.locks.documentLoader.Lock()
 	defer s.locks.documentLoader.Unlock()
 
-	s.views, _ = view.NewViews(s.config.Options.ContentDir, s.config.Options.TemplateDir)
+	s.views, err = view.NewViews(s.config.Options.ContentDir, s.config.Options.TemplateDir)
+	if err != nil && len(s.views) > 0 {
+		ServerLogger.Warn(err.Error())
+	}
+
 	s.staticPaths, _ = build.CopyStaticFiles(s.config)
 
 	build.CollectStatic(s.config)

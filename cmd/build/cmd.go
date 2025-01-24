@@ -22,14 +22,18 @@ var BuildCommand = &cli.Command{
 func Run(ctx context.Context, c *cli.Command) error {
 	BuildLogger = ctx.Value(config.LoggerKey).(*log.Logger)
 	conf := ctx.Value(config.ConfKey).(*config.Config)
-	views, _ := view.NewViews(conf.Options.ContentDir, conf.Options.TemplateDir)
-	lvl := BuildLogger.GetLevel()
+	views, err := view.NewViews(conf.Options.ContentDir, conf.Options.TemplateDir)
+	if err != nil && len(views) > 0 {
+		BuildLogger.Warn(err.Error())
+	}
+
+	level := BuildLogger.GetLevel()
 
 	conf.UpdateLogLevel(BuildLogger)
 
 	BuildLogger.Infof("building site %v", conf.Metadata.Name)
 
-	logs.Pause(lvl)
+	logs.Pause(level)
 
 	if _, err := CollectStatic(conf); err != nil {
 		BuildLogger.Fatalf("unable to collect static files %v", err.Error())
@@ -38,7 +42,7 @@ func Run(ctx context.Context, c *cli.Command) error {
 	}
 
 	for _, v := range views {
-		logs.Pause(lvl)
+		logs.Pause(level)
 
 		if _, err := v.BuildHTMLFileContents(conf); err != nil {
 			BuildLogger.Fatalf("unable to build view %v %v", v.Path, err.Error())
@@ -47,7 +51,7 @@ func Run(ctx context.Context, c *cli.Command) error {
 		BuildLogger.Infof("built page %v.html (%v)", v.Path, v.Name())
 	}
 
-	logs.Pause(lvl)
+	logs.Pause(level)
 
 	BuildLogger.Infof("built site to %v ✅", conf.Options.BuildDir)
 

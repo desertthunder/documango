@@ -50,7 +50,7 @@ type View struct {
 
 func NewViews(contentDir, templateDir string) ([]*View, error) {
 	mdFiles, err := md.ReadContentDirectory(contentDir, templateDir)
-	if err != nil {
+	if err != nil && len(mdFiles) == 0 {
 		return []*View{}, err
 	}
 
@@ -62,7 +62,7 @@ func NewViews(contentDir, templateDir string) ([]*View, error) {
 		})
 	}
 
-	return WithNavigation(views), nil
+	return WithNavigation(views), err
 }
 
 // function WithNavigation populates a NavLink
