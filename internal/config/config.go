@@ -6,6 +6,7 @@ package config
 import (
 	_ "embed"
 	"fmt"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 	"github.com/charmbracelet/log"
@@ -98,11 +99,13 @@ func NewDefaultConfig() Config {
 
 func OpenConfig(p string) *Config {
 	c := NewDefaultConfig()
-	f, _ := utils.OpenFileSafe(p)
+	f, err := utils.OpenFileSafe(p)
+	if err != nil && !strings.Contains(p, "config.toml") {
+		return &c
+	}
 
-	err := toml.Unmarshal([]byte(f), &c)
-	if err != nil {
-		logger.Fatalf("unable to parse config %v", err.Error())
+	if err := toml.Unmarshal([]byte(f), &c); err != nil {
+		return &c
 	}
 
 	return &c

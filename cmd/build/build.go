@@ -17,9 +17,9 @@ package build
 
 import (
 	_ "embed"
+	"errors"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/charmbracelet/log"
 	"github.com/desertthunder/documango/internal/config"
@@ -58,7 +58,11 @@ func CopyStaticFiles(c *config.Config) ([]*FilePath, error) {
 	dest := createStaticBuildDir(c)
 	entries, err := os.ReadDir(src)
 	if err != nil {
-		return paths, fmt.Errorf("unable to read directory %v %v", src, err.Error())
+		if os.IsNotExist(err) {
+			CopyJS(c)
+		}
+
+		return paths, fmt.Errorf("unable to read directory %v %w", src, err)
 	}
 
 	for _, entry := range entries {
@@ -97,9 +101,13 @@ func CollectStatic(c *config.Config) ([]*FilePath, error) {
 	static_paths, err := CopyStaticFiles(c)
 
 	if err != nil {
-		BuildLogger.Warnf("collecting static files failed: %v", err.Error())
+		if os.IsNotExist(errors.Unwrap(err)) {
+			BuildLogger.Warnf("collecting static files failed: %v", err.Error())
 
-		_ = CopyJS(c)
+			CopyJS(c)
+		} else {
+			return nil, err
+		}
 	}
 
 	theme, err := theme.BuildTheme()
@@ -112,7 +120,7 @@ func CollectStatic(c *config.Config) ([]*FilePath, error) {
 	// The failure case here is when the file exists but that is handled by CopyFile
 	utils.CreateAndWriteFile([]byte(theme), fmt.Sprintf("%v/assets/styles.css", b))
 
-	return static_paths, err
+	return static_paths, nil
 }
 
 // When using the default template, {views}/base, we want to bundle assets/theme.js
@@ -123,7 +131,7 @@ func CopyJS(conf *config.Config) error {
 	fs, err := os.Stat(conf.Options.TemplateDir)
 
 	if err != nil {
-		if strings.Contains(err.Error(), "no such file or directory") {
+		if os.IsNotExist(err) {
 			fpath := fmt.Sprintf("%v/assets/theme.js", conf.Options.BuildDir)
 			f, err := os.Create(fpath)
 
@@ -138,6 +146,7 @@ func CopyJS(conf *config.Config) error {
 			}
 
 			BuildLogger.Info("copied theme.js to /dist/")
+
 			return nil
 		} else {
 			BuildLogger.Errorf("sww %v", err.Error())

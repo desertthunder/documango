@@ -192,7 +192,7 @@ func TestBuild(t *testing.T) {
 		err := Run(ctx, BuildCommand)
 
 		if err != nil {
-			t.Errorf("command should run %v", err.Error())
+			t.Errorf("command should run %v %v", args, err.Error())
 		}
 
 		dir := conf.Options.BuildDir

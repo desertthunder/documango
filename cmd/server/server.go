@@ -130,7 +130,7 @@ func (s *server) reloadHandler() {
 // function addRoutes parses a directory of template files and
 // executes them based on html files found in the templates
 // directory (defaults to /templates)
-func (s *server) addRoutes() {
+func (s *server) addRoutes() error {
 	ServerLogger.Debug("registering routes")
 
 	mux := http.NewServeMux()
@@ -139,7 +139,7 @@ func (s *server) addRoutes() {
 
 	for _, v := range s.views {
 		if route, err := v.BuildHTMLFileContents(s.config); err != nil {
-			ServerLogger.Fatalf("unable to build file for route %v \n%v", route, err.Error())
+			return fmt.Errorf("unable to build file for route %v %w", route, err)
 		} else {
 			mux.HandleFunc(route, v.Handler(ServerLogger))
 			ServerLogger.Infof("Registered Route: %v", route)
@@ -147,11 +147,13 @@ func (s *server) addRoutes() {
 	}
 
 	s.handler = mux
+
+	return nil
 }
 
 // function watchFiles instantiates a filesystem watcher that
 // responds to the context in the application.
-func (s *server) watchFiles(ctx context.Context, reload chan struct{}) {
+func (s *server) watchFiles(ctx context.Context, reload chan struct{}) error {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		ServerLogger.Errorf("unable to create watcher: %v", err.Error())
@@ -160,7 +162,7 @@ func (s *server) watchFiles(ctx context.Context, reload chan struct{}) {
 	defer watcher.Close()
 
 	if err = watcher.Add(s.contentDir); err != nil {
-		ServerLogger.Fatalf("unable to read content dir %v", s.contentDir)
+		return fmt.Errorf("unable to read content dir %v %w", s.contentDir, err)
 	}
 
 	if err = watcher.Add(s.templateDir); err != nil {
@@ -175,10 +177,10 @@ func (s *server) watchFiles(ctx context.Context, reload chan struct{}) {
 		select {
 		case <-ctx.Done():
 			ServerLogger.Debug("stopping watcher...")
-			return
+			return nil
 		case event, ok := <-watcher.Events:
 			if !ok {
-				return
+				return nil
 			}
 
 			ServerLogger.Debugf("Event: %v | Operation: %v ", event.Name, event.Op.String())
@@ -207,15 +209,8 @@ func (s *server) watchFiles(ctx context.Context, reload chan struct{}) {
 				default: // no-op
 				}
 			}
-		case err, ok := <-watcher.Errors:
-			if !ok {
-				return
-			}
-
-			if err != nil {
-				ServerLogger.Errorf("something went wrong: %v", err.Error())
-				return
-			}
+		case err, _ := <-watcher.Errors:
+			return err
 		}
 	}
 }
@@ -225,7 +220,7 @@ func (s server) address() string {
 	return fmt.Sprintf(":%v", s.port)
 }
 
-func (s *server) listen(ctx context.Context, reload chan struct{}) {
+func (s *server) listen(ctx context.Context, reload chan struct{}) error {
 	s.server = &http.Server{Addr: s.address(), Handler: s.handler}
 
 	go func() {
@@ -255,10 +250,12 @@ func (s *server) listen(ctx context.Context, reload chan struct{}) {
 	if err := s.server.ListenAndServe(); err != nil {
 		if err == http.ErrServerClosed {
 			ServerLogger.Info("server closed")
-		} else {
-			ServerLogger.Fatalf("something went wrong %v", err.Error())
 		}
+
+		return err
 	}
+
+	return nil
 }
 
 // function Run is an ActionFunc for the cli library. It creates a filesystem

@@ -21,7 +21,6 @@ func TestBuildCommand(t *testing.T) {
 		mutateConf(c, "build")
 
 		ctx := context.TODO()
-		ctx = context.WithValue(ctx, config.ConfKey, c)
 		ctx = context.WithValue(ctx, config.LoggerKey, BuildLogger)
 		ctx, cancelFunc := context.WithCancel(ctx)
 

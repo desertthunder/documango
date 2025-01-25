@@ -198,7 +198,6 @@ func TestServer(t *testing.T) {
 		mutateConf(conf)
 
 		ctx := context.TODO()
-		ctx = context.WithValue(ctx, config.ConfKey, conf)
 		ctx = context.WithValue(ctx, config.LoggerKey, ServerLogger)
 		ctx, cancelFunc := context.WithCancel(ctx)
 

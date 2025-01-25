@@ -2,6 +2,7 @@ package build
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/charmbracelet/log"
 	"github.com/desertthunder/documango/internal/config"
@@ -36,7 +37,7 @@ func Run(ctx context.Context, c *cli.Command) error {
 	logs.Pause(level)
 
 	if _, err := CollectStatic(conf); err != nil {
-		BuildLogger.Fatalf("unable to collect static files %v", err.Error())
+		return fmt.Errorf("unable to collect static files %w", err)
 	} else {
 		BuildLogger.Info("collected static files ✅")
 	}
@@ -45,7 +46,7 @@ func Run(ctx context.Context, c *cli.Command) error {
 		logs.Pause(level)
 
 		if _, err := v.BuildHTMLFileContents(conf); err != nil {
-			BuildLogger.Fatalf("unable to build view %v %v", v.Path, err.Error())
+			return fmt.Errorf("unable to build view %v %w", v.Path, err)
 		}
 
 		BuildLogger.Infof("built page %v.html (%v)", v.Path, v.Name())

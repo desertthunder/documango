@@ -20,7 +20,6 @@ import (
 	"context"
 	"os"
 
-	"github.com/charmbracelet/log"
 	"github.com/desertthunder/documango/cmd/build"
 	"github.com/desertthunder/documango/cmd/server"
 	"github.com/desertthunder/documango/internal/config"
@@ -30,6 +29,8 @@ import (
 )
 
 var logger = logs.CreateConsoleLogger("[documango 🥭]")
+var logAndExit = logger.Fatalf
+var ctx = context.Background()
 
 var rootCommand = &cli.Command{
 	Name:        "documango",
@@ -58,7 +59,7 @@ func setContext(parent context.Context, c *cli.Command) (context.Context, error)
 }
 
 func main() {
-	if err := rootCommand.Run(context.Background(), os.Args); err != nil {
-		log.Fatalf("something went wrong %v", err.Error())
+	if err := rootCommand.Run(ctx, os.Args); err != nil {
+		logAndExit("something went wrong: %v", err.Error())
 	}
 }
