@@ -20,6 +20,7 @@
 .prose h6 {
   position: relative;
   color: var(--heading);
+  font-family: var(--font-heading);
   line-height: var(--line-tight);
   text-wrap: balance;
   scroll-margin-top: calc(var(--header-height) + var(--space-4));

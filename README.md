@@ -5,7 +5,7 @@ It runs a development server that reloads the browser when you save a file,
 and builds a static site you can host anywhere. The sidebar comes from your
 folder structure, and every site has search and a light and dark theme. An
 optional `documango.toml` or `documango.yaml` sets the title, page metadata,
-themes and header links; see [configuration](docs/reference/configuration.md).
+themes, fonts and header links; see [configuration](docs/reference/configuration.md).
 
 <picture>
   <source media="(prefers-color-scheme: light)" srcset=".github/assets/site-light.png">

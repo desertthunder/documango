@@ -4,7 +4,8 @@ description: The documango.toml and documango.yaml config file, its keys, and ho
 order: 2
 ---
 
-A config file sets the site title, page metadata, themes, and header links.
+A config file sets the site title, page metadata, themes, fonts, and header
+links.
 It's optional: without one, documango uses its defaults and the
 [site flags](cli.md#site-flags).
 
@@ -49,6 +50,10 @@ dark = ["tomorrow-night", "github-dark"]
 light = "tomorrow"
 search = "pagefind"
 
+[fonts]
+body = "Inter"
+mono = "JetBrains Mono"
+
 [[links]]
 title = "GitHub"
 url = "https://github.com/acme/acme"
@@ -69,6 +74,10 @@ theme:
   dark: [tomorrow-night, github-dark]
   light: tomorrow
   search: pagefind
+
+fonts:
+  body: Inter
+  mono: JetBrains Mono
 
 links:
   - title: GitHub
@@ -92,6 +101,9 @@ Every key is optional.
 | `theme.dark`  | `tomorrow-night` | Dark color schemes: one name or a list. Each is a name from `documango themes` or a path to a base16 YAML file. The first is the default. |
 | `theme.light` | `tomorrow` | Light color schemes, in the same form as `theme.dark`. |
 | `theme.search` | `pagefind` | Search engine: `pagefind` or `builtin`. |
+| `fonts.body`  | system font | Font for the page text, such as `"Inter"`. See [fonts](../guide/themes.md#fonts). |
+| `fonts.heading` | `fonts.body` | Font for headings. |
+| `fonts.mono`  | system monospace font | Font for code, such as `"JetBrains Mono"`. |
 | `links`       | none    | Links shown in the header, in order. Each has a `title` and a `url`. |
 
 Paths to theme files are relative to the config file. Paths to the favicon
@@ -165,4 +177,7 @@ error that names the file when:
 - `theme.dark` or `theme.light` has an empty entry or lists a theme twice.
 - A theme doesn't exist.
 - `theme.search` isn't `pagefind` or `builtin`.
+- A font name contains `"`, `;`, `{`, `}`, `<`, `\`, or a line break.
+- A font doesn't exist on Fontsource. This check runs when documango
+  downloads the font.
 - A link has no `title` or no `url`.

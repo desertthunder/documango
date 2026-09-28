@@ -1,0 +1,204 @@
+{
+ "id": "lato",
+ "family": "Lato",
+ "subsets": [
+  "latin",
+  "latin-ext"
+ ],
+ "weights": [
+  100,
+  300,
+  400,
+  700,
+  900
+ ],
+ "styles": [
+  "italic",
+  "normal"
+ ],
+ "defSubset": "latin",
+ "variable": false,
+ "lastModified": "2025-09-16",
+ "category": "sans-serif",
+ "license": "OFL-1.1",
+ "type": "google",
+ "version": "v25",
+ "source": "https://github.com/google/fonts",
+ "npmVersion": "5.3.0",
+ "unicodeRange": {
+  "latin-ext": "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF",
+  "latin": "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD"
+ },
+ "variants": {
+  "100": {
+   "italic": {
+    "latin-ext": {
+     "url": {
+      "woff2": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-ext-100-italic.woff2",
+      "woff": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-ext-100-italic.woff",
+      "ttf": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-ext-100-italic.ttf"
+     }
+    },
+    "latin": {
+     "url": {
+      "woff2": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-100-italic.woff2",
+      "woff": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-100-italic.woff",
+      "ttf": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-100-italic.ttf"
+     }
+    }
+   },
+   "normal": {
+    "latin-ext": {
+     "url": {
+      "woff2": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-ext-100-normal.woff2",
+      "woff": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-ext-100-normal.woff",
+      "ttf": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-ext-100-normal.ttf"
+     }
+    },
+    "latin": {
+     "url": {
+      "woff2": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-100-normal.woff2",
+      "woff": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-100-normal.woff",
+      "ttf": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-100-normal.ttf"
+     }
+    }
+   }
+  },
+  "300": {
+   "italic": {
+    "latin-ext": {
+     "url": {
+      "woff2": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-ext-300-italic.woff2",
+      "woff": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-ext-300-italic.woff",
+      "ttf": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-ext-300-italic.ttf"
+     }
+    },
+    "latin": {
+     "url": {
+      "woff2": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-300-italic.woff2",
+      "woff": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-300-italic.woff",
+      "ttf": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-300-italic.ttf"
+     }
+    }
+   },
+   "normal": {
+    "latin-ext": {
+     "url": {
+      "woff2": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-ext-300-normal.woff2",
+      "woff": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-ext-300-normal.woff",
+      "ttf": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-ext-300-normal.ttf"
+     }
+    },
+    "latin": {
+     "url": {
+      "woff2": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-300-normal.woff2",
+      "woff": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-300-normal.woff",
+      "ttf": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-300-normal.ttf"
+     }
+    }
+   }
+  },
+  "400": {
+   "italic": {
+    "latin-ext": {
+     "url": {
+      "woff2": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-ext-400-italic.woff2",
+      "woff": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-ext-400-italic.woff",
+      "ttf": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-ext-400-italic.ttf"
+     }
+    },
+    "latin": {
+     "url": {
+      "woff2": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-400-italic.woff2",
+      "woff": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-400-italic.woff",
+      "ttf": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-400-italic.ttf"
+     }
+    }
+   },
+   "normal": {
+    "latin-ext": {
+     "url": {
+      "woff2": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-ext-400-normal.woff2",
+      "woff": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-ext-400-normal.woff",
+      "ttf": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-ext-400-normal.ttf"
+     }
+    },
+    "latin": {
+     "url": {
+      "woff2": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-400-normal.woff2",
+      "woff": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-400-normal.woff",
+      "ttf": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-400-normal.ttf"
+     }
+    }
+   }
+  },
+  "700": {
+   "italic": {
+    "latin-ext": {
+     "url": {
+      "woff2": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-ext-700-italic.woff2",
+      "woff": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-ext-700-italic.woff",
+      "ttf": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-ext-700-italic.ttf"
+     }
+    },
+    "latin": {
+     "url": {
+      "woff2": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-700-italic.woff2",
+      "woff": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-700-italic.woff",
+      "ttf": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-700-italic.ttf"
+     }
+    }
+   },
+   "normal": {
+    "latin-ext": {
+     "url": {
+      "woff2": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-ext-700-normal.woff2",
+      "woff": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-ext-700-normal.woff",
+      "ttf": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-ext-700-normal.ttf"
+     }
+    },
+    "latin": {
+     "url": {
+      "woff2": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-700-normal.woff2",
+      "woff": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-700-normal.woff",
+      "ttf": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-700-normal.ttf"
+     }
+    }
+   }
+  },
+  "900": {
+   "italic": {
+    "latin-ext": {
+     "url": {
+      "woff2": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-ext-900-italic.woff2",
+      "woff": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-ext-900-italic.woff",
+      "ttf": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-ext-900-italic.ttf"
+     }
+    },
+    "latin": {
+     "url": {
+      "woff2": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-900-italic.woff2",
+      "woff": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-900-italic.woff",
+      "ttf": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-900-italic.ttf"
+     }
+    }
+   },
+   "normal": {
+    "latin-ext": {
+     "url": {
+      "woff2": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-ext-900-normal.woff2",
+      "woff": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-ext-900-normal.woff",
+      "ttf": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-ext-900-normal.ttf"
+     }
+    },
+    "latin": {
+     "url": {
+      "woff2": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-900-normal.woff2",
+      "woff": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-900-normal.woff",
+      "ttf": "https://cdn.jsdelivr.net/fontsource/fonts/lato@latest/latin-900-normal.ttf"
+     }
+    }
+   }
+  }
+ }
+}

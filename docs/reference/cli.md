@@ -173,7 +173,7 @@ These flags work with every command.
 | --------------------- | ----------- |
 | `NO_COLOR`            | Any non-empty value turns off color in output. |
 | `TERM`                | The value `dumb` turns off color in output. |
-| `DOCUMANGO_CACHE_DIR` | Folder for downloaded files: the theme catalog in `schemes/` and Pagefind in `pagefind/`. Defaults to a `documango` folder in your user cache folder. |
+| `DOCUMANGO_CACHE_DIR` | Folder for downloaded files: the theme catalog in `schemes/`, Pagefind in `pagefind/`, and fonts in `fonts/`. Defaults to a `documango` folder in your user cache folder. |
 | `DOCUMANGO_PAGEFIND`  | Path to a Pagefind binary to use instead of one on your `PATH` or the download. |
 | `GITHUB_TOKEN`        | GitHub token sent when documango downloads the theme catalog, which raises GitHub's rate limit. |
 

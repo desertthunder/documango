@@ -31,6 +31,10 @@ dark = ["tomorrow-night", "github-dark"]
 light = "tomorrow"
 search = "builtin"
 
+[fonts]
+body = " Inter "
+mono = "JetBrains Mono"
+
 [[links]]
 title = "GitHub"
 url = "https://github.com/acme/acme"
@@ -51,6 +55,9 @@ theme:
   dark: [tomorrow-night, github-dark]
   light: tomorrow
   search: builtin
+fonts:
+  body: " Inter "
+  mono: JetBrains Mono
 links:
   - title: GitHub
     url: https://github.com/acme/acme
@@ -86,6 +93,7 @@ func TestLoadFormats(t *testing.T) {
 				Favicon:     "favicon.svg",
 				Logo:        "img/logo.png",
 				Theme:       Theme{Dark: Themes{"tomorrow-night", "github-dark"}, Light: Themes{"tomorrow"}, Search: "builtin"},
+				Fonts:       Fonts{Body: "Inter", Mono: "JetBrains Mono"},
 				Links:       []Link{{"GitHub", "https://github.com/acme/acme"}, {"Blog", "/blog/"}},
 			}
 			if !reflect.DeepEqual(c, want) {
@@ -183,6 +191,15 @@ func TestLoadErrors(t *testing.T) {
 		{"documango.toml", `logo = "_assets/logo.svg"`, `logo "_assets/logo.svg" is skipped`},
 		{"documango.toml", `favicon = ".hidden.svg"`, "is skipped"},
 		{"documango.toml", "[[links]]\ntitle = \"GitHub\"", "links[1]: url is empty"},
+		{"documango.toml", "[fonts]\nsize = 3", `unknown key "fonts.size"`},
+		{"documango.yaml", "fonts:\n  display: swap\n", `line 2: unknown key "display"`},
+		{"documango.toml", "[fonts]\nbody = \"Inter; color: red\"", `fonts.body "Inter; color: red" must be a font family name`},
+		{"documango.toml", "[fonts]\nheading = 'A\"B'", "fonts.heading"},
+		{"documango.yaml", "fonts:\n  mono: \"a}b\"\n", "fonts.mono"},
+		{"documango.yaml", "fonts:\n  mono: \"a{b\"\n", "fonts.mono"},
+		{"documango.yaml", "fonts:\n  mono: \"</style>\"\n", "fonts.mono"},
+		{"documango.yaml", "fonts:\n  mono: \"a\\\\b\"\n", "fonts.mono"},
+		{"documango.yaml", "fonts:\n  body: \"a\\nb\"\n", "fonts.body"},
 		{"documango.toml", "[[links]]\nurl = \"/a/\"\n[[links]]\nurl = \"/b/\"\ntitle = \"B\"", "links[1]: title is empty"},
 	} {
 		dir := t.TempDir()

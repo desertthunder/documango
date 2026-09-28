@@ -8,7 +8,8 @@
   deprecated alias).
 - Small-screen header fixes: the site title truncating, a backdrop behind the
   open menu, and image alt text in built-in search snippets.
-- Google Fonts, self-hosted or remote.
+- Done: web fonts, self-hosted from Fontsource. The remote Google Fonts
+  option was dropped.
 - Release setup: GoReleaser binaries and checksums from a tag, a changelog from
   conventional commits, a GitHub Pages deploy of `docs/`, and a package comment
   for pkg.go.dev.

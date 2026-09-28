@@ -1,0 +1,243 @@
+[
+ {
+  "id": "inder",
+  "family": "Inder",
+  "subsets": [
+   "latin",
+   "latin-ext"
+  ],
+  "weights": [
+   400
+  ],
+  "styles": [
+   "normal"
+  ],
+  "defSubset": "latin",
+  "variable": false,
+  "lastModified": "2025-09-05",
+  "category": "sans-serif",
+  "license": "OFL-1.1",
+  "type": "google"
+ },
+ {
+  "id": "inter",
+  "family": "Inter",
+  "subsets": [
+   "cyrillic",
+   "cyrillic-ext",
+   "greek",
+   "greek-ext",
+   "latin",
+   "latin-ext",
+   "vietnamese"
+  ],
+  "weights": [
+   100,
+   200,
+   300,
+   400,
+   500,
+   600,
+   700,
+   800,
+   900
+  ],
+  "styles": [
+   "italic",
+   "normal"
+  ],
+  "defSubset": "latin",
+  "variable": true,
+  "lastModified": "2025-09-10",
+  "category": "sans-serif",
+  "license": "OFL-1.1",
+  "type": "google"
+ },
+ {
+  "id": "inter-tight",
+  "family": "Inter Tight",
+  "subsets": [
+   "cyrillic",
+   "cyrillic-ext",
+   "greek",
+   "greek-ext",
+   "latin",
+   "latin-ext",
+   "vietnamese"
+  ],
+  "weights": [
+   100,
+   200,
+   300,
+   400,
+   500,
+   600,
+   700,
+   800,
+   900
+  ],
+  "styles": [
+   "italic",
+   "normal"
+  ],
+  "defSubset": "latin",
+  "variable": true,
+  "lastModified": "2025-09-16",
+  "category": "sans-serif",
+  "license": "OFL-1.1",
+  "type": "google"
+ },
+ {
+  "id": "jetbrains-mono",
+  "family": "JetBrains Mono",
+  "subsets": [
+   "cyrillic",
+   "cyrillic-ext",
+   "greek",
+   "latin",
+   "latin-ext",
+   "vietnamese"
+  ],
+  "weights": [
+   100,
+   200,
+   300,
+   400,
+   500,
+   600,
+   700,
+   800
+  ],
+  "styles": [
+   "italic",
+   "normal"
+  ],
+  "defSubset": "latin",
+  "variable": true,
+  "lastModified": "2025-09-11",
+  "category": "monospace",
+  "license": "OFL-1.1",
+  "type": "google"
+ },
+ {
+  "id": "lato",
+  "family": "Lato",
+  "subsets": [
+   "latin",
+   "latin-ext"
+  ],
+  "weights": [
+   100,
+   300,
+   400,
+   700,
+   900
+  ],
+  "styles": [
+   "italic",
+   "normal"
+  ],
+  "defSubset": "latin",
+  "variable": false,
+  "lastModified": "2025-09-16",
+  "category": "sans-serif",
+  "license": "OFL-1.1",
+  "type": "google"
+ },
+ {
+  "id": "lora",
+  "family": "Lora",
+  "subsets": [
+   "cyrillic",
+   "cyrillic-ext",
+   "latin",
+   "latin-ext",
+   "math",
+   "symbols",
+   "vietnamese"
+  ],
+  "weights": [
+   400,
+   500,
+   600,
+   700
+  ],
+  "styles": [
+   "italic",
+   "normal"
+  ],
+  "defSubset": "latin",
+  "variable": true,
+  "lastModified": "2025-09-11",
+  "category": "serif",
+  "license": "OFL-1.1",
+  "type": "google"
+ },
+ {
+  "id": "noto-sans-jp",
+  "family": "Noto Sans JP",
+  "subsets": [
+   "cyrillic",
+   "japanese",
+   "latin",
+   "latin-ext",
+   "vietnamese"
+  ],
+  "weights": [
+   100,
+   200,
+   300,
+   400,
+   500,
+   600,
+   700,
+   800,
+   900
+  ],
+  "styles": [
+   "normal"
+  ],
+  "defSubset": "latin",
+  "variable": true,
+  "lastModified": "2026-01-07",
+  "category": "sans-serif",
+  "license": "OFL-1.1",
+  "type": "google"
+ },
+ {
+  "id": "roboto",
+  "family": "Roboto",
+  "subsets": [
+   "cyrillic",
+   "cyrillic-ext",
+   "greek",
+   "greek-ext",
+   "latin",
+   "latin-ext",
+   "math",
+   "symbols",
+   "vietnamese"
+  ],
+  "weights": [
+   100,
+   200,
+   300,
+   400,
+   500,
+   600,
+   700,
+   800,
+   900
+  ],
+  "styles": [
+   "italic",
+   "normal"
+  ],
+  "defSubset": "latin",
+  "variable": true,
+  "lastModified": "2026-02-19",
+  "category": "sans-serif",
+  "license": "OFL-1.1",
+  "type": "google"
+ }
+]

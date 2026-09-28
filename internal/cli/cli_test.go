@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
@@ -11,6 +13,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -50,7 +53,22 @@ func TestMain(m *testing.M) {
 	if len(os.Args) > 2 && os.Args[1] == "--site" {
 		os.Exit(fakePagefind(os.Args[2]))
 	}
-	os.Exit(m.Run())
+	// Keep fonts offline: the fake Fontsource knows no fonts, lists Inter
+	// for suggestions, and fails every other request.
+	fontsource := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/v1/fonts":
+			io.WriteString(w, `[{"id":"inter","family":"Inter"}]`)
+		case strings.HasPrefix(r.URL.Path, "/v1/fonts/intr"):
+			http.NotFound(w, r)
+		default:
+			http.Error(w, "offline", http.StatusServiceUnavailable)
+		}
+	}))
+	fontsAPIURL, fontsCDNURL = fontsource.URL+"/v1", fontsource.URL
+	code := m.Run()
+	fontsource.Close()
+	os.Exit(code)
 }
 
 func fakePagefind(site string) int {
@@ -1182,5 +1200,110 @@ func TestServeReloadsConfig(t *testing.T) {
 	waitFor(t, url, "<title>Third</title>")
 	if !strings.Contains(stderr.String(), "restart") {
 		t.Errorf("base path change not reported: %q", stderr.String())
+	}
+}
+
+// seedFont caches a tiny Inter in cache, in the format the fonts package
+// writes, and returns its font file.
+func seedFont(t *testing.T, cache string) string {
+	t.Helper()
+	dir := filepath.Join(cache, "fonts", "inter")
+	font, license := "wOF2 fake Inter", "SIL Open Font License"
+	writeFile(t, filepath.Join(dir, "inter-latin-wght-normal.woff2"), font)
+	writeFile(t, filepath.Join(dir, "LICENSE.txt"), license)
+	sum := func(s string) string {
+		h := sha256.Sum256([]byte(s))
+		return hex.EncodeToString(h[:])
+	}
+	writeFile(t, filepath.Join(dir, "meta.json"), `{"id":"inter","family":"Inter","version":"5.3.0",
+		"faces":[{"style":"normal","weight":[100,900],"unicodeRange":"U+0000-00FF","file":"inter-latin-wght-normal.woff2"}],
+		"files":{"inter-latin-wght-normal.woff2":{"sha256":"`+sum(font)+`"},"LICENSE.txt":{"sha256":"`+sum(license)+`"}}}`)
+	return font
+}
+
+// cacheOf returns the DOCUMANGO_CACHE_DIR in environ.
+func cacheOf(environ []string) string {
+	for _, kv := range slices.Backward(environ) {
+		if v, ok := strings.CutPrefix(kv, "DOCUMANGO_CACHE_DIR="); ok {
+			return v
+		}
+	}
+	return ""
+}
+
+func TestBuildFonts(t *testing.T) {
+	dir := configDocs(t, "documango.toml", "[fonts]\nbody = \"Inter\"\nheading = \"inter\"")
+	out := filepath.Join(t.TempDir(), "site")
+	environ := testEnv(t)
+	font := seedFont(t, cacheOf(environ))
+	var stderr bytes.Buffer
+	code := Execute(context.Background(), []string{"build", dir, "-o", out, "--search", "builtin"},
+		Env{Stdout: io.Discard, Stderr: &stderr, Environ: environ})
+	if code != 0 || strings.Contains(stderr.String(), "WARN") {
+		t.Fatalf("exit %d, stderr %q", code, stderr.String())
+	}
+	css, _ := os.ReadFile(filepath.Join(out, "_documango", "style.css"))
+	if !bytes.Contains(css, []byte(`@font-face{font-family:"Inter";font-style:normal;font-weight:100 900;font-display:swap;src:url(fonts/inter-latin-wght-normal.woff2)`)) ||
+		!bytes.Contains(css, []byte(`:root{--font-sans:"Inter",var(--font-system-sans);}`)) {
+		t.Errorf("style.css lacks the font:\n%s", css[bytes.LastIndex(css, []byte("/* fonts */")):])
+	}
+	if b, _ := os.ReadFile(filepath.Join(out, "_documango", "fonts", "inter-latin-wght-normal.woff2")); string(b) != font {
+		t.Errorf("font file %q", b)
+	}
+	if !exists(filepath.Join(out, "_documango", "fonts", "LICENSE-inter.txt")) {
+		t.Error("no license file")
+	}
+}
+
+func TestBuildFontErrors(t *testing.T) {
+	dir := configDocs(t, "documango.toml", "[fonts]\nbody = \"Lato\"\nmono = \"Lato\"")
+	out := filepath.Join(t.TempDir(), "site")
+	r := run(t, nil, "build", dir, "-o", out, "--search", "builtin")
+	if r.code != 0 || strings.Count(r.stderr, "WARN fonts unavailable; using system fonts (connect once to download them)") != 1 {
+		t.Errorf("unavailable: exit %d, stderr %q", r.code, r.stderr)
+	}
+	if css, _ := os.ReadFile(filepath.Join(out, "_documango", "style.css")); bytes.Contains(css, []byte("@font-face")) || exists(filepath.Join(out, "_documango", "fonts")) {
+		t.Error("fonts in the site without a download")
+	}
+
+	writeFile(t, filepath.Join(dir, "documango.toml"), "[fonts]\nbody = \"Intr\"")
+	r = run(t, nil, "build", dir, "-o", out)
+	if r.code != 1 || !strings.Contains(r.stderr, `unknown font "Intr"; did you mean "Inter"?`) || !strings.Contains(r.stderr, "Hint: Use a family name from https://fontsource.org") {
+		t.Errorf("unknown: exit %d, stderr %q", r.code, r.stderr)
+	}
+}
+
+func TestServeFonts(t *testing.T) {
+	// Fonts that cannot be downloaded warn once per session.
+	dir := configDocs(t, "documango.toml", "[fonts]\nbody = \"Lato\"")
+	_, stderr, stop := startServe(t, dir, "--port", "0", "--search", "builtin")
+	writeFile(t, filepath.Join(dir, "index.md"), "# Hello again\n")
+	deadline := time.Now().Add(5 * time.Second)
+	for !strings.Contains(stderr.String(), "rebuilt site") && time.Now().Before(deadline) {
+		time.Sleep(20 * time.Millisecond)
+	}
+	if s := stderr.String(); !strings.Contains(s, "rebuilt site") || strings.Count(s, "WARN fonts unavailable") != 1 {
+		t.Errorf("want one fonts warning across rebuilds: %q", s)
+	}
+	stop()
+
+	// Loaded fonts are kept across rebuilds until the [fonts] config changes.
+	dir = configDocs(t, "documango.toml", "[fonts]\nbody = \"Inter\"")
+	environ := testEnv(t)
+	font := seedFont(t, cacheOf(environ))
+	url, _, stop := startServeEnv(t, environ, dir, "--port", "0", "--search", "builtin")
+	defer stop()
+	if err := os.RemoveAll(filepath.Join(cacheOf(environ), "fonts")); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(dir, "index.md"), "# Rebuilt\n")
+	waitFor(t, url, "Rebuilt")
+	if resp, body := get(t, url+"_documango/fonts/inter-latin-wght-normal.woff2"); resp.StatusCode != http.StatusOK || body != font {
+		t.Errorf("font after rebuild: %d %q", resp.StatusCode, body)
+	}
+	writeFile(t, filepath.Join(dir, "documango.toml"), "title = \"No Fonts\"")
+	waitFor(t, url, "No Fonts")
+	if resp, _ := get(t, url+"_documango/fonts/inter-latin-wght-normal.woff2"); resp.StatusCode != http.StatusNotFound {
+		t.Errorf("font kept after removing [fonts]: %d", resp.StatusCode)
 	}
 }

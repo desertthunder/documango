@@ -39,7 +39,17 @@ type Config struct {
 	Favicon string `toml:"favicon" yaml:"favicon"`
 	Logo    string `toml:"logo" yaml:"logo"`
 	Theme   Theme  `toml:"theme" yaml:"theme"`
+	Fonts   Fonts  `toml:"fonts" yaml:"fonts"`
 	Links   []Link `toml:"links" yaml:"links"`
+}
+
+// Fonts names the web fonts of the site, by family name such as "Inter" or
+// by Fontsource ID such as "inter". Empty fields keep the system fonts.
+type Fonts struct {
+	Body string `toml:"body" yaml:"body"`
+	// Heading defaults to Body.
+	Heading string `toml:"heading" yaml:"heading"`
+	Mono    string `toml:"mono" yaml:"mono"`
 }
 
 // Theme selects the color schemes and search engine.
@@ -239,6 +249,16 @@ func (c *Config) check(dir string) error {
 	}
 	if s := c.Theme.Search; s != "" && s != "pagefind" && s != "builtin" {
 		return fmt.Errorf("theme.search %q is not pagefind or builtin", s)
+	}
+
+	for _, f := range []struct {
+		key  string
+		name *string
+	}{{"fonts.body", &c.Fonts.Body}, {"fonts.heading", &c.Fonts.Heading}, {"fonts.mono", &c.Fonts.Mono}} {
+		*f.name = strings.TrimSpace(*f.name)
+		if strings.ContainsAny(*f.name, "\";{}<\\\n\r") {
+			return fmt.Errorf("%s %q must be a font family name, such as Inter", f.key, *f.name)
+		}
 	}
 
 	for i, l := range c.Links {

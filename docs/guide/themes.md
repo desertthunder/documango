@@ -1,6 +1,6 @@
 ---
 title: Themes
-description: Choose the light and dark color schemes for a documango site, or use your own.
+description: Choose the light and dark color schemes and the fonts of a documango site.
 order: 3
 ---
 
@@ -257,3 +257,47 @@ result is the slot shown in the table.
 Code highlighting uses the slots directly, following the base16 guidelines:
 for example, keywords use `base0E`, strings use `base0B`, and function names
 use `base0D`.
+
+## Fonts
+
+Pages use your system's fonts unless you pick others in the `[fonts]` section
+of the [config file](../reference/configuration.md):
+
+```toml
+[fonts]
+body = "Inter"
+heading = "Lora"
+mono = "JetBrains Mono"
+```
+
+`body` sets the page text, `heading` the headings, and `mono` code. Headings
+use the body font unless you set `heading`. Use a family name from
+[Fontsource](https://fontsource.org), which has the Google Fonts collection
+and other open source fonts. If documango doesn't know a name, it stops and
+suggests close ones.
+
+documango copies the font files into your site, under `_documango/fonts/`.
+Readers' browsers load them from your site, so the site sends no requests to
+Google or any other font service. Browsers download only the parts of a font
+that a page needs, such as the Latin characters.
+
+### The font download
+
+documango downloads each font from Fontsource the first time you use it. A
+font for Latin text is a few hundred kilobytes; fonts for Chinese, Japanese,
+or Korean are about 10 MB. documango stores the files in the `fonts` folder
+of your user cache folder, or of `DOCUMANGO_CACHE_DIR` if it's set, and uses
+them from there on every later build.
+
+If the download fails, for example because you're offline, documango prints a
+warning and builds the site with the system fonts. Build again once you're
+connected.
+
+A downloaded font stays at the same version. To get a newer version, delete
+its folder, such as `fonts/inter`, from the cache folder.
+
+### Font licenses
+
+Most fonts on Fontsource use the SIL Open Font License, which allows
+publishing them on your site. documango copies each font's license next to
+its files, as `_documango/fonts/LICENSE-inter.txt` for Inter.

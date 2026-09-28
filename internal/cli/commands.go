@@ -17,6 +17,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/desertthunder/documango/internal/config"
+	"github.com/desertthunder/documango/internal/fonts"
 	"github.com/desertthunder/documango/internal/pagefind"
 	"github.com/desertthunder/documango/internal/render"
 	"github.com/desertthunder/documango/internal/server"
@@ -141,6 +142,9 @@ func (a *app) cacheDir(elem ...string) string {
 	return filepath.Join(append([]string{dir}, elem...)...)
 }
 
+// fontsAPIURL and fontsCDNURL override where fonts come from, for tests.
+var fontsAPIURL, fontsCDNURL string
+
 func (a *app) catalog() *theme.Catalog {
 	return &theme.Catalog{CacheDir: a.cacheDir("schemes"), Logger: a.logger()}
 }
@@ -165,6 +169,7 @@ func (a *app) newBuilder(dir string, o *siteOptions) (*builder, error) {
 		// The config file never becomes part of the site.
 		exclude: slices.Clone(config.Names),
 		finder:  &pagefind.Finder{CacheDir: a.cacheDir("pagefind", pagefind.Version), Getenv: a.getenv, Logger: a.logger()},
+		fonts:   &fonts.Loader{CacheDir: a.cacheDir("fonts"), APIURL: fontsAPIURL, CDNURL: fontsCDNURL, Logger: a.logger()},
 	}
 	if o.config != "" {
 		absDir, err := resolvePath(dir)
@@ -206,6 +211,14 @@ type builder struct {
 	// fellBack is set once pagefind failed; the site then uses the built-in
 	// search.
 	fellBack bool
+
+	fonts *fonts.Loader
+	// fontsKey is the [fonts] config that fontFiles were loaded for.
+	fontsKey  string
+	fontFiles fonts.Result
+	// fontsFailed is set once fonts could not be downloaded; the site then
+	// uses the system fonts.
+	fontsFailed bool
 }
 
 // configure reads the config file and settles the site options: flags set
@@ -260,17 +273,49 @@ func (b *builder) configure(ctx context.Context) error {
 	for i, l := range cfg.Links {
 		links[i] = render.Link{Title: l.Title, URL: l.URL}
 	}
+	font, err := b.loadFonts(ctx, cfg)
+	if err != nil {
+		return err
+	}
 	b.load = site.Options{Title: setting("title", cfg.Title), BasePath: base, Exclude: b.exclude}
 	b.render = render.Options{
 		Dark: dark, Light: light, BasePath: base, Version: b.version,
 		Description: cfg.Description, URL: cfg.URL, Author: cfg.Author, Language: cfg.Language,
 		Favicon: cfg.Favicon, Logo: cfg.Logo, Links: links,
+		FontCSS: font.CSS, FontFiles: font.Files,
 	}
 	if b.serving {
 		b.render.LiveReload = server.EventsURLFor(base)
 	}
 	b.search = setting("search", cfg.Theme.Search)
 	return nil
+}
+
+// loadFonts returns the fonts the config asks for. They are loaded again
+// only when the [fonts] config changes. When they cannot be downloaded, it
+// warns once and the site keeps the system fonts until documango restarts.
+func (b *builder) loadFonts(ctx context.Context, cfg *config.Config) (fonts.Result, error) {
+	f := cfg.Fonts
+	key := strings.Join([]string{f.Body, f.Heading, f.Mono}, "\x00")
+	if b.fontsFailed || key == b.fontsKey {
+		return b.fontFiles, nil
+	}
+	res, err := b.fonts.Load(ctx, f.Body, f.Heading, f.Mono)
+	if ctx.Err() != nil {
+		return fonts.Result{}, ctx.Err()
+	}
+	if errors.Is(err, fonts.ErrUnavailable) {
+		b.log.Warn("fonts unavailable; using system fonts (connect once to download them)", "err", err)
+		b.fontsFailed = true
+		b.fontFiles = fonts.Result{}
+		return b.fontFiles, nil
+	}
+	if err != nil {
+		return fonts.Result{}, withHint(fmt.Errorf("fonts in %s: %w", cfg.Path, err),
+			"Use a family name from https://fontsource.org, such as \"Inter\".")
+	}
+	b.fontsKey, b.fontFiles = key, res
+	return res, nil
 }
 
 func (b *builder) build(ctx context.Context) (*site.Site, map[string][]byte, error) {

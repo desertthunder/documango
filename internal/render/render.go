@@ -50,6 +50,11 @@ type Options struct {
 	Favicon, Logo string
 	// Links are shown in the header, in order.
 	Links []Link
+	// FontCSS is appended to the stylesheet, after the component styles, so
+	// its font variables win. FontFiles are added to the output, keyed by
+	// output path.
+	FontCSS   string
+	FontFiles map[string][]byte
 }
 
 // Link is a header link.
@@ -236,6 +241,10 @@ func Render(s *site.Site, src fs.FS, opts Options) (map[string][]byte, error) {
 	}
 	css.WriteString("\n/* syntax highlighting */\n")
 	css.WriteString(theme.SyntaxCSS())
+	if opts.FontCSS != "" {
+		css.WriteString("\n/* fonts */\n")
+		css.WriteString(opts.FontCSS)
+	}
 	files[stylePath] = []byte(css.String())
 	files[scriptPath] = appJS
 
@@ -260,6 +269,13 @@ func Render(s *site.Site, src fs.FS, opts Options) (map[string][]byte, error) {
 	}
 	if files[searchPath], err = json.Marshal(index); err != nil {
 		return nil, fmt.Errorf("encode search index: %w", err)
+	}
+
+	for name, b := range opts.FontFiles {
+		if _, ok := files[name]; ok {
+			return nil, fmt.Errorf("font file %q collides with a generated file", name)
+		}
+		files[name] = b
 	}
 
 	for _, name := range s.Assets {

@@ -546,6 +546,22 @@ func TestStylesheet(t *testing.T) {
 	}
 }
 
+func TestFonts(t *testing.T) {
+	opts := defaultOpts()
+	opts.FontCSS = `:root{--font-sans:"Inter",var(--font-system-sans);}`
+	opts.FontFiles = map[string][]byte{"_documango/fonts/inter.woff2": []byte("wOF2")}
+	files := build(t, docsFS(), opts)
+	css := get(t, files, "_documango/style.css")
+	// The font variables follow the defaults in tokens.css, so they win.
+	if i := strings.Index(css, opts.FontCSS); i < 0 || i < strings.Index(css, "--font-sans: var(--font-system-sans)") || i < strings.Index(css, ".chroma") {
+		t.Error("font CSS should come after the rest of the stylesheet")
+	}
+	if get(t, files, "_documango/fonts/inter.woff2") != "wOF2" {
+		t.Error("font file not written")
+	}
+	mustNotContain(t, get(t, build(t, docsFS(), defaultOpts()), "_documango/style.css"), "/* fonts */")
+}
+
 func TestEveryStylesheetIsBundled(t *testing.T) {
 	listed := map[string]bool{}
 	for _, name := range cssFiles {
@@ -621,6 +637,12 @@ func TestRenderErrors(t *testing.T) {
 			name: "asset collides with generated file",
 			fsys: fstest.MapFS{"index.md": file("# Home\n"), "404.html": file("<p>raw</p>")},
 			want: `asset "404.html"`,
+		},
+		{
+			name: "font file collides with generated file",
+			fsys: docsFS(),
+			opts: func(o *Options) { o.FontFiles = map[string][]byte{"_documango/style.css": nil} },
+			want: `font file "_documango/style.css" collides`,
 		},
 		{
 			name: "unreadable asset",
