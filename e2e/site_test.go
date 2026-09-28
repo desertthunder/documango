@@ -352,3 +352,85 @@ func TestAccessibility(t *testing.T) {
 		}
 	}
 }
+
+// serveConfigured serves the fixture with a config file that sets a favicon,
+// a logo and two header links.
+func serveConfigured(t *testing.T) *served {
+	t.Helper()
+	config := filepath.Join(t.TempDir(), "documango.toml")
+	body := `title = "Acme Documentation for Operators"
+favicon = "logo.svg"
+logo = "logo.svg"
+
+[[links]]
+title = "GitHub"
+url = "https://github.com/acme/acme"
+
+[[links]]
+title = "Changelog"
+url = "/guide/"
+`
+	if err := os.WriteFile(config, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return serve(t, nil, "--config", config)
+}
+
+func TestHeaderLinksAndLogo(t *testing.T) {
+	t.Parallel()
+	site := serveConfigured(t)
+	page := newPage(t)
+	errs := watchErrors(page)
+	site.open(t, page, "/guide/install/")
+
+	links := page.GetByRole("navigation", playwright.PageGetByRoleOptions{Name: "Site"})
+	check(t, expect.Locator(links).ToBeVisible(), "header links visible")
+	github := links.GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "GitHub"})
+	check(t, expect.Locator(github).ToHaveAttribute("rel", "noopener"), "external link rel")
+	check(t, expect.Locator(links.Locator("[target]")).ToHaveCount(0), "links open in the same tab")
+	check(t, links.GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "Changelog"}).Click(), "follow internal link")
+	check(t, expect.Page(page).ToHaveURL(site.URL+"guide/"), "internal link")
+
+	logo := page.Locator(".site-header__logo")
+	check(t, expect.Locator(logo).ToBeVisible(), "logo visible")
+	box, err := logo.BoundingBox()
+	check(t, err, "logo box")
+	header, err := page.Locator(".site-header").BoundingBox()
+	check(t, err, "header box")
+	if box.Height <= 0 || box.Height >= header.Height {
+		t.Errorf("logo height %v, header height %v", box.Height, header.Height)
+	}
+	check(t, expect.Locator(page.Locator(".site-header__title")).ToHaveAccessibleName("Acme Documentation for Operators"), "title link name")
+
+	icon := page.Locator(`link[rel="icon"]`)
+	check(t, expect.Locator(icon).ToHaveAttribute("type", "image/svg+xml"), "favicon type")
+	status, err := page.Evaluate(`() => fetch(document.querySelector('link[rel="icon"]').href).then(r => r.status)`)
+	check(t, err, "fetch favicon")
+	if status != 200 {
+		t.Errorf("favicon status %v", status)
+	}
+	if e := errs(); len(e) > 0 {
+		t.Errorf("page errors:\n%s", strings.Join(e, "\n"))
+	}
+}
+
+func TestMobileHeaderLinks(t *testing.T) {
+	t.Parallel()
+	site := serveConfigured(t)
+	page := newPage(t, mobile)
+	site.open(t, page, "/guide/install/")
+
+	check(t, expect.Locator(page.Locator(".site-header .site-links")).ToBeHidden(), "header links hidden")
+	check(t, expect.Locator(page.Locator(".site-header__logo")).ToBeVisible(), "logo visible")
+	got, err := page.Evaluate(`() => [document.documentElement.scrollWidth, window.innerWidth]`)
+	check(t, err, "measure page")
+	if w := got.([]any); w[0].(int) > w[1].(int) {
+		t.Errorf("scrollWidth %d > innerWidth %d", w[0], w[1])
+	}
+
+	check(t, page.Locator(".menu-toggle").Click(), "open menu")
+	links := page.Locator("#sidebar").GetByRole("navigation", playwright.LocatorGetByRoleOptions{Name: "Site"})
+	github := links.GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "GitHub"})
+	check(t, expect.Locator(github).ToBeVisible(), "links in the menu")
+	check(t, expect.Locator(github).ToHaveAttribute("rel", "noopener"), "menu link rel")
+}

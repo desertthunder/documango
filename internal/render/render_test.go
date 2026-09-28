@@ -206,7 +206,7 @@ func TestLayoutLandmarks(t *testing.T) {
 		`<script src="/_documango/app.js" defer></script>`,
 		`<a class="skip-link" href="#content">Skip to content</a>`,
 		`<header class="site-header">`,
-		`<a class="site-header__title" href="/">Welcome</a>`,
+		`<a class="site-header__title" href="/"><span class="site-header__name">Welcome</span></a>`,
 		`role="search"`,
 		`<input class="search__input" id="search-input" type="search"`,
 		`aria-controls="sidebar"`,
@@ -217,7 +217,78 @@ func TestLayoutLandmarks(t *testing.T) {
 		`<footer class="site-footer">`,
 		"Built with documango",
 	)
-	mustNotContain(t, doc, "data-livereload", `<meta name="description"`)
+	mustNotContain(t, doc, "data-livereload", `<meta name="description"`, `<meta name="author"`, `rel="canonical"`, `rel="icon"`,
+		"og:url", "og:description", `class="site-header__logo"`, `aria-label="Site"`)
+}
+
+func TestSiteMetadata(t *testing.T) {
+	fsys := docsFS()
+	fsys["favicon.ico"] = file("ico")
+	opts := defaultOpts()
+	opts.BasePath = "/docs/"
+	opts.Description = "Docs for <Acme>."
+	opts.URL = "https://acme.dev/docs"
+	opts.Author = "Acme Inc."
+	opts.Language = "fr"
+	opts.Favicon = "favicon.ico"
+	opts.Logo = "img/logo.png"
+	opts.Links = []Link{{"GitHub", "https://github.com/acme/acme"}, {"Blog", "/blog/"}, {"Mail", "mailto:hi@acme.dev"}}
+	files := build(t, fsys, opts)
+
+	install := get(t, files, "guide/install/index.html")
+	mustContain(t, install,
+		`<html lang="fr" class="no-js" data-base="/docs/">`,
+		`<meta name="description" content="Docs for &lt;Acme&gt;.">`,
+		`<meta name="author" content="Acme Inc.">`,
+		`<link rel="canonical" href="https://acme.dev/docs/guide/install/">`,
+		`<meta property="og:type" content="website">`,
+		`<meta property="og:title" content="Install">`,
+		`<meta property="og:description" content="Docs for &lt;Acme&gt;.">`,
+		`<meta property="og:url" content="https://acme.dev/docs/guide/install/">`,
+		`<meta property="og:site_name" content="Welcome">`,
+		`<link rel="icon" href="/docs/favicon.ico" type="image/x-icon">`,
+		`<a class="site-header__title" href="/docs/"><img class="site-header__logo" src="/docs/img/logo.png" alt=""><span class="site-header__name">Welcome</span></a>`,
+		`<nav class="site-links" aria-label="Site">`,
+		`<a class="site-links__link" href="https://github.com/acme/acme" rel="noopener">GitHub</a>`,
+		`<a class="site-links__link" href="/blog/">Blog</a>`,
+		`<a class="site-links__link" href="mailto:hi@acme.dev">Mail</a>`,
+		`<nav class="sidebar-nav sidebar-nav--site" aria-label="Site">`,
+		`<a class="sidebar-nav__link" href="https://github.com/acme/acme" rel="noopener">GitHub</a>`,
+	)
+	mustNotContain(t, install, "target=")
+
+	// A page's own description wins; the home page is the site root.
+	mustContain(t, get(t, files, "getting-started/index.html"),
+		`<meta name="description" content="Start here">`, `<meta property="og:description" content="Start here">`)
+	mustContain(t, get(t, files, "index.html"),
+		`<link rel="canonical" href="https://acme.dev/docs/">`, `<meta property="og:title" content="Welcome">`)
+
+	notFound := get(t, files, "404.html")
+	mustContain(t, notFound, `<html lang="fr"`, `<meta name="description" content="Docs for &lt;Acme&gt;.">`, `rel="icon"`, `class="site-header__logo"`)
+	mustNotContain(t, notFound, `rel="canonical"`, "og:")
+}
+
+func TestSiteMetadataWithoutURL(t *testing.T) {
+	opts := defaultOpts()
+	opts.Description = "Docs."
+	doc := get(t, build(t, docsFS(), opts), "guide/install/index.html")
+	mustContain(t, doc, `<meta property="og:title" content="Install">`, `<meta property="og:description" content="Docs.">`,
+		`<meta property="og:site_name" content="Welcome">`)
+	mustNotContain(t, doc, `rel="canonical"`, "og:url", "og:type")
+}
+
+func TestFaviconTypes(t *testing.T) {
+	for name, want := range map[string]string{
+		"f.svg": ` type="image/svg&#43;xml"`, "f.PNG": ` type="image/png"`, "f.ico": ` type="image/x-icon"`,
+		"f.gif": ` type="image/gif"`, "f.jpg": ` type="image/jpeg"`, "f.jpeg": ` type="image/jpeg"`,
+		"f.webp": ` type="image/webp"`, "f.avif": ` type="image/avif"`, "f.bmp": "",
+	} {
+		fsys := docsFS()
+		fsys[name] = file("x")
+		opts := defaultOpts()
+		opts.Favicon = name
+		mustContain(t, get(t, build(t, fsys, opts), "index.html"), `<link rel="icon" href="/`+name+`"`+want+">")
+	}
 }
 
 func TestDocumentTitles(t *testing.T) {
@@ -302,7 +373,7 @@ func TestSidebarNav(t *testing.T) {
 
 	// The home page marks the site title instead of a nav link.
 	home := get(t, files, "index.html")
-	mustContain(t, home, `<a class="site-header__title" href="/" aria-current="page">Welcome</a>`)
+	mustContain(t, home, `<a class="site-header__title" href="/" aria-current="page"><span class="site-header__name">Welcome</span></a>`)
 	mustNotContain(t, section(t, home, `<nav class="sidebar-nav"`, "</nav>"), "aria-current")
 }
 
@@ -586,7 +657,7 @@ func TestRenderErrors(t *testing.T) {
 func TestSiteWithoutHome(t *testing.T) {
 	fsys := fstest.MapFS{"a.md": file("# A\n")}
 	files := build(t, fsys, defaultOpts())
-	mustContain(t, get(t, files, "a/index.html"), `<a class="site-header__title" href="/">Documentation</a>`)
+	mustContain(t, get(t, files, "a/index.html"), `<a class="site-header__title" href="/"><span class="site-header__name">Documentation</span></a>`)
 	if _, ok := files["index.html"]; ok {
 		t.Error("no home page should be rendered")
 	}

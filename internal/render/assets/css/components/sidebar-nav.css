@@ -108,6 +108,17 @@
   border-inline-start-color: var(--accent);
 }
 
+/* The header links, repeated for small screens where the header has no room. */
+.sidebar-nav--site {
+  border-block-start: 1px solid var(--border);
+}
+
+@media (min-width: 48.01rem) {
+  .sidebar-nav--site {
+    display: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .sidebar-nav__chevron {
     transition: none;

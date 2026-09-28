@@ -67,11 +67,11 @@ func (a *app) serve(ctx context.Context, dir string, o *serveOptions, root *cobr
 	if err := checkDir(dir, root); err != nil {
 		return err
 	}
-	b, err := a.newBuilder(ctx, dir, &o.site)
+	b, err := a.newBuilder(dir, &o.site)
 	if err != nil {
 		return err
 	}
-	b.render.LiveReload = server.EventsURLFor(b.render.BasePath)
+	b.serving = true
 
 	// Build once here so errors surface as they are and the title is known;
 	// the server reuses this result as its initial build.

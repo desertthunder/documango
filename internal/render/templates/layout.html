@@ -1,13 +1,30 @@
 <!doctype html>
-<html lang="en" class="no-js" data-base="{{.Base}}"{{with .LiveReload}} data-livereload="{{.}}"{{end}}>
+<html lang="{{.Lang}}" class="no-js" data-base="{{.Base}}"{{with .LiveReload}} data-livereload="{{.}}"{{end}}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{.Title}}</title>
-{{- with .Page}}{{with .Description}}
+{{- with .Description}}
 <meta name="description" content="{{.}}">
 {{- end}}
-<meta data-pagefind-meta="title[content]" content="{{.Title}}">
+{{- with .Author}}
+<meta name="author" content="{{.}}">
+{{- end}}
+{{- with .Canonical}}
+<link rel="canonical" href="{{.}}">
+<meta property="og:type" content="website">
+<meta property="og:url" content="{{.}}">
+{{- end}}
+{{- if .Page}}
+<meta property="og:title" content="{{.OGTitle}}">
+{{- with .Description}}
+<meta property="og:description" content="{{.}}">
+{{- end}}
+<meta property="og:site_name" content="{{.Site.Title}}">
+<meta data-pagefind-meta="title[content]" content="{{.Page.Title}}">
+{{- end}}
+{{- with .Favicon}}
+<link rel="icon" href="{{$.Base}}{{.}}"{{with $.FaviconType}} type="{{.}}"{{end}}>
 {{- end}}
 <meta name="generator" content="documango{{with .Version}} {{.}}{{end}}">
 <script>(function(d){d.className="js";try{var t=localStorage.getItem("documango-theme");if(t==="light"||t==="dark")d.setAttribute("data-theme",t){{if .SchemeMenu}};["dark","light"].forEach(function(m){var s=localStorage.getItem("documango-"+m+"-scheme");if(s)d.setAttribute("data-"+m+"-scheme",s)}){{end}}}catch(e){}})(document.documentElement)</script>
@@ -20,7 +37,9 @@
   <button class="menu-toggle" type="button" aria-controls="sidebar" aria-expanded="false" aria-label="Show navigation">
     <svg class="menu-toggle__icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M4 6h16M4 12h16M4 18h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
   </button>
-  <a class="site-header__title" href="{{.Base}}"{{if and .Page (eq .Page .Site.Home)}} aria-current="page"{{end}}>{{.Site.Title}}</a>
+  <a class="site-header__title" href="{{.Base}}"{{if and .Page (eq .Page .Site.Home)}} aria-current="page"{{end}}>
+    {{- with .Logo}}<img class="site-header__logo" src="{{$.Base}}{{.}}" alt="">{{end -}}
+    <span class="site-header__name">{{.Site.Title}}</span></a>
   <form class="search" role="search" action="" autocomplete="off">
     <label class="sr-only" for="search-input">Search</label>
     <input class="search__input" id="search-input" type="search" placeholder="Search" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="search-results">
@@ -28,6 +47,15 @@
     <ul class="search__results" id="search-results" role="listbox" aria-label="Search results" hidden></ul>
     <p class="sr-only" id="search-status" role="status" aria-live="polite"></p>
   </form>
+  {{- with .Links}}
+  <nav class="site-links" aria-label="Site">
+    <ul class="site-links__list">
+      {{- range .}}
+      <li><a class="site-links__link" href="{{.URL}}"{{if .External}} rel="noopener"{{end}}>{{.Title}}</a></li>
+      {{- end}}
+    </ul>
+  </nav>
+  {{- end}}
   {{- if .SchemeMenu}}
   <div class="scheme-menu" hidden>
     <label class="sr-only" for="scheme-select">Color scheme</label>
@@ -47,6 +75,15 @@
     <nav class="sidebar-nav" aria-label="Documentation">
       {{- template "nav" .Nav}}
     </nav>
+    {{- with .Links}}
+    <nav class="sidebar-nav sidebar-nav--site" aria-label="Site">
+      <ul class="sidebar-nav__list">
+        {{- range .}}
+        <li class="sidebar-nav__item"><a class="sidebar-nav__link" href="{{.URL}}"{{if .External}} rel="noopener"{{end}}>{{.Title}}</a></li>
+        {{- end}}
+      </ul>
+    </nav>
+    {{- end}}
   </aside>
   <main class="site-main" id="content" tabindex="-1">
     <article class="prose"{{if .Page}} data-pagefind-body{{end}}>

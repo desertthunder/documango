@@ -25,6 +25,9 @@ const buildExample = `  # Build the docs in the current folder into _site
   # Build for a site hosted at https://example.com/project/
   documango build docs --base-path /project/
 
+  # Build with settings from a config file outside the docs folder
+  documango build docs --config site/documango.toml
+
   # Offer two light themes and skip the Pagefind download
   documango build docs --light-theme tomorrow,catppuccin-latte --search builtin`
 
@@ -102,13 +105,13 @@ func (a *app) build(ctx context.Context, dir string, o *buildOptions) error {
 			"Pick an output folder outside your docs, such as the default _site.")
 	}
 
-	b, err := a.newBuilder(ctx, dir, &o.site)
+	b, err := a.newBuilder(dir, &o.site)
 	if err != nil {
 		return err
 	}
 	if isWithin(out, absDir) {
 		rel, _ := filepath.Rel(absDir, out)
-		b.load.Exclude = []string{filepath.ToSlash(rel)}
+		b.exclude = append(b.exclude, filepath.ToSlash(rel))
 	}
 	s, files, err := b.build(ctx)
 	if err != nil {

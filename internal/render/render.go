@@ -5,12 +5,15 @@ package render
 
 import (
 	"bytes"
+	"cmp"
 	"embed"
 	"encoding/json"
 	"fmt"
 	"html/template"
 	"io/fs"
+	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -35,7 +38,22 @@ type Options struct {
 	LiveReload string
 	// Version is the documango version reported in <meta name="generator">.
 	Version string
+
+	// Description is the meta description of pages without their own.
+	Description string
+	// URL is the absolute address of the published site. When set, pages
+	// get canonical links and full Open Graph metadata.
+	URL      string
+	Author   string
+	Language string // <html lang>; default "en"
+	// Favicon and Logo are asset paths relative to the site root; "" for none.
+	Favicon, Logo string
+	// Links are shown in the header, in order.
+	Links []Link
 }
+
+// Link is a header link.
+type Link struct{ Title, URL string }
 
 // Output paths of the shared files, relative to the output root.
 const (
@@ -58,6 +76,7 @@ var cssFiles = []string{
 	"components/skip-link.css",
 	"components/site-header.css",
 	"components/search.css",
+	"components/site-links.css",
 	"components/scheme-menu.css",
 	"components/theme-toggle.css",
 	"components/menu-toggle.css",
@@ -90,17 +109,41 @@ type navNode struct {
 	Children []navNode
 }
 
+// headerLink is a header link as the template sees it.
+type headerLink struct {
+	Title, URL string
+	External   bool // opens another site
+}
+
+// faviconTypes maps favicon file extensions to their media types.
+var faviconTypes = map[string]string{
+	".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".gif": "image/gif",
+	".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".avif": "image/avif",
+}
+
 // layoutData is the input to the layout template. Page is nil on the 404 page.
 type layoutData struct {
-	Site       *site.Site
-	Page       *site.Page
-	Base       string
-	Title      string
-	Heading    string // h1 to render above the content; "" when it has one
-	Nav        []navNode
-	TOC        []markdown.Heading
-	LiveReload string
-	Version    string
+	Site    *site.Site
+	Page    *site.Page
+	Base    string
+	Title   string
+	OGTitle string
+	// Description is the page's description, else the site's.
+	Description string
+	// Canonical is the page's absolute URL; "" without a site URL and on the
+	// 404 page.
+	Canonical   string
+	Lang        string
+	Author      string
+	Favicon     string
+	FaviconType string
+	Logo        string
+	Links       []headerLink
+	Heading     string // h1 to render above the content; "" when it has one
+	Nav         []navNode
+	TOC         []markdown.Heading
+	LiveReload  string
+	Version     string
 	// Dark and Light fill the color scheme menu, shown when either has more
 	// than one scheme.
 	Dark, Light []theme.Scheme
@@ -129,18 +172,32 @@ func Render(s *site.Site, src fs.FS, opts Options) (map[string][]byte, error) {
 	if trimmed := strings.Trim(opts.BasePath, "/"); trimmed != "" {
 		base = "/" + trimmed + "/"
 	}
+	links := make([]headerLink, len(opts.Links))
+	for i, l := range opts.Links {
+		u, err := url.Parse(l.URL)
+		external := err == nil && (u.Scheme == "http" || u.Scheme == "https" || u.Scheme == "" && u.Host != "")
+		links[i] = headerLink{Title: l.Title, URL: l.URL, External: external}
+	}
 	files := map[string][]byte{}
 	data := layoutData{
 		Site: s, Base: base, LiveReload: opts.LiveReload, Version: opts.Version,
 		Dark: opts.Dark, Light: opts.Light, SchemeMenu: len(opts.Dark) > 1 || len(opts.Light) > 1,
+		Description: opts.Description, Lang: cmp.Or(opts.Language, "en"), Author: opts.Author,
+		Favicon: opts.Favicon, FaviconType: faviconTypes[strings.ToLower(path.Ext(opts.Favicon))],
+		Logo: opts.Logo, Links: links,
 	}
 
 	for _, p := range s.Pages {
 		d := data
 		d.Page = p
 		d.Title = p.Title + " · " + s.Title
+		d.OGTitle = p.Title
 		if p == s.Home {
-			d.Title = s.Title
+			d.Title, d.OGTitle = s.Title, s.Title
+		}
+		d.Description = cmp.Or(p.Description, opts.Description)
+		if opts.URL != "" {
+			d.Canonical = strings.TrimSuffix(opts.URL, "/") + "/" + strings.TrimPrefix(p.URL, base)
 		}
 		if !p.HasH1 {
 			d.Heading = p.Title

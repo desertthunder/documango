@@ -876,3 +876,178 @@ func TestServeSearch(t *testing.T) {
 		t.Errorf("GET pagefind.js after fallback: %d", resp.StatusCode)
 	}
 }
+
+// configDocs returns docsDir plus a favicon, a logo and the config file name
+// with body.
+func configDocs(t *testing.T, name, body string) string {
+	t.Helper()
+	dir := docsDir(t)
+	writeFile(t, filepath.Join(dir, "favicon.svg"), "<svg/>")
+	writeFile(t, filepath.Join(dir, "img", "logo.png"), "png")
+	writeFile(t, filepath.Join(dir, name), body)
+	return dir
+}
+
+const configTOML = `title = "Acme Docs"
+description = "Docs for Acme."
+url = "https://acme.dev/docs/"
+author = "Acme Inc."
+language = "de"
+favicon = "favicon.svg"
+logo = "img/logo.png"
+
+[theme]
+dark = ["remote-dusk", "github-dark"]
+light = "github"
+search = "builtin"
+
+[[links]]
+title = "GitHub"
+url = "https://github.com/acme/acme"
+`
+
+func TestBuildConfig(t *testing.T) {
+	dir := configDocs(t, "documango.toml", configTOML)
+	out := filepath.Join(t.TempDir(), "site")
+	if r := run(t, nil, "build", dir, "-o", out); r.code != 0 {
+		t.Fatalf("exit %d, stderr %q", r.code, r.stderr)
+	}
+	home, _ := os.ReadFile(filepath.Join(out, "index.html"))
+	for _, w := range []string{
+		"<title>Acme Docs</title>", `<html lang="de"`, `<meta name="description" content="Docs for Acme.">`,
+		`<meta name="author" content="Acme Inc.">`, `<link rel="canonical" href="https://acme.dev/docs/">`,
+		`<link rel="icon" href="/docs/favicon.svg"`, `src="/docs/img/logo.png"`, "/docs/_documango/style.css",
+		`href="https://github.com/acme/acme" rel="noopener">GitHub</a>`, `<option value="github-dark">`,
+	} {
+		if !bytes.Contains(home, []byte(w)) {
+			t.Errorf("index.html lacks %q", w)
+		}
+	}
+	css, _ := os.ReadFile(filepath.Join(out, "_documango", "style.css"))
+	if github, _ := theme.Lookup("github"); !bytes.Contains(css, []byte(github.CSSVars())) {
+		t.Error("light theme from the config not applied")
+	}
+	if exists(filepath.Join(out, "documango.toml")) || exists(filepath.Join(out, "pagefind")) {
+		t.Error("config file copied or pagefind used")
+	}
+}
+
+func TestBuildFlagsOverrideConfig(t *testing.T) {
+	dir := configDocs(t, "documango.yaml", "title: Acme Docs\nbase_path: /docs/\ntheme:\n  search: builtin\n  light: [github]\n")
+	out := filepath.Join(t.TempDir(), "site")
+	r := run(t, nil, "build", dir, "-o", out, "--title", "Flag Title", "--base-path", "/", "--search", "pagefind", "--light-theme", "tomorrow")
+	if r.code != 0 {
+		t.Fatalf("exit %d, stderr %q", r.code, r.stderr)
+	}
+	home, _ := os.ReadFile(filepath.Join(out, "index.html"))
+	for _, w := range []string{"<title>Flag Title</title>", `href="/_documango/style.css"`, `<html lang="en"`} {
+		if !bytes.Contains(home, []byte(w)) {
+			t.Errorf("index.html lacks %q", w)
+		}
+	}
+	css, _ := os.ReadFile(filepath.Join(out, "_documango", "style.css"))
+	if tomorrow, _ := theme.Lookup("tomorrow"); !bytes.Contains(css, []byte(tomorrow.CSSVars())) {
+		t.Error("--light-theme did not override the config")
+	}
+	if !exists(filepath.Join(out, "pagefind", "pagefind.js")) || exists(filepath.Join(out, "documango.yaml")) {
+		t.Error("--search pagefind ignored or config copied")
+	}
+}
+
+func TestBuildExplicitConfig(t *testing.T) {
+	dir := configDocs(t, "documango.toml", `title = "Implicit"`)
+	writeFile(t, filepath.Join(dir, "conf", "site.yml"), "title: Inside\n")
+	outside := filepath.Join(t.TempDir(), "site.toml")
+	writeFile(t, outside, `title = "Outside"`)
+	out := filepath.Join(t.TempDir(), "site")
+
+	for _, tc := range []struct{ config, title string }{
+		{filepath.Join(dir, "conf", "site.yml"), "Inside"},
+		{outside, "Outside"},
+	} {
+		if r := run(t, nil, "build", dir, "-o", out, "--config", tc.config); r.code != 0 {
+			t.Fatalf("exit %d, stderr %q", r.code, r.stderr)
+		}
+		home, _ := os.ReadFile(filepath.Join(out, "index.html"))
+		if !bytes.Contains(home, []byte("<title>"+tc.title+"</title>")) {
+			t.Errorf("--config %s: title not applied", tc.config)
+		}
+		if exists(filepath.Join(out, "conf", "site.yml")) == (tc.title == "Inside") || exists(filepath.Join(out, "documango.toml")) {
+			t.Errorf("--config %s: config file copied into the site", tc.config)
+		}
+	}
+}
+
+func TestConfigErrors(t *testing.T) {
+	dir := docsDir(t)
+	r := run(t, nil, "build", dir, "--config", filepath.Join(dir, "missing.toml"), "-o", filepath.Join(t.TempDir(), "o"))
+	if r.code != 1 || !strings.Contains(r.stderr, "missing.toml does not exist") {
+		t.Errorf("missing --config: exit %d, stderr %q", r.code, r.stderr)
+	}
+
+	writeFile(t, filepath.Join(dir, "documango.toml"), `colour = "red"`)
+	r = run(t, nil, "build", dir, "-o", filepath.Join(t.TempDir(), "o"))
+	if r.code != 1 || !strings.Contains(r.stderr, `documango.toml: unknown key "colour"`) {
+		t.Errorf("unknown key: exit %d, stderr %q", r.code, r.stderr)
+	}
+
+	writeFile(t, filepath.Join(dir, "documango.toml"), "[theme]\ndark = \"nope-nope\"")
+	r = run(t, nil, dir, "--port", "0")
+	if r.code != 1 || !strings.Contains(r.stderr, `unknown theme "nope-nope"`) {
+		t.Errorf("bad theme in config: exit %d, stderr %q", r.code, r.stderr)
+	}
+
+	writeFile(t, filepath.Join(dir, "documango.yaml"), "")
+	r = run(t, nil, "serve", dir, "--port", "0")
+	if r.code != 1 || !strings.Contains(r.stderr, "keep only one") {
+		t.Errorf("two config files: exit %d, stderr %q", r.code, r.stderr)
+	}
+}
+
+// waitFor polls url until its body contains want.
+func waitFor(t *testing.T, url, want string) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, body := get(t, url); strings.Contains(body, want) {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatalf("%s never contained %q", url, want)
+}
+
+func TestServeReloadsConfig(t *testing.T) {
+	dir := configDocs(t, "documango.toml", "title = \"First\"\nbase_path = \"/docs/\"")
+	url, stderr, stop := startServe(t, dir, "--port", "0")
+	defer stop()
+	if !strings.HasSuffix(url, "/docs/") {
+		t.Fatalf("base path from config not used: %s", url)
+	}
+	if resp, _ := get(t, url+"documango.toml"); resp.StatusCode != http.StatusNotFound {
+		t.Errorf("config file served: %d", resp.StatusCode)
+	}
+
+	writeFile(t, filepath.Join(dir, "documango.toml"), "title = \"Second\"\nbase_path = \"/docs/\"\n[[links]]\ntitle = \"Blog\"\nurl = \"/blog/\"")
+	waitFor(t, url, ">Blog</a>")
+
+	// A broken config fails the rebuild but keeps the last good site.
+	writeFile(t, filepath.Join(dir, "documango.toml"), `colour = "red"`)
+	deadline := time.Now().Add(5 * time.Second)
+	for !strings.Contains(stderr.String(), "build failed") && time.Now().Before(deadline) {
+		time.Sleep(20 * time.Millisecond)
+	}
+	if s := stderr.String(); !strings.Contains(s, `unknown key \"colour\"`) {
+		t.Errorf("broken config not reported: %q", s)
+	}
+	if _, body := get(t, url); !strings.Contains(body, "<title>Second</title>") {
+		t.Error("last good build not kept")
+	}
+
+	// The base path is fixed while serving.
+	writeFile(t, filepath.Join(dir, "documango.toml"), "title = \"Third\"\nbase_path = \"/other/\"")
+	waitFor(t, url, "<title>Third</title>")
+	if !strings.Contains(stderr.String(), "restart") {
+		t.Errorf("base path change not reported: %q", stderr.String())
+	}
+}
