@@ -3,6 +3,7 @@
 package e2e
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -81,6 +82,24 @@ func TestPager(t *testing.T) {
 
 	check(t, page.Locator("a[rel=prev]").Click(), "click previous")
 	check(t, expect.Page(page).ToHaveURL(site.URL+strings.TrimPrefix(pages[len(pages)-2].path, "/")), "previous")
+}
+
+// The article and the pager sit in the same column, so their edges line up
+// even though their font sizes differ.
+func TestMainColumnAligned(t *testing.T) {
+	t.Parallel()
+	site := serve(t, nil)
+	page := newPage(t, playwright.BrowserNewContextOptions{Viewport: &playwright.Size{Width: 1600, Height: 900}})
+	site.open(t, page, "/")
+	edges, err := page.Evaluate(`() => ["article", ".pager"].map(s => {
+		const r = document.querySelector(s).getBoundingClientRect()
+		return [Math.round(r.left), Math.round(r.right)]
+	})`)
+	check(t, err, "measure column")
+	got := edges.([]any)
+	if fmt.Sprint(got[0]) != fmt.Sprint(got[1]) {
+		t.Errorf("article edges %v, pager edges %v; want equal", got[0], got[1])
+	}
 }
 
 func TestNotFound(t *testing.T) {

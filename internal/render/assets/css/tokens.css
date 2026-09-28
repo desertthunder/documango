@@ -54,7 +54,7 @@
   --radius-sm: 0.25rem;
   --radius-md: 0.5rem;
 
-  --measure: 72ch;
+  --measure: 40rem; /* rem, not ch: every child of the main column gets the same width */
   --header-height: 3.5rem;
   --sidebar-width: 16rem;
   --toc-width: 14rem;
