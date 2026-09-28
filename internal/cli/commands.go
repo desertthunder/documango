@@ -71,7 +71,7 @@ func (a *app) newRootCmd() *cobra.Command {
 	root.SuggestionsMinimumDistance = 2
 
 	pf := root.PersistentFlags()
-	pf.BoolVarP(&a.quiet, "quiet", "q", false, "only print errors (serve still prints its address)")
+	pf.BoolVarP(&a.quiet, "quiet", "q", false, "only print warnings and errors (serve still prints its address)")
 	pf.BoolVarP(&a.verbose, "verbose", "v", false, "print debug logs, such as which files changed")
 	pf.BoolVar(&a.noColor, "no-color", false, "turn off coloured output")
 	opts.addFlags(root.Flags())
