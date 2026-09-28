@@ -5,10 +5,12 @@ package site
 import (
 	"cmp"
 	"fmt"
+	"html"
 	"html/template"
 	"io/fs"
 	"net/url"
 	"path"
+	"regexp"
 	"slices"
 	"strings"
 	"unicode"
@@ -61,7 +63,7 @@ type Site struct {
 	// Home is the root index page, or nil if there is none.
 	Home *Page
 	// Warnings lists problems found while loading, each prefixed with the
-	// source file, such as a heading with no text.
+	// source file, such as a heading with no text or a broken relative link.
 	Warnings []string
 
 	byURL   map[string]*Page
@@ -92,18 +94,33 @@ type loader struct {
 	basePath string
 	bySource map[string]*Page
 	byDir    map[string]*Page // directory path ("." for root) -> index page
+	drafts   map[string]bool  // sources of draft pages
+	assets   map[string]bool
+	links    map[*Page][]link // relative links in each page, in document order
+}
+
+// link is a relative link or image in a page, checked once every page is
+// rendered and its anchors are known.
+type link struct {
+	dest    string
+	problem string // why the target isn't in the site, or ""
+	target  *Page  // the page dest points to, if any
+	frag    string // the #fragment without '#', or ""
 }
 
 // Load reads every Markdown file in fsys and builds the site model.
 //
-// Hidden entries, entries starting with "_", excluded paths, and drafts are
-// skipped. index.md (or README.md when there is no index.md) becomes its
+// Hidden entries, entries starting with "_", node_modules folders, excluded
+// paths, drafts, and symbolic links to folders are skipped. index.md (or README.md when there is no index.md) becomes its
 // directory's page.
 func Load(fsys fs.FS, opts Options) (*Site, error) {
 	l := &loader{
 		basePath: normalizeBasePath(opts.BasePath),
 		bySource: map[string]*Page{},
 		byDir:    map[string]*Page{},
+		drafts:   map[string]bool{},
+		assets:   map[string]bool{},
+		links:    map[*Page][]link{},
 	}
 
 	exclude := map[string]bool{}
@@ -120,11 +137,20 @@ func Load(fsys fs.FS, opts Options) (*Site, error) {
 		if p == "." {
 			return nil
 		}
-		if strings.HasPrefix(d.Name(), ".") || strings.HasPrefix(d.Name(), "_") || exclude[p] {
+		name := d.Name()
+		if strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_") || name == "node_modules" || exclude[p] {
 			if d.IsDir() {
 				return fs.SkipDir
 			}
 			return nil
+		}
+		// WalkDir doesn't follow symbolic links. Following one to a folder
+		// could loop, so skip it; a link to a file reads like the file.
+		if d.Type()&fs.ModeSymlink != 0 {
+			if info, err := fs.Stat(fsys, p); err == nil && info.IsDir() {
+				s.Warnings = append(s.Warnings, p+"/ is a symbolic link to a folder; documango skips it")
+				return nil
+			}
 		}
 		switch {
 		case d.IsDir():
@@ -139,6 +165,9 @@ func Load(fsys fs.FS, opts Options) (*Site, error) {
 		return nil, fmt.Errorf("scan docs: %w", err)
 	}
 	slices.Sort(s.Assets)
+	for _, a := range s.Assets {
+		l.assets[a] = true
+	}
 
 	// Parse front matter first so drafts are gone before index pages are chosen.
 	bodies := map[*Page][]byte{}
@@ -153,6 +182,7 @@ func Load(fsys fs.FS, opts Options) (*Site, error) {
 			return nil, fmt.Errorf("%s: %w", src, err)
 		}
 		if meta.Draft {
+			l.drafts[src] = true
 			continue
 		}
 		p := &Page{Source: src, Meta: meta, Description: meta.Description}
@@ -192,7 +222,7 @@ func Load(fsys fs.FS, opts Options) (*Site, error) {
 
 	md := markdown.New()
 	for _, p := range pages {
-		res, err := md.Render(bodies[p], l.resolver(path.Dir(p.Source)))
+		res, err := md.Render(bodies[p], l.resolver(p))
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", p.Source, err)
 		}
@@ -211,6 +241,12 @@ func Load(fsys fs.FS, opts Options) (*Site, error) {
 				name = "home"
 			}
 			p.Title = humanize(strings.TrimSuffix(name, path.Ext(name)))
+		}
+	}
+
+	for _, p := range pages {
+		for _, w := range l.linkWarnings(p) {
+			s.Warnings = append(s.Warnings, p.Source+": "+w)
 		}
 	}
 
@@ -238,7 +274,7 @@ func Load(fsys fs.FS, opts Options) (*Site, error) {
 
 	root := nodes["."]
 	s.Home = root.index
-	s.resolve = l.resolver(".")
+	s.resolve = l.resolver(nil)
 	s.Nav = navChildren(root)
 	if s.Home != nil {
 		s.Pages = append(s.Pages, s.Home)
@@ -305,17 +341,30 @@ func navChildren(n *dirNode) []*NavItem {
 	return items
 }
 
-// resolver maps relative Markdown links written in source directory dir to
-// site URLs. Known pages and page directories map to their URLs, anything
-// else to BasePath plus the cleaned path. Paths that escape the root are
-// returned unchanged.
-func (l *loader) resolver(dir string) markdown.Resolver {
+// resolver maps relative Markdown links written in page from to site URLs,
+// and records them for linkWarnings. A nil from resolves links as if written
+// at the root and records nothing. Known pages and page directories map to
+// their URLs, anything else to BasePath plus the cleaned path. Paths that
+// escape the root are returned unchanged.
+func (l *loader) resolver(from *Page) markdown.Resolver {
+	dir := "."
+	if from != nil {
+		dir = path.Dir(from.Source)
+	}
+	record := func(dest, problem string, target *Page, suffix string) {
+		if from == nil {
+			return
+		}
+		_, frag, _ := strings.Cut(suffix, "#")
+		l.links[from] = append(l.links[from], link{dest: dest, problem: problem, target: target, frag: frag})
+	}
 	return func(dest string) string {
 		raw, suffix := dest, ""
 		if i := strings.IndexAny(dest, "?#"); i >= 0 {
 			raw, suffix = dest[:i], dest[i:]
 		}
 		if raw == "" {
+			record(dest, "", from, suffix)
 			return dest
 		}
 		decoded, err := url.PathUnescape(raw)
@@ -323,17 +372,28 @@ func (l *loader) resolver(dir string) markdown.Resolver {
 			decoded = raw
 		}
 		target := path.Join(dir, decoded)
-		if target == ".." || strings.HasPrefix(target, "../") {
+		if escapes(target) {
+			record(dest, "points outside the docs folder", nil, "")
 			return dest
 		}
-		if page, ok := l.bySource[target]; ok {
+		page := l.bySource[target]
+		if page == nil {
+			page = l.byDir[target]
+		}
+		if page != nil {
+			record(dest, "", page, suffix)
 			return page.URL + suffix
 		}
-		if page, ok := l.byDir[target]; ok {
-			return page.URL + suffix
+		switch {
+		case l.drafts[target]:
+			record(dest, "is a draft", nil, "")
+		case isMarkdown(target):
+			record(dest, "does not match a page", nil, "")
+		case !l.assets[target]:
+			record(dest, "does not match a page or file", nil, "")
 		}
 		fallback := path.Join(dir, raw)
-		if fallback == ".." || strings.HasPrefix(fallback, "../") {
+		if escapes(fallback) {
 			return dest
 		}
 		if fallback == "." {
@@ -341,6 +401,61 @@ func (l *loader) resolver(dir string) markdown.Resolver {
 		}
 		return l.basePath + fallback + suffix
 	}
+}
+
+// idRE matches id attributes in rendered HTML: heading IDs, footnote
+// anchors, and ids written in raw HTML.
+var idRE = regexp.MustCompile(`\sid=(?:"([^"]*)"|'([^']*)')`)
+
+// linkWarnings describes page p's broken relative links, once each and in
+// document order. It runs after every page is rendered, when heading IDs are
+// known.
+func (l *loader) linkWarnings(p *Page) []string {
+	var out []string
+	seen := map[string]bool{}
+	ids := map[*Page]map[string]bool{}
+	for _, lk := range l.links[p] {
+		msg := lk.problem
+		if msg == "" && lk.frag != "" {
+			if ids[lk.target] == nil {
+				ids[lk.target] = pageIDs(lk.target)
+			}
+			frag, err := url.PathUnescape(lk.frag)
+			if err != nil {
+				frag = lk.frag
+			}
+			if !ids[lk.target][lk.frag] && !ids[lk.target][frag] {
+				msg = fmt.Sprintf("the target page has no heading %q", "#"+lk.frag)
+			}
+		}
+		if msg == "" {
+			continue
+		}
+		sep := " "
+		if lk.problem == "" {
+			sep = ": "
+		}
+		w := fmt.Sprintf("link to %q%s%s", lk.dest, sep, msg)
+		if !seen[w] {
+			seen[w] = true
+			out = append(out, w)
+		}
+	}
+	return out
+}
+
+// pageIDs returns the set of element ids in p's rendered content.
+func pageIDs(p *Page) map[string]bool {
+	ids := map[string]bool{}
+	for _, m := range idRE.FindAllStringSubmatch(string(p.Content), -1) {
+		ids[html.UnescapeString(m[1]+m[2])] = true
+	}
+	return ids
+}
+
+// escapes reports whether the cleaned slash path p leaves the root.
+func escapes(p string) bool {
+	return p == ".." || strings.HasPrefix(p, "../")
 }
 
 func normalizeBasePath(bp string) string {

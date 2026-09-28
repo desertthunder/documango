@@ -341,13 +341,13 @@ func TestResolver(t *testing.T) {
 		`src="/resolved/img/logo.png"`,
 		`href="/resolved/ref/target.md"`,
 		`href="/abs/path"`,
-		`href="#section"`,
+		`href="/resolved/#section"`,
 		`href="https://example.com/a.md"`,
 		`href="mailto:a@b.c"`,
 		`href="//cdn.example.com/x.js"`,
 		`href="https://auto.example.com"`,
 	)
-	wantSeen := []string{"guide/install.md#step", "../x.md", "img/logo.png", "ref/target.md"}
+	wantSeen := []string{"guide/install.md#step", "../x.md", "img/logo.png", "#section", "ref/target.md"}
 	if !reflect.DeepEqual(seen, wantSeen) {
 		t.Errorf("resolver called with %q, want %q", seen, wantSeen)
 	}

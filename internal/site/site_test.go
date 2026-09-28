@@ -3,7 +3,10 @@ package site
 import (
 	"errors"
 	"io/fs"
+	"os"
+	"path/filepath"
 	"reflect"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -423,9 +426,10 @@ func (missingFS) Open(name string) (fs.File, error) {
 func TestWarnings(t *testing.T) {
 	t.Parallel()
 	s := load(t, fstest.MapFS{
-		"index.md":       file("# Home\n"),
-		"guide/about.md": file("# About\n\n## ![](diagram.svg)\n"),
-		"a.md":           file("# A\n\n##\n"),
+		"index.md":          file("# Home\n"),
+		"guide/about.md":    file("# About\n\n## ![](diagram.svg)\n"),
+		"guide/diagram.svg": file("<svg/>"),
+		"a.md":              file("# A\n\n##\n"),
 	}, Options{})
 	want := []string{
 		"a.md: a level-2 heading has no text",
@@ -457,5 +461,177 @@ func TestRootResolver(t *testing.T) {
 	}
 	if (&Site{}).Resolver() != nil {
 		t.Error("a site that was not loaded has a resolver")
+	}
+}
+
+func TestLinkWarnings(t *testing.T) {
+	t.Parallel()
+	base := fstest.MapFS{
+		"index.md":             file("# Home\n\n## Intro\n"),
+		"guide/index.md":       file("# Guide\n\n## Install\n\n## Setup {#custom-setup}\n"),
+		"guide/a.md":           file("# A\n"),
+		"guide/my page.md":     file("# Spaced\n\n## Café\n"),
+		"guide/draft.md":       file("---\ndraft: true\n---\n# Draft\n"),
+		"guide/sub/README.md":  file("# Sub\n"),
+		"guide/sub/deep.MD":    file("# Deep\n"),
+		"guide/img/logo.png":   file("png"),
+		"guide/assets/f.txt":   file("txt"),
+		"_partials/p.md":       file("# P\n"),
+		"private/secret.md":    file("# Secret\n"),
+		".hidden.md":           file("# Hidden\n"),
+		"both/index.md":        file("# Both\n"),
+		"both/README.md":       file("# Readme\n"),
+		"guide/raw.html":       file("<p>raw</p>"),
+		"guide/sub/pic.JPG":    file("jpg"),
+		"guide/sub/notes.txt":  file("n"),
+		"guide/sub/extra.md":   file("# Extra\n"),
+		"guide/sub/nested.png": file("png"),
+	}
+	tests := []struct {
+		name, body string
+		want       []string // warnings for guide/page.md, without the source prefix
+	}{
+		{"clean links", strings.Join([]string{
+			"[a](a.md)", "[upper](sub/deep.MD)", "[dir](sub/)", "[dir no slash](sub)",
+			"[readme](sub/README.md)", "[parent](../index.md)", "[root dir](../)", "[self dir](.)",
+			"[spaced](my%20page.md)", "[spaced raw](<my page.md>)", "[query](a.md?x=1)",
+			"![logo](img/logo.png)", "[file](assets/f.txt)", "[html](raw.html)",
+			"[frag](index.md#install)", "[explicit id](./#custom-setup)", "[encoded frag](my%20page.md#caf%C3%A9)",
+			"[home frag](../#intro)", "[query frag](index.md?x=1#install)",
+			"[abs](/nowhere.md)", "[web](https://example.com/x.md)", "[mail](mailto:a@b.c)",
+			"<a href=\"missing.md\">raw</a>", "[q](?only=query)",
+			"## Here\n\n[same](#here) and a note[^1].\n\n[^1]: Footnote.\n\n[fn](#fn:1) [back](#fnref:1)",
+		}, "\n\n"), nil},
+		{"missing page", "[m](missing.md)", []string{`link to "missing.md" does not match a page`}},
+		{"missing page upper ext", "[m](Missing.MARKDOWN)", []string{`link to "Missing.MARKDOWN" does not match a page`}},
+		{"draft", "[d](draft.md)", []string{`link to "draft.md" is a draft`}},
+		{"underscore", "[p](../_partials/p.md)", []string{`link to "../_partials/p.md" does not match a page`}},
+		{"hidden", "[h](../.hidden.md)", []string{`link to "../.hidden.md" does not match a page`}},
+		{"excluded", "[s](../private/secret.md)", []string{`link to "../private/secret.md" does not match a page`}},
+		{"readme beside index", "[r](../both/README.md)", []string{`link to "../both/README.md" does not match a page`}},
+		{"missing image", "![x](img/missing.png)", []string{`link to "img/missing.png" does not match a page or file`}},
+		{"folder without page", "[f](assets/)", []string{`link to "assets/" does not match a page or file`}},
+		{"missing nested", "[n](sub/none.png?v=2)", []string{`link to "sub/none.png?v=2" does not match a page or file`}},
+		{"outside", "[o](../../x.md)", []string{`link to "../../x.md" points outside the docs folder`}},
+		{"missing heading", "[h](index.md#nope)", []string{`link to "index.md#nope": the target page has no heading "#nope"`}},
+		{"missing heading via dir", "[h](../guide/#nope)", []string{`link to "../guide/#nope": the target page has no heading "#nope"`}},
+		{"same page missing heading", "# P\n\n[h](#nope)", []string{`link to "#nope": the target page has no heading "#nope"`}},
+		{"missing footnote", "[fn](#fn:9)", []string{`link to "#fn:9": the target page has no heading "#fn:9"`}},
+		{"once per page and in order", "[m](missing.md) [o](../../x.md) [m again](missing.md) ![img](missing.md)", []string{
+			`link to "missing.md" does not match a page`,
+			`link to "../../x.md" points outside the docs folder`,
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			fsys := fstest.MapFS{"guide/page.md": file(tt.body)}
+			for k, v := range base {
+				fsys[k] = v
+			}
+			s := load(t, fsys, Options{Exclude: []string{"private"}})
+			var want []string
+			for _, w := range tt.want {
+				want = append(want, "guide/page.md: "+w)
+			}
+			if !slices.Equal(s.Warnings, want) {
+				t.Errorf("Warnings = %q, want %q", s.Warnings, want)
+			}
+		})
+	}
+}
+
+func TestLinkWarningsFromNestedAndIndexPages(t *testing.T) {
+	t.Parallel()
+	s := load(t, fstest.MapFS{
+		"index.md":           file("# Home\n\n[g](guide/x.md)\n"),
+		"guide/README.md":    file("# Guide\n\n[s](sub/a.md#b) [up](../index.md#c)\n"),
+		"guide/sub/a.md":     file("# A\n\n## B\n\n[x](../../nope.png)\n"),
+		"guide/sub/index.md": file("---\ndraft: true\n---\n"),
+	}, Options{})
+	want := []string{
+		`guide/README.md: link to "../index.md#c": the target page has no heading "#c"`,
+		`guide/sub/a.md: link to "../../nope.png" does not match a page or file`,
+		`index.md: link to "guide/x.md" does not match a page`,
+	}
+	if !slices.Equal(s.Warnings, want) {
+		t.Errorf("Warnings = %q, want %q", s.Warnings, want)
+	}
+}
+
+func TestRootResolverRecordsNoWarnings(t *testing.T) {
+	t.Parallel()
+	s := load(t, fstest.MapFS{"index.md": file("# Home\n")}, Options{})
+	s.Resolver()("missing.md")
+	s.Resolver()("#nope")
+	if len(s.Warnings) != 0 {
+		t.Errorf("Warnings = %q", s.Warnings)
+	}
+}
+
+func TestSkipsNodeModules(t *testing.T) {
+	t.Parallel()
+	s := load(t, fstest.MapFS{
+		"index.md":                      file("# Home\n"),
+		"node_modules/pkg/README.md":    file("# Pkg\n"),
+		"node_modules/pkg/logo.png":     file("png"),
+		"theme/node_modules/x/index.js": file("js"),
+		"theme/page.md":                 file("# Theme\n"),
+	}, Options{})
+	if got := urls(s.Pages); !slices.Equal(got, []string{"/", "/theme/page/"}) {
+		t.Errorf("pages = %q", got)
+	}
+	if len(s.Assets) != 0 {
+		t.Errorf("Assets = %q", s.Assets)
+	}
+}
+
+func TestSymlinks(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS == "windows" {
+		t.Skip("symlinks need extra privileges on Windows")
+	}
+	dir := t.TempDir()
+	outside := t.TempDir()
+	for name, body := range map[string]string{
+		"index.md":        "# Home\n\n[linked](linked.md) ![img](pic.png)\n",
+		"real/page.md":    "# Real\n",
+		"real.png":        "png",
+		outside + "/o.md": "# Outside\n",
+	} {
+		p := name
+		if !filepath.IsAbs(p) {
+			p = filepath.Join(dir, name)
+		}
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for link, target := range map[string]string{
+		"linked.md": filepath.Join(outside, "o.md"),
+		"pic.png":   "real.png",
+		"dirlink":   "real",
+		"loop":      ".",
+	} {
+		if err := os.Symlink(target, filepath.Join(dir, link)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	s := load(t, os.DirFS(dir), Options{})
+	if p := s.PageByURL("/linked/"); p == nil || p.Title != "Outside" {
+		t.Errorf("linked page = %+v", p)
+	}
+	if !slices.Equal(s.Assets, []string{"pic.png", "real.png"}) {
+		t.Errorf("Assets = %q", s.Assets)
+	}
+	want := []string{
+		"dirlink/ is a symbolic link to a folder; documango skips it",
+		"loop/ is a symbolic link to a folder; documango skips it",
+	}
+	if !slices.Equal(s.Warnings, want) {
+		t.Errorf("Warnings = %q, want %q", s.Warnings, want)
 	}
 }

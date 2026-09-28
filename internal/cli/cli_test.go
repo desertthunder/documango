@@ -1322,6 +1322,7 @@ func warningDocs(t *testing.T) string {
 	t.Helper()
 	dir := docsDir(t)
 	writeFile(t, filepath.Join(dir, "guide", "about.md"), "# About\n\n## ![](diagram.svg)\n")
+	writeFile(t, filepath.Join(dir, "guide", "diagram.svg"), "<svg/>")
 	return dir
 }
 

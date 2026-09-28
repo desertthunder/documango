@@ -38,6 +38,12 @@ documango skips any file or folder whose name starts with `.` or `_`, along
 with everything inside such a folder. Use this for drafts folders, partials,
 or anything else you keep next to your docs but don't want published.
 
+documango also skips every `node_modules` folder, so the packages of a
+JavaScript project in your docs folder never become pages.
+
+A symbolic link to a file works like the file itself. documango skips a
+symbolic link to a folder and prints a warning.
+
 When you build into a folder inside the docs directory, documango also skips
 that output folder.
 
@@ -77,14 +83,34 @@ documango leaves these links unchanged:
 - Links that start with `/` or `#`.
 - Relative links that point outside the docs directory.
 
-> [!WARNING]
-> documango doesn't check that a link target exists. A link to a missing file
-> or a draft page becomes a broken link on the site, with no error.
-
 > [!NOTE]
 > Links and images written as raw HTML, such as `<a href="setup.md">` or
-> `<img src="logo.png">`, aren't rewritten. Use Markdown syntax for links you
-> want documango to resolve.
+> `<img src="logo.png">`, aren't rewritten or checked. Use Markdown syntax for
+> links you want documango to resolve.
+
+### Broken links
+
+documango checks every relative link and image in your Markdown.
+`documango build` and `documango serve` print a warning for each one that
+won't work, even with `--quiet`. The warning names the page and the link as you
+wrote it:
+
+```text
+WARN guide/setup.md: link to "instal.md" does not match a page
+```
+
+| Warning | Meaning |
+| --- | --- |
+| `does not match a page` | The link points to a Markdown file that isn't a page: it doesn't exist, it's skipped, or it's an excluded path. |
+| `is a draft` | The link points to a page with `draft: true`. |
+| `does not match a page or file` | The link points to a path that is neither a page, a folder with a page, nor a file in the docs directory. |
+| `points outside the docs folder` | The link climbs above the docs directory, such as `../../notes.md`. |
+| `the target page has no heading "#install"` | The page exists, but no heading or other element on it has that ID. Heading IDs set with `{#id}` count. |
+
+A link that starts with `#` is checked against the page it's in.
+
+Links with a scheme and links that start with `/` aren't checked. While
+`documango serve` runs, each warning is printed once, when it first appears.
 
 ## Front matter
 

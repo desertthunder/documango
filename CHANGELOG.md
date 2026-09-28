@@ -30,3 +30,5 @@ All notable changes to documango are listed here. The format follows
   served from a subpath.
 - A warning for headings with no text, such as an image heading without alt
   text.
+- Warnings for relative links and images that point to a missing page, file,
+  or heading, a draft, or somewhere outside the docs folder.

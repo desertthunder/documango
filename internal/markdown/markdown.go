@@ -39,8 +39,8 @@ type Result struct {
 }
 
 // Resolver rewrites a relative link or image destination. It is called only
-// for destinations without a scheme that do not start with '/' or '#'; the
-// returned value is used verbatim.
+// for destinations without a scheme that do not start with '/', including
+// same-page fragments such as "#install"; the returned value is used verbatim.
 //
 // Links written as raw HTML (<a href>, <img src>) are not passed to the
 // Resolver.
@@ -165,7 +165,7 @@ func (r *Renderer) markExternal(n ast.Node, dest []byte) {
 var schemeRE = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9+.-]*:`)
 
 func isRelative(dest []byte) bool {
-	return len(dest) > 0 && dest[0] != '/' && dest[0] != '#' && !schemeRE.Match(dest)
+	return len(dest) > 0 && dest[0] != '/' && !schemeRE.Match(dest)
 }
 
 // plainText returns the whitespace-collapsed text content of n, skipping raw
