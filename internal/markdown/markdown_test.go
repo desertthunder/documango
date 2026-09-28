@@ -209,14 +209,19 @@ func TestSearchText(t *testing.T) {
 		"<div class=\"x\">raw block</div>\n\n" +
 		"inline <b>bold</b> tag and `span`.\n\n" +
 		"- item one\n- item two\n\n" +
-		"visit https://example.com\n"
+		"visit https://example.com\n\n" +
+		"![Acme logo](logo.svg)\n\n" +
+		"See [![badge alt](b.svg) the badge](x.md).\n"
 	res := render(t, src, nil)
 
-	want := "Title Some emphasis and soft break. func main() {} inline bold tag and span. item one item two visit https://example.com"
+	want := "Title Some emphasis and soft break. func main() {} inline bold tag and span. item one item two visit https://example.com See the badge."
 	if res.Text != want {
 		t.Errorf("Text =\n%q\nwant\n%q", res.Text, want)
 	}
-	assertNotContains(t, res.Text, "<", "#", "raw block")
+	assertNotContains(t, res.Text, "<", "#", "raw block", "Acme logo", "badge alt")
+	if !strings.Contains(string(res.HTML), `alt="Acme logo"`) {
+		t.Errorf("HTML lost the image alt text:\n%s", res.HTML)
+	}
 }
 
 func TestCallouts(t *testing.T) {

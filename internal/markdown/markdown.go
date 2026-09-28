@@ -132,7 +132,7 @@ func isRelative(dest []byte) bool {
 }
 
 // plainText returns the whitespace-collapsed text content of n, skipping raw
-// HTML and inserting spaces between blocks.
+// HTML and image alt text and inserting spaces between blocks.
 func plainText(n ast.Node, src []byte) string {
 	var b strings.Builder
 	_ = ast.Walk(n, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
@@ -143,7 +143,7 @@ func plainText(n ast.Node, src []byte) string {
 			return ast.WalkContinue, nil
 		}
 		switch n := n.(type) {
-		case *ast.RawHTML, *ast.HTMLBlock:
+		case *ast.RawHTML, *ast.HTMLBlock, *ast.Image:
 			return ast.WalkSkipChildren, nil
 		case *ast.Text:
 			b.Write(n.Value(src))
