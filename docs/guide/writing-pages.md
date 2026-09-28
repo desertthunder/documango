@@ -88,8 +88,9 @@ documango leaves these links unchanged:
 
 ## Front matter
 
-Front matter is a block of YAML at the very top of a file, between two lines
-of `---`. It sets page settings that aren't part of the content.
+Front matter is a block of YAML or TOML at the very top of a file. It sets
+page settings that aren't part of the content. YAML goes between two lines of
+`---`:
 
 ```yaml
 ---
@@ -99,9 +100,20 @@ order: 2
 ---
 ```
 
-The first line of the file must be exactly `---`. The block ends at the next
-line that is `---` or `...`. If the closing line is missing, or the YAML is
-invalid, documango reports an error that names the file.
+TOML goes between two lines of `+++`:
+
+```toml
++++
+title = "Installation"
+description = "Install documango on macOS, Linux, or Windows."
+order = 2
++++
+```
+
+The first line of the file must be exactly `---` or `+++`. A YAML block ends at
+the next line that is `---` or `...`, and a TOML block ends at the next `+++`.
+If the closing line is missing, or the block doesn't parse, documango reports
+an error that names the file.
 
 documango reads four fields and ignores any others:
 

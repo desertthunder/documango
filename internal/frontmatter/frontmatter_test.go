@@ -1,8 +1,10 @@
 package frontmatter
 
 import (
+	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestParse(t *testing.T) {
@@ -98,6 +100,74 @@ func TestParse(t *testing.T) {
 			want: Meta{Title: "A"},
 			body: "para\n\n---\n\nmore\n",
 		},
+		{
+			name: "toml all known fields",
+			src:  "+++\ntitle = \"Install\"\ndescription = \"How to install\"\norder = 3\ndraft = true\n+++\n# Body\n",
+			want: Meta{Title: "Install", Description: "How to install", Order: 3, Draft: true},
+			body: "# Body\n",
+		},
+		{
+			name:  "toml unknown keys kept in extra",
+			src:   "+++\ntitle = \"T\"\nauthor = \"jane\"\ntags = [\"a\", \"b\"]\n\n[params]\nx = 1\n+++\nbody",
+			want:  Meta{Title: "T"},
+			body:  "body",
+			extra: map[string]any{"author": "jane", "tags": []any{"a", "b"}, "params": map[string]any{"x": int64(1)}},
+		},
+		{
+			name:  "toml datetime kept in extra",
+			src:   "+++\ndate = 2024-05-01T10:00:00Z\n+++\n",
+			extra: map[string]any{"date": time.Date(2024, 5, 1, 10, 0, 0, 0, time.UTC)},
+		},
+		{
+			name: "toml bom before front matter",
+			src:  "\xef\xbb\xbf+++\ntitle = \"BOM\"\n+++\nbody\n",
+			want: Meta{Title: "BOM"},
+			body: "body\n",
+		},
+		{
+			name: "toml crlf and trailing spaces on delimiters",
+			src:  "+++  \r\ntitle = \"CRLF\"\r\n+++\t\r\nbody\r\n",
+			want: Meta{Title: "CRLF"},
+			body: "body\r\n",
+		},
+		{
+			name: "toml empty block",
+			src:  "+++\n+++\nbody\n",
+			body: "body\n",
+		},
+		{
+			name: "toml closing delimiter at end of file without newline",
+			src:  "+++\ntitle = \"EOF\"\n+++",
+			want: Meta{Title: "EOF"},
+		},
+		{
+			name: "toml block ignores yaml delimiters",
+			src:  "+++\ntitle = \"A\"\n+++\npara\n\n---\n\nmore\n",
+			want: Meta{Title: "A"},
+			body: "para\n\n---\n\nmore\n",
+		},
+		{
+			name: "yaml block ignores later plus lines",
+			src:  "---\ntitle: A\n---\npara\n+++\nmore\n+++\n",
+			want: Meta{Title: "A"},
+			body: "para\n+++\nmore\n+++\n",
+		},
+		{
+			name: "toml plus line later in body is untouched",
+			src:  "+++\ntitle = \"A\"\n+++\npara\n+++\n",
+			want: Meta{Title: "A"},
+			body: "para\n+++\n",
+		},
+		{
+			name: "plus line later in document is not front matter",
+			src:  "# Title\n\n+++\ntitle = \"nope\"\n+++\n",
+			body: "# Title\n\n+++\ntitle = \"nope\"\n+++\n",
+		},
+		{
+			name: "four pluses is not front matter",
+			src:  "++++\ntitle = \"x\"\n++++\n",
+			body: "++++\ntitle = \"x\"\n++++\n",
+		},
 	}
 
 	for _, tt := range tests {
@@ -118,29 +188,12 @@ func TestParse(t *testing.T) {
 				t.Fatalf("extra = %#v, want %#v", meta.Extra, tt.extra)
 			}
 			for k, v := range tt.extra {
-				if got := meta.Extra[k]; !equalAny(got, v) {
+				if got := meta.Extra[k]; !reflect.DeepEqual(got, v) {
 					t.Errorf("extra[%q] = %#v, want %#v", k, got, v)
 				}
 			}
 		})
 	}
-}
-
-func equalAny(a, b any) bool {
-	as, aok := a.([]any)
-	bs, bok := b.([]any)
-	if aok && bok {
-		if len(as) != len(bs) {
-			return false
-		}
-		for i := range as {
-			if as[i] != bs[i] {
-				return false
-			}
-		}
-		return true
-	}
-	return a == b
 }
 
 func TestParseErrors(t *testing.T) {
@@ -157,6 +210,11 @@ func TestParseErrors(t *testing.T) {
 		{name: "list instead of mapping", src: "---\n- a\n- b\n---\n", wantErr: "front matter"},
 		{name: "scalar instead of mapping", src: "---\njust text\n---\n", wantErr: "front matter"},
 		{name: "wrong field type", src: "---\norder: first\n---\n", wantErr: "front matter"},
+		{name: "toml unclosed", src: "+++\ntitle = \"x\"\n---\n", wantErr: `unclosed front matter: missing closing "+++"`},
+		{name: "toml invalid", src: "+++\ntitle = \"x\"\norder = [\n+++\n", wantErr: "invalid TOML front matter"},
+		{name: "toml error has line", src: "+++\ntitle = \"x\"\norder = \n+++\n", wantErr: "line 2"},
+		{name: "toml wrong field type", src: "+++\norder = \"first\"\n+++\n", wantErr: "invalid TOML front matter"},
+		{name: "yaml error names yaml", src: "---\ntitle: [unterminated\n---\n", wantErr: "invalid YAML front matter"},
 	}
 
 	for _, tt := range tests {
