@@ -187,7 +187,7 @@ func suggest(name string) []string {
 	var found []candidate
 	for _, s := range builtin() {
 		d := levenshtein(name, s.Slug)
-		if d <= maxDist || strings.Contains(s.Slug, name) {
+		if d <= maxDist || strings.Contains(s.Slug, name) || (len(s.Slug) >= 3 && strings.Contains(name, s.Slug)) {
 			found = append(found, candidate{s.Slug, d})
 		}
 	}

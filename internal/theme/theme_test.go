@@ -242,6 +242,7 @@ func TestLoad(t *testing.T) {
 		{name: "invalid file", in: badPath, wantErr: []string{"bad.yaml", "missing color"}},
 		{name: "unknown with suggestions", in: "tomorow-night", wantErr: []string{`unknown theme "tomorow-night"`, "did you mean", "tomorrow-night"}},
 		{name: "unknown substring suggestions", in: "gruvbox", wantErr: []string{"did you mean", "gruvbox-"}},
+		{name: "unknown with builtin as substring", in: "nord-dark", wantErr: []string{"did you mean", "nord"}},
 		{name: "unknown without suggestions", in: "zzzzzzzzzzzzzzzzzzzz", wantErr: []string{`unknown theme "zzzzzzzzzzzzzzzzzzzz"`}},
 	}
 	for _, tt := range tests {
