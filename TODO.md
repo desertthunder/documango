@@ -1,5 +1,34 @@
 # TODO
 
+## Roadmap
+
+### v0.1.0: first release
+
+- `serve --open`, and `build --output` with `-o` (keeping `--out` as a
+  deprecated alias).
+- Small-screen header fixes: the site title truncating, a backdrop behind the
+  open menu, and image alt text in built-in search snippets.
+- Google Fonts, self-hosted or remote.
+- Release setup: GoReleaser binaries and checksums from a tag, a changelog from
+  conventional commits, a GitHub Pages deploy of `docs/`, and a package comment
+  for pkg.go.dev.
+
+### v0.2.0
+
+- Per-page layouts: a `layout` front matter key and user templates in
+  `_layouts/`, with the page layout split into a shell and one template per
+  page kind.
+- A sitemap when the config sets `url`.
+
+### v0.3.0
+
+- Collections for blogs and readers (see the parking lot below).
+
+### v1.0.0
+
+- Stable CLI flags, config keys, front matter fields and output URLs. Breaking
+  any of them after this needs a major version.
+
 ## Parking lot: blogs and readers
 
 Research and ideas, not scheduled work. The goal is to let documango give a
