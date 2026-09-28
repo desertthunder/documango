@@ -10,6 +10,31 @@
   display: none;
 }
 
+.search__field {
+  position: relative;
+}
+
+/* The toggle and close buttons only show on small screens. */
+.search__toggle,
+.search__close {
+  display: none;
+  place-items: center;
+  flex-shrink: 0;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--muted);
+}
+
+.search__toggle:hover,
+.search__close:hover {
+  color: var(--text);
+  background: var(--surface-raised);
+}
+
 .search__input {
   width: 100%;
   min-height: 2.25rem;
@@ -97,10 +122,48 @@
   color: var(--muted);
 }
 
-/* On small screens the results span the header instead of hanging off the input. */
+/*
+ * On small screens the search collapses to an icon button. Opening it lays
+ * the field over the whole header, and the results span the header instead
+ * of hanging off the input.
+ */
 @media (max-width: 48rem) {
   .search {
     position: static;
+    flex: none;
+    margin-inline-end: 0;
+  }
+
+  .search__toggle {
+    display: inline-grid;
+  }
+
+  .search__field {
+    display: none;
+  }
+
+  .search--open .search__toggle {
+    visibility: hidden;
+  }
+
+  .search--open .search__field {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding-inline: var(--space-4) var(--space-2);
+    background: var(--surface);
+  }
+
+  .search--open .search__close {
+    display: inline-grid;
+  }
+
+  .search__input {
+    flex: 1 1 auto;
+    min-width: 0;
   }
 
   .search__hint {

@@ -73,10 +73,12 @@
   syncThemeButton();
 
   // Navigation menu on small screens. While it is open, everything but the
-  // header and the menu itself is inert.
+  // header and the menu itself is inert, and a backdrop dims the page.
   var menuButton = document.querySelector(".menu-toggle");
   var sidebar = document.getElementById("sidebar");
   var narrowQuery = window.matchMedia("(max-width: 48rem)");
+  var backdrop = document.createElement("div");
+  backdrop.className = "menu-backdrop";
 
   function menuOpen() {
     return !!menuButton && menuButton.getAttribute("aria-expanded") === "true";
@@ -87,13 +89,14 @@
     menuButton.setAttribute("aria-expanded", String(open));
     menuButton.setAttribute("aria-label", open ? "Hide navigation" : "Show navigation");
     sidebar.classList.toggle("site-sidebar--open", open);
+    backdrop.classList.toggle("menu-backdrop--open", open);
     var header = menuButton.closest("header");
     var others = Array.prototype.filter.call(document.body.children, function (el) {
       return el !== header && !el.contains(sidebar);
     });
     others = others.concat(
       Array.prototype.filter.call(sidebar.parentElement.children, function (el) {
-        return el !== sidebar;
+        return el !== sidebar && el !== backdrop;
       })
     );
     others.forEach(function (el) {
@@ -102,6 +105,11 @@
   }
 
   if (menuButton && sidebar) {
+    sidebar.before(backdrop);
+    backdrop.addEventListener("click", function () {
+      setMenu(false);
+      menuButton.focus();
+    });
     menuButton.addEventListener("click", function () {
       setMenu(!menuOpen());
       if (menuOpen()) {
@@ -124,6 +132,8 @@
   var list = document.getElementById("search-results");
   var status = document.getElementById("search-status");
   var form = input && input.form;
+  var searchToggle = form && form.querySelector(".search__toggle");
+  var searchClose = form && form.querySelector(".search__close");
   var index = null;
   var loading = null;
   var engine = null;
@@ -342,7 +352,30 @@
     });
   }
 
+  // On small screens the search field opens over the header from a button.
+  function setSearch(open) {
+    form.classList.toggle("search--open", open);
+    if (searchToggle) searchToggle.setAttribute("aria-expanded", String(open));
+  }
+
+  function openSearch() {
+    if (narrowQuery.matches) setSearch(true);
+    input.focus();
+    input.select();
+  }
+
+  function closeSearch() {
+    close();
+    setSearch(false);
+    if (searchToggle) searchToggle.focus();
+  }
+
   if (input && list && status && form) {
+    if (searchToggle) searchToggle.addEventListener("click", openSearch);
+    if (searchClose) searchClose.addEventListener("click", closeSearch);
+    form.addEventListener("focusout", function (e) {
+      if (!form.contains(e.relatedTarget)) setSearch(false);
+    });
     input.addEventListener("focus", function () {
       loadEngine();
       if (input.value.trim()) show();
@@ -365,6 +398,8 @@
         } else if (input.value) {
           input.value = "";
           show();
+        } else if (form.classList.contains("search--open")) {
+          closeSearch();
         } else {
           input.blur();
         }
@@ -388,8 +423,7 @@
     var t = e.target;
     if (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
     e.preventDefault();
-    input.focus();
-    input.select();
+    openSearch();
   });
 
   // Live reload from the development server.

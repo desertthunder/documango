@@ -1,0 +1,23 @@
+/* Dims the page behind the open navigation panel on small screens. */
+.menu-backdrop {
+  display: none;
+}
+
+@media (max-width: 48rem) {
+  .menu-backdrop {
+    position: fixed;
+    inset: var(--header-height) 0 0;
+    z-index: calc(var(--z-sidebar) - 1);
+    display: block;
+    background: var(--scrim);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity var(--duration) ease-out, visibility 0s linear var(--duration);
+  }
+
+  .menu-backdrop--open {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity var(--duration) ease-out;
+  }
+}

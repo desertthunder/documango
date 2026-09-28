@@ -41,9 +41,17 @@
     {{- with .Logo}}<img class="site-header__logo" src="{{$.Base}}{{.}}" alt="">{{end -}}
     <span class="site-header__name">{{.Site.Title}}</span></a>
   <form class="search" role="search" action="" autocomplete="off">
-    <label class="sr-only" for="search-input">Search</label>
-    <input class="search__input" id="search-input" type="search" placeholder="Search" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="search-results">
-    <kbd class="search__hint" aria-hidden="true">/</kbd>
+    <button class="search__toggle" type="button" aria-controls="search-field" aria-expanded="false" aria-label="Search">
+      <svg class="search__icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></g></svg>
+    </button>
+    <div class="search__field" id="search-field">
+      <label class="sr-only" for="search-input">Search</label>
+      <input class="search__input" id="search-input" type="search" placeholder="Search" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="search-results">
+      <kbd class="search__hint" aria-hidden="true">/</kbd>
+      <button class="search__close" type="button" aria-label="Close search">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
     <ul class="search__results" id="search-results" role="listbox" aria-label="Search results" hidden></ul>
     <p class="sr-only" id="search-status" role="status" aria-live="polite"></p>
   </form>

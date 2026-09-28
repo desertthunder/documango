@@ -80,6 +80,7 @@ var cssFiles = []string{
 	"components/scheme-menu.css",
 	"components/theme-toggle.css",
 	"components/menu-toggle.css",
+	"components/menu-backdrop.css",
 	"components/sidebar-nav.css",
 	"components/toc.css",
 	"components/prose.css",

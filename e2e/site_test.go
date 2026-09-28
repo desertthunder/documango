@@ -261,12 +261,81 @@ func TestMobileMenu(t *testing.T) {
 	check(t, expect.Locator(main).ToHaveJSProperty("inert", true), "main inert")
 	check(t, expect.Locator(page.Locator(".skip-link")).ToHaveJSProperty("inert", true), "skip link inert")
 	check(t, expect.Locator(sidebar.Locator(`a[aria-current="page"]`)).ToBeFocused(), "focus on current page link")
+	backdrop := page.Locator(".menu-backdrop")
+	check(t, expect.Locator(backdrop).ToBeVisible(), "backdrop shown")
+
+	check(t, backdrop.Click(playwright.LocatorClickOptions{Position: &playwright.Position{X: 360, Y: 200}}), "click backdrop")
+	check(t, expect.Locator(button).ToHaveAttribute("aria-expanded", "false"), "backdrop click closes")
+	check(t, expect.Locator(button).ToBeFocused(), "focus back on the button after backdrop click")
+	check(t, expect.Locator(backdrop).ToBeHidden(), "backdrop hidden")
+	check(t, expect.Locator(main).ToHaveJSProperty("inert", false), "main no longer inert after backdrop click")
+
+	check(t, button.Click(), "reopen menu")
+	check(t, expect.Locator(sidebar).ToBeVisible(), "sidebar shown again")
 
 	check(t, page.Keyboard().Press("Escape"), "Escape")
 	check(t, expect.Locator(button).ToHaveAttribute("aria-expanded", "false"), "collapsed")
 	check(t, expect.Locator(button).ToBeFocused(), "focus back on the button")
 	check(t, expect.Locator(main).ToHaveJSProperty("inert", false), "main no longer inert")
 	check(t, expect.Locator(sidebar).ToBeHidden(), "sidebar hidden again")
+}
+
+func TestMobileHeader(t *testing.T) {
+	t.Parallel()
+	site := serveWithConfig(t, `title = "documango"`+"\n", "--dark-theme", "tomorrow-night,github-dark", "--light-theme", "tomorrow,catppuccin-latte")
+	page := newPage(t, mobile)
+	site.open(t, page, "/guide/install/")
+
+	name := page.Locator(".site-header__name")
+	check(t, expect.Locator(name).ToHaveText("documango"), "title text")
+	check(t, expect.Locator(page.Locator(".scheme-menu")).ToBeVisible(), "scheme menu shown")
+	got, err := page.Evaluate(`() => {
+		const n = document.querySelector(".site-header__name");
+		return [n.scrollWidth, n.clientWidth, document.documentElement.scrollWidth, window.innerWidth];
+	}`)
+	check(t, err, "measure header")
+	w := got.([]any)
+	if w[0].(int) > w[1].(int) {
+		t.Errorf("title truncated: scrollWidth %d > clientWidth %d", w[0], w[1])
+	}
+	if w[2].(int) > w[3].(int) {
+		t.Errorf("page scrollWidth %d > innerWidth %d", w[2], w[3])
+	}
+
+	toggle := page.GetByRole("button", playwright.PageGetByRoleOptions{Name: "Search", Exact: playwright.Bool(true)})
+	input := page.GetByRole("combobox", playwright.PageGetByRoleOptions{Name: "Search"})
+	results := page.GetByRole("listbox", playwright.PageGetByRoleOptions{Name: "Search results"})
+	closeButton := page.GetByRole("button", playwright.PageGetByRoleOptions{Name: "Close search"})
+	check(t, expect.Locator(input).ToBeHidden(), "search field starts collapsed")
+	check(t, expect.Locator(toggle).ToHaveAttribute("aria-expanded", "false"), "toggle collapsed")
+
+	check(t, toggle.Click(), "open search")
+	// The open field covers the toggle, which leaves the accessibility tree.
+	check(t, expect.Locator(page.Locator(".search__toggle")).ToHaveAttribute("aria-expanded", "true"), "toggle expanded")
+	check(t, expect.Locator(input).ToBeFocused(), "button focuses search")
+	check(t, input.PressSequentially("zeppelin"), "type query")
+	check(t, expect.Locator(results.GetByRole("option")).ToHaveCount(1), "one result")
+	check(t, expect.Locator(results).ToBeInViewport(), "results on screen")
+	check(t, closeButton.Click(), "close search")
+	check(t, expect.Locator(input).ToBeHidden(), "field hidden after close")
+	check(t, expect.Locator(results).ToBeHidden(), "results hidden after close")
+	check(t, expect.Locator(toggle).ToBeFocused(), "focus back on the toggle")
+
+	check(t, page.Locator("h1").Click(), "click page")
+	check(t, page.Keyboard().Press("/"), "press /")
+	check(t, expect.Locator(input).ToBeFocused(), "/ focuses search")
+	check(t, expect.Locator(input).ToBeVisible(), "/ opens search")
+	check(t, input.Press("Escape"), "Escape closes results")
+	check(t, input.Press("Escape"), "Escape clears query")
+	check(t, expect.Locator(input).ToHaveValue(""), "query cleared")
+	check(t, input.Press("Escape"), "Escape collapses search")
+	check(t, expect.Locator(input).ToBeHidden(), "Escape hides field")
+	check(t, expect.Locator(toggle).ToBeFocused(), "focus back on the toggle after Escape")
+
+	check(t, page.Keyboard().Press("/"), "press / again")
+	check(t, input.PressSequentially("configure"), "type another query")
+	check(t, input.Press("Enter"), "Enter")
+	check(t, expect.Page(page).ToHaveURL(site.URL+"guide/configure/"), "Enter opens the result")
 }
 
 func TestMobileNoHorizontalOverflow(t *testing.T) {
@@ -357,8 +426,7 @@ func TestAccessibility(t *testing.T) {
 // a logo and two header links.
 func serveConfigured(t *testing.T) *served {
 	t.Helper()
-	config := filepath.Join(t.TempDir(), "documango.toml")
-	body := `title = "Acme Documentation for Operators"
+	return serveWithConfig(t, `title = "Acme Documentation for Operators"
 favicon = "logo.svg"
 logo = "logo.svg"
 
@@ -369,11 +437,17 @@ url = "https://github.com/acme/acme"
 [[links]]
 title = "Changelog"
 url = "/guide/"
-`
+`)
+}
+
+// serveWithConfig serves the fixture with a config file holding body, plus args.
+func serveWithConfig(t *testing.T, body string, args ...string) *served {
+	t.Helper()
+	config := filepath.Join(t.TempDir(), "documango.toml")
 	if err := os.WriteFile(config, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	return serve(t, nil, "--config", config)
+	return serve(t, nil, append([]string{"--config", config}, args...)...)
 }
 
 func TestHeaderLinksAndLogo(t *testing.T) {

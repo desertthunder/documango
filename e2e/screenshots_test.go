@@ -35,6 +35,15 @@ func TestScreenshots(t *testing.T) {
 			}
 			return expect.Locator(p.Locator("#sidebar")).ToBeVisible()
 		}},
+		{"mobile-search-open", phone, func(p playwright.Page) error {
+			if err := p.GetByRole("button", playwright.PageGetByRoleOptions{Name: "Search", Exact: playwright.Bool(true)}).Click(); err != nil {
+				return err
+			}
+			if err := p.Locator("#search-input").PressSequentially("acme"); err != nil {
+				return err
+			}
+			return expect.Locator(p.GetByRole("listbox", playwright.PageGetByRoleOptions{Name: "Search results"})).ToBeVisible()
+		}},
 		{"search-open", desktop(playwright.ColorSchemeLight), func(p playwright.Page) error {
 			if err := p.Locator("#search-input").PressSequentially("acme"); err != nil {
 				return err

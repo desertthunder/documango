@@ -41,6 +41,17 @@
   color: var(--accent);
 }
 
+/* Icon buttons carry their own padding, so small screens tighten the gaps to leave the title room. */
+@media (max-width: 48rem) {
+  .site-header {
+    gap: var(--space-1);
+  }
+
+  .site-header__title {
+    margin-inline-end: auto;
+  }
+}
+
 @media (min-width: 48.01rem) {
   .site-header__title {
     width: calc(var(--sidebar-width) - var(--space-4));
