@@ -4,15 +4,8 @@
 
 ### v0.1.0: first release
 
-- `serve --open`, and `build --output` with `-o` (keeping `--out` as a
-  deprecated alias).
-- Small-screen header fixes: the site title truncating, a backdrop behind the
-  open menu, and image alt text in built-in search snippets.
-- Done: web fonts, self-hosted from Fontsource. The remote Google Fonts
-  option was dropped.
-- Release setup: GoReleaser binaries and checksums from a tag, a changelog from
-  conventional commits, a GitHub Pages deploy of `docs/`, and a package comment
-  for pkg.go.dev.
+Everything planned is in; the release is ready to tag. See "Releasing" in
+`docs/reference/development.md`.
 
 ### v0.2.0
 
