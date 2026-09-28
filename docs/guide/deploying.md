@@ -17,10 +17,10 @@ documango build docs
 ```
 
 documango writes the site to `_site/`. Choose a different folder with
-`--out`:
+`--output`:
 
 ```sh
-documango build docs --out public
+documango build docs --output public
 ```
 
 The output folder contains:
@@ -45,7 +45,7 @@ file. Other files in the output folder stay in place. To start from an empty
 folder, add `--clean`:
 
 ```sh
-documango build docs --out public --clean
+documango build docs --output public --clean
 ```
 
 > [!WARNING]
@@ -139,7 +139,7 @@ jobs:
         with:
           go-version: stable
       - run: go install github.com/desertthunder/documango/cmd/documango@latest
-      - run: documango build docs --out _site --base-path "/${{ github.event.repository.name }}/"
+      - run: documango build docs --output _site --base-path "/${{ github.event.repository.name }}/"
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site

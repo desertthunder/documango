@@ -45,8 +45,9 @@ printf '# My project\n\nHello.\n' > my-docs/index.md
 documango my-docs
 ```
 
-Open <http://127.0.0.1:3000/> in your browser. Edit `my-docs/index.md` and
-the page reloads with your change.
+Open <http://127.0.0.1:3000/> in your browser, or add `--open` to have
+documango open it for you. Edit `my-docs/index.md` and the page reloads with
+your change.
 
 To start from a sample site instead, run `documango init my-docs`. It creates
 a home page, a short guide on writing pages, and a `documango.toml` config

@@ -35,7 +35,7 @@ type Env struct {
 // the process exit code: 0 on success, 1 for runtime errors, and 2 for usage
 // errors.
 func Execute(ctx context.Context, args []string, env Env) int {
-	a := &app{env: env, version: versionString(env.Version)}
+	a := &app{env: env, version: versionString(env.Version), openURL: openBrowser}
 	root := a.newRootCmd()
 	root.SetArgs(args)
 	cmd, err := root.ExecuteContextC(ctx)
@@ -119,6 +119,8 @@ type app struct {
 	version string
 
 	quiet, verbose, noColor bool
+	// openURL opens a URL in the default browser.
+	openURL func(url string) error
 
 	// Set by setup once flags are parsed.
 	stdout, stderr *colorprofile.Writer

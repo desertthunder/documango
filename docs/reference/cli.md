@@ -68,6 +68,7 @@ the new settings, except for the base path, which needs a restart.
 | -------------- | ----------- | ----------- |
 | `-p`, `--port` | `3000`      | Port to listen on. |
 | `--host`       | `127.0.0.1` | Address to listen on. Use `0.0.0.0` to reach the server from other devices on your network. |
+| `--open`       | off         | Open the site in your default browser once the server is ready. With `--host 0.0.0.0` or `::`, the browser opens the site at `127.0.0.1` or `localhost`. If no browser can be opened, documango prints a warning and keeps serving. |
 
 `documango` with no command accepts the same flags. `serve` also accepts the
 [site flags](#site-flags).
@@ -77,18 +78,20 @@ the new settings, except for the base path, which needs a restart.
 `documango build` writes the site as static files.
 
 ```sh
-documango build docs --out public --clean
+documango build docs --output public --clean
 ```
 
-| Flag          | Default | Description |
-| ------------- | ------- | ----------- |
-| `-o`, `--out` | `_site` | Folder to write the site to. If it's inside the docs directory, documango doesn't treat its contents as docs. It can't be the docs directory or a folder that contains it. These checks follow symbolic links. |
-| `--clean`     | off     | Delete everything in the output folder before writing the site. documango refuses unless the folder is empty, doesn't exist, or contains a previous documango build (a `_documango/` folder). |
+| Flag             | Default | Description |
+| ---------------- | ------- | ----------- |
+| `-o`, `--output` | `_site` | Folder to write the site to. If it's inside the docs directory, documango doesn't treat its contents as docs. It can't be the docs directory or a folder that contains it. These checks follow symbolic links. |
+| `--clean`        | off     | Delete everything in the output folder before writing the site. documango refuses unless the folder is empty, doesn't exist, or contains a previous documango build (a `_documango/` folder). |
 
 Each build lists the files it writes in `_documango/manifest.json`. The next
 build into the same folder deletes the files from that list that it no
 longer writes, such as the page of a renamed Markdown file, and any folders
 this leaves empty. Files that documango didn't write stay in place.
+
+`--out` is the old name of `--output`. It still works but prints a warning.
 
 If the site can't be built, for example because a page has invalid front
 matter, documango leaves the output folder unchanged, even with `--clean`.

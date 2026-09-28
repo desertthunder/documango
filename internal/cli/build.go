@@ -20,7 +20,7 @@ const buildExample = `  # Build the docs in the current folder into _site
   documango build
 
   # Build the docs folder into public, replacing an earlier build
-  documango build docs --out public --clean
+  documango build docs --output public --clean
 
   # Build for a site hosted at https://example.com/project/
   documango build docs --base-path /project/
@@ -49,12 +49,21 @@ inside dir.`,
 		Example: buildExample,
 		Args:    usageArgs(cobra.MaximumNArgs(1)),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if fs := cmd.Flags(); fs.Changed("out") {
+				if fs.Changed("output") {
+					return &usageError{errors.New("--out and --output cannot be used together")}
+				}
+				a.logger().Warn("--out is deprecated; use --output")
+			}
 			return a.build(cmd.Context(), dirArg(args), opts)
 		},
 	}
 	fs := cmd.Flags()
 	opts.site.addFlags(fs)
-	fs.StringVarP(&opts.out, "out", "o", "_site", "folder to write the site to")
+	fs.StringVarP(&opts.out, "output", "o", "_site", "folder to write the site to")
+	// --out is the old name of --output.
+	fs.StringVar(&opts.out, "out", "_site", "")
+	_ = fs.MarkHidden("out")
 	fs.BoolVar(&opts.clean, "clean", false, "empty the output folder first; refuses if it holds anything but an earlier build")
 	return cmd
 }
@@ -102,7 +111,7 @@ func (a *app) build(ctx context.Context, dir string, o *buildOptions) error {
 	}
 	if isWithin(absDir, out) {
 		return withHint(fmt.Errorf("cannot build into %s: it contains the docs", o.out),
-			"Pick an output folder outside your docs, such as the default _site.")
+			"Use --output to pick a folder outside your docs, such as the default _site.")
 	}
 
 	b, err := a.newBuilder(dir, &o.site)
@@ -173,7 +182,7 @@ func cleanDir(dir, name string) error {
 	})
 	if len(entries) > 0 && !isBuild {
 		return withHint(fmt.Errorf("refusing to clean %s: it is not empty and does not look like a documango build", name),
-			"Pick an empty output folder, or delete its contents yourself.")
+			"Use --output to pick an empty folder, or delete its contents yourself.")
 	}
 	for _, e := range entries {
 		if err := os.RemoveAll(filepath.Join(dir, e.Name())); err != nil {

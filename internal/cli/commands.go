@@ -33,8 +33,8 @@ Run 'documango build' to write a static site you can host anywhere.`
 const rootExample = `  # Preview the docs in the current folder
   documango
 
-  # Preview the docs folder
-  documango docs
+  # Preview the docs folder and open it in your browser
+  documango docs --open
 
   # Build a static site into _site
   documango build docs

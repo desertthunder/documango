@@ -23,6 +23,9 @@ const serveExample = `  # Preview the docs in the current folder at http://127.0
   # Preview the docs folder on port 4000
   documango serve docs --port 4000
 
+  # Preview the docs and open them in your browser
+  documango serve docs --open
+
   # Share the preview with other devices on your network
   documango serve docs --host 0.0.0.0
 
@@ -34,12 +37,14 @@ type serveOptions struct {
 	site siteOptions
 	port int
 	host string
+	open bool
 }
 
 func (o *serveOptions) addFlags(fs *pflag.FlagSet) {
 	o.site.addFlags(fs)
 	fs.IntVarP(&o.port, "port", "p", 3000, "port to listen on")
 	fs.StringVar(&o.host, "host", "127.0.0.1", "address to listen on; use 0.0.0.0 to allow other devices")
+	fs.BoolVar(&o.open, "open", false, "open the site in your default browser once it is ready")
 }
 
 func (a *app) newServeCmd() *cobra.Command {
@@ -104,14 +109,27 @@ func (a *app) serve(ctx context.Context, dir string, o *serveOptions, root *cobr
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	port := strconv.Itoa(ln.Addr().(*net.TCPAddr).Port)
 	host := o.host
 	if host == "" {
 		host = "localhost"
 	}
-	url := "http://" + net.JoinHostPort(host, strconv.Itoa(ln.Addr().(*net.TCPAddr).Port)) + b.render.BasePath
+	url := "http://" + net.JoinHostPort(host, port) + b.render.BasePath
 	fmt.Fprintf(a.stderr, "Serving %s at %s\n", boldStyle.Render(s.Title), accentStyle.Render(url))
 	if !a.quiet {
 		fmt.Fprintln(a.stderr, dimStyle.Render("Press Ctrl+C to stop"))
+	}
+	if o.open {
+		// A browser cannot visit a wildcard address, so use this machine's.
+		if ip := net.ParseIP(host); ip.IsUnspecified() {
+			host = "localhost"
+			if ip.To4() != nil {
+				host = "127.0.0.1"
+			}
+		}
+		if err := a.openURL("http://" + net.JoinHostPort(host, port) + b.render.BasePath); err != nil {
+			a.logger().Warn(fmt.Sprintf("could not open a browser: %v", err))
+		}
 	}
 
 	g, ctx := errgroup.WithContext(ctx)

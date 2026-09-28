@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"io/fs"
 	"log/slog"
@@ -153,8 +154,8 @@ func TestHelp(t *testing.T) {
 		want []string
 	}{
 		{[]string{"--help"}, []string{"Usage:", "Examples:", "documango build", "serve", "themes", "--dark-theme", "--port", "--quiet", "--no-color"}},
-		{[]string{"help", "build"}, []string{"Examples:", "--out", "--clean", "--base-path", "--title"}},
-		{[]string{"serve", "-h"}, []string{"Examples:", "--port", "--host", "--light-theme"}},
+		{[]string{"help", "build"}, []string{"Examples:", "-o, --output", "--clean", "--base-path", "--title"}},
+		{[]string{"serve", "-h"}, []string{"Examples:", "--port", "--host", "--open", "--light-theme"}},
 		{[]string{"themes", "--help"}, []string{"Examples:", "--variant", "--offline", "pick"}},
 		{[]string{"themes", "pick", "--help"}, []string{"Examples:", "--multi", "--variant", "--offline", "themes pick --variant dark"}},
 	} {
@@ -286,13 +287,37 @@ func TestBuildSinglePage(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "README.md"), "Just text.\n")
 	out := filepath.Join(t.TempDir(), "out")
-	r := run(t, nil, "build", dir, "--out", out)
+	r := run(t, nil, "build", dir, "--output", out)
 	if r.code != 0 || !strings.HasPrefix(r.stderr, "Built 1 page to ") {
 		t.Errorf("exit %d, stderr %q", r.code, r.stderr)
 	}
 	home, _ := os.ReadFile(filepath.Join(out, "index.html"))
 	if !bytes.Contains(home, []byte("Documentation")) {
 		t.Error("default title missing")
+	}
+}
+
+func TestBuildOutFlag(t *testing.T) {
+	dir := docsDir(t)
+	out := filepath.Join(t.TempDir(), "site")
+	r := run(t, nil, "build", dir, "--out", out)
+	if r.code != 0 || !exists(filepath.Join(out, "index.html")) {
+		t.Fatalf("--out: exit %d, stderr %q", r.code, r.stderr)
+	}
+	if !strings.Contains(r.stderr, "WARN --out is deprecated; use --output\n") || strings.Count(r.stderr, "deprecated") != 1 {
+		t.Errorf("--out notice missing or repeated: %q", r.stderr)
+	}
+	if r.stdout != "" {
+		t.Errorf("stdout = %q, want empty", r.stdout)
+	}
+	if r := run(t, nil, "help", "build"); strings.Contains(r.stdout, "--out ") {
+		t.Errorf("help lists the deprecated --out:\n%s", r.stdout)
+	}
+
+	r = run(t, nil, "build", dir, "--out", out, "-o", out)
+	if r.code != 2 || !strings.Contains(r.stderr, "--out and --output cannot be used together") ||
+		!strings.Contains(r.stderr, "Run 'documango build --help' for usage.") {
+		t.Errorf("--out with -o: exit %d, stderr %q", r.code, r.stderr)
 	}
 }
 
@@ -328,7 +353,7 @@ func TestBuildRefusesDocsDirOrAncestor(t *testing.T) {
 	writeFile(t, filepath.Join(dir, "index.md"), "# Home\n")
 	for _, out := range []string{dir, parent} {
 		r := run(t, nil, "build", dir, "-o", out, "--clean")
-		if r.code != 1 || !strings.Contains(r.stderr, "cannot build into") {
+		if r.code != 1 || !strings.Contains(r.stderr, "cannot build into") || !strings.Contains(r.stderr, "Hint: Use --output") {
 			t.Errorf("-o %s: exit %d, stderr %q", out, r.code, r.stderr)
 		}
 	}
@@ -345,7 +370,7 @@ func TestBuildSymlinkedDocs(t *testing.T) {
 	}
 
 	r := run(t, nil, "build", link, "-o", docs)
-	if r.code != 1 || !strings.Contains(r.stderr, "cannot build into") {
+	if r.code != 1 || !strings.Contains(r.stderr, "cannot build into") || !strings.Contains(r.stderr, "Hint: Use --output") {
 		t.Errorf("-o docs via symlink: exit %d, stderr %q", r.code, r.stderr)
 	}
 	if exists(filepath.Join(docs, "index.html")) {
@@ -442,7 +467,7 @@ func TestBuildClean(t *testing.T) {
 		out := filepath.Join(tmp, "mine")
 		writeFile(t, filepath.Join(out, "notes.txt"), "keep me")
 		r := run(t, nil, "build", dir, "-o", out, "--clean")
-		if r.code != 1 || !strings.Contains(r.stderr, "refusing to clean") || !strings.Contains(r.stderr, "Hint: ") {
+		if r.code != 1 || !strings.Contains(r.stderr, "refusing to clean") || !strings.Contains(r.stderr, "Hint: Use --output") {
 			t.Errorf("exit %d, stderr %q", r.code, r.stderr)
 		}
 		if !exists(filepath.Join(out, "notes.txt")) {
@@ -739,6 +764,114 @@ func TestServeErrors(t *testing.T) {
 	if r.code != 1 || !strings.Contains(r.stderr, "no Markdown files found") {
 		t.Errorf("empty dir: exit %d, stderr %q", r.code, r.stderr)
 	}
+}
+
+// fakeOpener replaces the browser opener for one test and returns the URLs
+// it is asked to open.
+func fakeOpener(t *testing.T, err error) <-chan string {
+	t.Helper()
+	urls := make(chan string, 1)
+	orig := openBrowser
+	openBrowser = func(url string) error {
+		urls <- url
+		return err
+	}
+	t.Cleanup(func() { openBrowser = orig })
+	return urls
+}
+
+func TestServeOpen(t *testing.T) {
+	for _, tc := range []struct {
+		name, host, opened string
+	}{
+		{"serve", "127.0.0.1", "127.0.0.1"},
+		{"root", "0.0.0.0", "127.0.0.1"},
+		{"root", "::", "localhost"},
+	} {
+		t.Run(tc.host, func(t *testing.T) {
+			if tc.host == "::" {
+				ln, err := net.Listen("tcp", "[::]:0")
+				if err != nil {
+					t.Skip("no IPv6:", err)
+				}
+				ln.Close()
+			}
+			urls := fakeOpener(t, nil)
+			args := []string{docsDir(t), "-p", "0", "--host", tc.host, "--open", "--base-path", "docs"}
+			if tc.name == "serve" {
+				args = append([]string{"serve"}, args...)
+			}
+			url, _, stop := startServe(t, args...)
+			defer stop()
+			select {
+			case got := <-urls:
+				port := url[strings.LastIndex(url, ":")+1:]
+				if want := "http://" + net.JoinHostPort(tc.opened, strings.TrimSuffix(port, "/docs/")) + "/docs/"; got != want {
+					t.Errorf("opened %q, want %q (printed %q)", got, want, url)
+				}
+			case <-time.After(5 * time.Second):
+				t.Fatal("browser not opened")
+			}
+		})
+	}
+}
+
+func TestServeOpenFails(t *testing.T) {
+	urls := fakeOpener(t, errors.New("boom"))
+	url, stderr, stop := startServe(t, "serve", docsDir(t), "-p", "0", "--open", "-q")
+	<-urls
+	if resp, _ := get(t, url); resp.StatusCode != http.StatusOK {
+		t.Errorf("GET %s: %d", url, resp.StatusCode)
+	}
+	if code := stop(); code != 0 {
+		t.Errorf("exit %d", code)
+	}
+	if s := stderr.String(); strings.Count(s, "could not open a browser: boom") != 1 {
+		t.Errorf("stderr %q lacks one open warning", s)
+	}
+}
+
+func TestServeNoOpen(t *testing.T) {
+	urls := fakeOpener(t, nil)
+	_, _, stop := startServe(t, "serve", docsDir(t), "-p", "0")
+	stop()
+	select {
+	case u := <-urls:
+		t.Errorf("opened %q without --open", u)
+	default:
+	}
+}
+
+func TestStartBrowser(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses a shell script as the opener")
+	}
+	bin := t.TempDir()
+	t.Setenv("PATH", bin)
+	if err := startBrowser("http://x/"); err == nil {
+		t.Error("startBrowser with no opener on PATH: nil error")
+	}
+
+	name := "xdg-open"
+	if runtime.GOOS == "darwin" {
+		name = "open"
+	}
+	got := filepath.Join(bin, "url")
+	writeFile(t, filepath.Join(bin, name), "#!/bin/sh\nprintf %s \"$1\" > "+got+"\n")
+	if err := os.Chmod(filepath.Join(bin, name), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := startBrowser("http://x/"); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if b, _ := os.ReadFile(got); string(b) == "http://x/" {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Error("opener never ran with the URL")
 }
 
 func TestThemeLists(t *testing.T) {
