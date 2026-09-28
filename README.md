@@ -3,8 +3,14 @@
 documango turns a directory of Markdown files into a documentation website.
 It runs a development server that reloads the browser when you save a file,
 and builds a static site you can host anywhere. The sidebar comes from your
-folder structure, and every site has search and a light and dark theme. There
-is no configuration file.
+folder structure, and every site has search and a light and dark theme. An
+optional `documango.toml` or `documango.yaml` sets the title, page metadata,
+themes and header links; see [configuration](docs/reference/configuration.md).
+
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset=".github/assets/site-light.png">
+  <img alt="A documango page in the dark theme, with the sidebar, a code block, a table and the page outline" src=".github/assets/site-dark.png">
+</picture>
 
 ## Install
 
@@ -27,6 +33,17 @@ documango docs                 # serve docs/ at http://127.0.0.1:3000 with live 
 documango build docs           # write the static site to _site/
 documango themes               # list the color schemes
 ```
+
+## Command line
+
+Run `documango --help` for every command and flag, or add `--help` after a
+command such as `build`.
+
+![Output of documango --help](.github/assets/cli-help.png)
+
+`documango themes` lists the built-in color schemes with a sample of each:
+
+![Output of documango themes --offline --variant dark](.github/assets/cli-themes.png)
 
 ## Documentation
 
