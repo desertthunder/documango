@@ -25,13 +25,19 @@ go build ./cmd/documango
 ```sh
 documango docs                 # serve docs/ at http://127.0.0.1:3000 with live reload
 documango build docs           # write the static site to _site/
-documango themes               # list the built-in color schemes
+documango themes               # list the color schemes
 ```
 
 ## Documentation
 
 The documentation is in [`docs/`](docs/index.md) and is itself a documango
-site. To read it locally, run `documango docs` from the repository root.
+site. To read it from a clone of this repository, run documango against it
+from the repository root:
+
+```sh
+go run ./cmd/documango docs         # preview at http://127.0.0.1:3000/
+go run ./cmd/documango build docs   # write the static site to _site/
+```
 
 ## Credits
 

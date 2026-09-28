@@ -25,17 +25,24 @@ documango build docs --out public
 
 The output folder contains:
 
-| Path                         | Contents                                   |
-| ---------------------------- | ------------------------------------------ |
-| `index.html`                 | The home page                              |
-| `guide/deploying/index.html` | One `index.html` per page, at its URL      |
-| `404.html`                   | A "Page not found" page                    |
-| `_documango/`                | The stylesheet, script, and search index   |
-| Everything else              | Images and other files from your docs      |
+| Path                         | Contents                                                     |
+| ---------------------------- | ------------------------------------------------------------ |
+| `index.html`                 | The home page                                                |
+| `guide/deploying/index.html` | One `index.html` per page, at its URL                        |
+| `404.html`                   | A "Page not found" page                                      |
+| `_documango/`                | The stylesheet, script, built-in search index, and file list |
+| `pagefind/`                  | The Pagefind search files, when the site uses Pagefind       |
+| Everything else              | Images and other files from your docs                        |
 
-Build writes files into the output folder but doesn't delete anything already
-there. When you rename or remove a page, its old file stays in place. To start
-from an empty folder, add `--clean`:
+To search with Pagefind, documango runs it during the build. The first build
+may download it. See [search](writing-pages.md#search) for details and for
+`--search builtin`, which skips Pagefind.
+
+documango records the files it writes in `_documango/manifest.json`. When you
+build into the same folder again, it deletes the files from the previous
+build that it no longer writes, such as the old page of a renamed Markdown
+file. Other files in the output folder stay in place. To start from an empty
+folder, add `--clean`:
 
 ```sh
 documango build docs --out public --clean

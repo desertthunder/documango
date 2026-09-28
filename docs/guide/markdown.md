@@ -211,7 +211,8 @@ Raw HTML has these limits:
 
 - documango doesn't rewrite links inside it. See
   [links and images](writing-pages.md#links-and-images).
-- Text inside raw HTML isn't indexed for search.
+- The [built-in search](writing-pages.md#built-in-search) doesn't index text
+  inside raw HTML. Pagefind does.
 
 > [!CAUTION]
 > documango doesn't filter HTML, and that includes `<script>` tags. Only

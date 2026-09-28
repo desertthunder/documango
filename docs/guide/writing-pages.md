@@ -169,22 +169,63 @@ draft: true
 Every page has the same layout:
 
 - A header with the site title, search, and a light and dark theme toggle.
-- A sidebar with every page except the home page. Folders show their pages
-  nested underneath, always expanded.
+  When the site offers more than one color scheme, the header also has a
+  **Color scheme** menu. See [offer several schemes](themes.md#offer-several-schemes).
+- A sidebar with every page except the home page. Each folder is a section
+  that readers can expand and collapse. The section that holds the current
+  page starts expanded, and the others start collapsed.
 - An "On this page" list of the page's level-2 and level-3 headings. It
   appears only when a page has at least two of them.
 - Previous and next links.
 
 On narrow screens, the sidebar moves behind a menu button in the header.
+While the menu is open, keyboard focus stays in the header and the menu.
+Press <kbd>Escape</kbd> to close it.
 
 ## Search
 
 The search box in the header searches every page in the site. Press <kbd>/</kbd>
 anywhere on a page to jump to it. Use the arrow keys to move through the
 results, <kbd>Enter</kbd> to open one, and <kbd>Escape</kbd> to close the list.
+Search shows up to 10 results.
 
-Search runs in the browser against an index built with the site. It has
-these limits:
+Search runs in the browser. documango indexes the content of each page: its
+title and the text below it. The header, sidebar, and other parts of the
+layout aren't indexed. Choose the search engine with `--search`:
+
+- `pagefind`, the default, uses [Pagefind](https://pagefind.app/). It
+  searches the full text of every page and matches different forms of a
+  word, such as "build" and "builds".
+- `builtin` uses a smaller search built into documango. It needs no
+  download.
+
+### Pagefind
+
+documango runs Pagefind while it builds the site. It looks for Pagefind in
+this order:
+
+1. The path in the `DOCUMANGO_PAGEFIND` environment variable.
+2. A `pagefind` program on your `PATH`.
+3. A copy it downloaded earlier.
+
+If none of these exists, documango downloads Pagefind 1.5.2 from its GitHub
+releases (about 5 MB), checks the file against a known checksum, and stores it in your
+user cache folder, or in the `pagefind` folder inside `DOCUMANGO_CACHE_DIR`
+if that variable is set. Downloads are available for macOS, Linux, and
+Windows on x86-64 and ARM64. On other platforms, install Pagefind yourself
+and set `DOCUMANGO_PAGEFIND` to its path.
+
+If documango can't find, download, or run Pagefind, for example on the first
+run without a network connection, it prints a warning and the site uses the
+built-in search instead. The development server then keeps the built-in
+search until you restart it.
+
+The development server runs Pagefind again after every rebuild, so search
+results stay current as you edit.
+
+### Built-in search
+
+The built-in search has these limits:
 
 - It indexes each page's title, its level-2 and level-3 headings, and the
   first 5,000 characters of its text.
@@ -192,5 +233,5 @@ these limits:
   type. There's no stemming or typo tolerance, so `build` matches "builds"
   but `builds` doesn't match "build".
 - It ranks pages with a match in the title above pages with a match in a
-  heading, and those above matches in the text. It shows up to 10 results.
+  heading, and those above matches in the text.
 - Text inside raw HTML isn't indexed.

@@ -7,8 +7,9 @@ order: 3
 Every documango site has a light theme and a dark theme. Each theme is a
 [base16](https://github.com/tinted-theming/home) color scheme: a palette of
 sixteen colors that sets the page background, text, links, callouts, and code
-highlighting. documango includes over 300 schemes, and you can load your own
-from a YAML file.
+highlighting. You can use any base16 scheme from the
+[tinted-theming schemes](https://github.com/tinted-theming/schemes) project,
+or load your own from a YAML file.
 
 ## Light and dark
 
@@ -33,14 +34,47 @@ documango docs --light-theme gruvbox-light-medium --dark-theme gruvbox-dark-medi
 Theme names are case-insensitive. If documango doesn't recognize a name, the
 error suggests up to three similar names.
 
-documango doesn't check that the light theme is light or that the dark theme
-is dark. You can use two dark schemes, for example, if that's what you want.
+documango includes 24 schemes, so they work without a network connection:
 
-## List the built-in themes
+`catppuccin-latte`, `catppuccin-mocha`, `default-dark`, `default-light`,
+`dracula`, `everforest-dark-medium`, `everforest-light-medium`, `github`,
+`github-dark`, `gruvbox-dark-medium`, `gruvbox-light-medium`, `kanagawa`,
+`nord`, `nord-light`, `one-light`, `onedark`, `rose-pine`, `rose-pine-dawn`,
+`solarized-dark`, `solarized-light`, `tokyo-night-dark`, `tokyo-night-light`,
+`tomorrow`, and `tomorrow-night`.
 
-`documango themes` prints every built-in theme, one per line, with three
-columns: the name you pass to the theme flags, the variant (`dark` or
-`light`), and the display name.
+When you name any other scheme, documango downloads the full tinted-theming
+catalog from GitHub, which has over 300 base16 schemes. See
+[the theme download](#the-theme-download) for where it's stored and what
+happens offline.
+
+If a scheme in `--dark-theme` is a light scheme, or one in `--light-theme` is
+dark, documango prints a warning and uses it anyway.
+
+## Offer several schemes
+
+Both flags take a comma-separated list. The first scheme in each list is the
+default, and the others let readers pick a different one:
+
+```sh
+documango docs --dark-theme tomorrow-night,dracula,nord
+```
+
+When either list has more than one scheme, the site header shows a
+**Color scheme** menu. It lists the schemes for the mode the reader is
+viewing, light or dark, and is hidden in a mode that has only one scheme. The
+reader's browser remembers the choice separately for light and dark mode and
+applies it on every page of the site.
+
+A list can mix names and [scheme files](#use-your-own-scheme). Each scheme can
+appear only once in a list.
+
+## List the themes
+
+`documango themes` prints every scheme you can use, one per line. In a
+terminal, each line shows a sample of the scheme's colors, its name, its
+variant (`dark` or `light`), and its display name, and marks the built-in
+schemes.
 
 Use `--variant dark` or `--variant light` to show only one kind:
 
@@ -48,21 +82,87 @@ Use `--variant dark` or `--variant light` to show only one kind:
 documango themes --variant light
 ```
 
-When you pipe the output to another program, documango prints tab-separated
-columns, which makes the list easy to filter:
+To list only the built-in schemes without going online, add `--offline`:
+
+```sh
+documango themes --offline
+```
+
+When you pipe the output to another program, documango prints four
+tab-separated columns: the name, the variant, the display name, and `builtin`
+or `download`. This makes the list easy to filter:
 
 ```sh
 documango themes | grep -i solarized
 ```
 
-The built-in schemes come from the
-[tinted-theming schemes](https://github.com/tinted-theming/schemes) project and
-are distributed under the MIT License.
+If the catalog can't be downloaded, `documango themes` prints a warning and
+lists the built-in schemes.
+
+## Pick a theme interactively
+
+`documango themes pick` lets you browse the schemes in your terminal, with a
+preview of each one's colors on a sample of code. It prints the name of the
+scheme you choose to standard output, so you can pass the result straight to
+a theme flag:
+
+```sh
+documango docs --dark-theme "$(documango themes pick --variant dark)"
+```
+
+Use these keys in the picker:
+
+| Key                                                   | Action             |
+| ----------------------------------------------------- | ------------------ |
+| Any text                                              | Filter the list    |
+| <kbd>Up</kbd>, <kbd>Ctrl+K</kbd>, <kbd>Ctrl+P</kbd>   | Move up            |
+| <kbd>Down</kbd>, <kbd>Ctrl+J</kbd>, <kbd>Ctrl+N</kbd> | Move down          |
+| <kbd>Page Up</kbd>, <kbd>Page Down</kbd>              | Move by one screen |
+| <kbd>Enter</kbd>                                      | Choose the scheme  |
+| <kbd>Esc</kbd>, <kbd>Ctrl+C</kbd>                     | Cancel             |
+
+With `--multi`, <kbd>Space</kbd> selects or clears a scheme, and
+<kbd>Enter</kbd> prints the selected names separated by commas, in the order
+you selected them. The first one you select becomes the default:
+
+```sh
+documango build docs --light-theme "$(documango themes pick --variant light --multi)"
+```
+
+The picker accepts `--variant` and `--offline` like `documango themes`. It
+needs an interactive terminal. If you cancel, it prints nothing to standard
+output and exits with code 1.
+
+## The theme download
+
+documango downloads the tinted-theming catalog the first time you name a
+scheme that isn't built in or run `documango themes` without `--offline`. It
+stores the catalog in your user cache folder:
+
+- Linux: `~/.cache/documango/schemes/`, or under `$XDG_CACHE_HOME` if it's set
+- macOS: `~/Library/Caches/documango/schemes/`
+- Windows: `%LocalAppData%\documango\schemes\`
+
+Set `DOCUMANGO_CACHE_DIR` to store it somewhere else. documango then uses the
+`schemes` folder inside that directory.
+
+The download stays in use for 7 days. After that, documango downloads the
+catalog again. If that fails, for example because you're offline, documango
+keeps using the old copy and prints a warning. Without any copy, only the
+built-in schemes and scheme files work.
+
+documango downloads the catalog through the GitHub API. When the
+`GITHUB_TOKEN` environment variable is set, documango sends it with the
+request, which raises GitHub's rate limit.
+
+The built-in schemes always come from documango itself, even when the
+downloaded catalog has a newer version of the same scheme, so a build that
+uses only built-in schemes gives the same result on every machine.
 
 ## Use your own scheme
 
-To use a scheme that isn't built in, pass the path to its YAML file instead of
-a name:
+To use a scheme that isn't in the catalog, pass the path to its YAML file
+instead of a name:
 
 ```sh
 documango docs --dark-theme themes/midnight.yaml
@@ -111,7 +211,8 @@ The other fields are optional:
   sixteen colors of a base24 scheme.
 - `variant` is `dark` or `light`. Without it, documango decides from the
   brightness of `base00`.
-- `name` and `author` don't affect the site.
+- `name` is the scheme's label in the **Color scheme** menu.
+- `author` doesn't affect the site.
 
 documango also reads the older base16 format, where the colors are top-level
 keys without `#` and the name is in a `scheme` field:
@@ -126,22 +227,32 @@ base01: "23262e"
 
 ### Where each color appears
 
-documango follows the base16 styling guidelines. This table shows where each
-color is used outside code blocks:
+The first six colors set the page's surfaces and text:
 
-| Color    | Used for                                          |
-| -------- | ------------------------------------------------- |
-| `base00` | Page background                                   |
-| `base01` | Sidebar, code blocks, and raised surfaces         |
-| `base02` | Borders and text selection                        |
-| `base03` | Faint text, such as heading `#` links             |
-| `base04` | Muted text                                        |
-| `base05` | Body text and headings                            |
-| `base08` | Caution callouts                                  |
-| `base0A` | Warning callouts                                  |
-| `base0B` | Tip callouts                                      |
-| `base0D` | Links, focus outlines, and note callouts          |
-| `base0E` | Visited links and important callouts             |
+| Color    | Used for                                  |
+| -------- | ----------------------------------------- |
+| `base00` | Page background                           |
+| `base01` | Sidebar, code blocks, and raised surfaces |
+| `base02` | Borders and text selection                |
+| `base03` | Faint text, such as heading `#` links     |
+| `base04` | Muted text                                |
+| `base05` | Body text and headings                    |
 
-Code highlighting uses the full palette: for example, keywords use `base0E`,
-strings use `base0B`, and function names use `base0D`.
+Links and callouts need colors of a particular hue, such as blue for links and
+red for caution callouts. The base16 guidelines assign each hue to a slot, for
+example blue to `base0D`, but many schemes put their colors in other slots.
+documango looks at the hues of `base08` through `base0F` and matches each
+color below to the closest one. For a scheme that follows the guidelines, the
+result is the slot shown in the table.
+
+| Color  | Usual slot | Used for                                  |
+| ------ | ---------- | ----------------------------------------- |
+| Red    | `base08`   | Caution callouts                          |
+| Yellow | `base0A`   | Warning callouts and search highlights    |
+| Green  | `base0B`   | Tip callouts                              |
+| Blue   | `base0D`   | Links, focus outlines, and note callouts  |
+| Purple | `base0E`   | Visited links and important callouts      |
+
+Code highlighting uses the slots directly, following the base16 guidelines:
+for example, keywords use `base0E`, strings use `base0B`, and function names
+use `base0D`.

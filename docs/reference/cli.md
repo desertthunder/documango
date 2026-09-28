@@ -5,13 +5,14 @@ order: 1
 ---
 
 documango has three commands: `serve` runs the development server, `build`
-writes the static site, and `themes` lists the built-in color schemes.
+writes the static site, and `themes` lists the color schemes.
 
 ```text
 documango [dir]
 documango serve [dir]
 documango build [dir]
 documango themes
+documango themes pick
 documango --version
 ```
 
@@ -55,23 +56,55 @@ documango build docs --out public --clean
 
 | Flag          | Default | Description |
 | ------------- | ------- | ----------- |
-| `-o`, `--out` | `_site` | Folder to write the site to. If it's inside the docs directory, documango doesn't treat its contents as docs. |
-| `--clean`     | off     | Delete everything in the output folder before building. documango refuses unless the folder is empty, doesn't exist, or contains a previous documango build (a `_documango/` folder). |
+| `-o`, `--out` | `_site` | Folder to write the site to. If it's inside the docs directory, documango doesn't treat its contents as docs. It can't be the docs directory or a folder that contains it. These checks follow symbolic links. |
+| `--clean`     | off     | Delete everything in the output folder before writing the site. documango refuses unless the folder is empty, doesn't exist, or contains a previous documango build (a `_documango/` folder). |
 
-Without `--clean`, files from earlier builds stay in the output folder.
+Each build lists the files it writes in `_documango/manifest.json`. The next
+build into the same folder deletes the files from that list that it no
+longer writes, such as the page of a renamed Markdown file, and any folders
+this leaves empty. Files that documango didn't write stay in place.
+
+If the site can't be built, for example because a page has invalid front
+matter, documango leaves the output folder unchanged, even with `--clean`.
 
 `build` also accepts the [site flags](#site-flags). See
 [deploying](../guide/deploying.md) for publishing the result.
 
 ## themes
 
-`documango themes` lists the built-in color schemes. Each line shows the
-scheme's name, its variant (`dark` or `light`), and its display name. When the
-output isn't a terminal, the columns are separated by tabs.
+`documango themes` lists the color schemes you can pass to `--dark-theme` and
+`--light-theme`: the built-in schemes and the tinted-theming catalog, which
+documango downloads and caches. In a terminal, each line shows a color
+sample, the scheme's name, its variant (`dark` or `light`), and its display
+name. When the output isn't a terminal, each line holds the name, variant,
+display name, and `builtin` or `download`, separated by tabs.
 
 | Flag        | Default | Description |
 | ----------- | ------- | ----------- |
 | `--variant` | all     | Show only `dark` or only `light` schemes. |
+| `--offline` | off     | Show only the built-in schemes, without going online. |
+
+See [themes](../guide/themes.md#list-the-themes) for examples.
+
+## themes pick
+
+`documango themes pick` opens an interactive list of the color schemes with a
+preview, and prints the names you choose to standard output:
+
+```sh
+documango docs --dark-theme "$(documango themes pick --variant dark)"
+```
+
+It needs an interactive terminal. If you cancel, it prints nothing to
+standard output and exits with code 1. See
+[pick a theme interactively](../guide/themes.md#pick-a-theme-interactively)
+for the keys.
+
+| Flag        | Default | Description |
+| ----------- | ------- | ----------- |
+| `--variant` | all     | Show only `dark` or only `light` schemes. |
+| `--offline` | off     | Show only the built-in schemes, without going online. |
+| `--multi`   | off     | Select several schemes with <kbd>Space</kbd> and print them separated by commas. |
 
 ## Site flags
 
@@ -80,12 +113,13 @@ These flags work with `documango`, `documango serve`, and `documango build`.
 | Flag            | Default          | Description |
 | --------------- | ---------------- | ----------- |
 | `--title`       | See description  | Site title in the header and browser tabs. Defaults to the home page's title from front matter or its first level-1 heading, else "Documentation". |
-| `--dark-theme`  | `tomorrow-night` | Dark color scheme: a built-in name or a path to a base16 YAML file. |
-| `--light-theme` | `tomorrow`       | Light color scheme: a built-in name or a path to a base16 YAML file. |
+| `--dark-theme`  | `tomorrow-night` | Dark color schemes, separated by commas. Each is a name from `documango themes` or a path to a base16 YAML file. The first is the default. |
+| `--light-theme` | `tomorrow`       | Light color schemes, in the same form as `--dark-theme`. |
+| `--search`      | `pagefind`       | Search engine: `pagefind` or `builtin`. |
 | `--base-path`   | `/`              | URL prefix the site is served under, such as `/docs/`. |
 
-See [themes](../guide/themes.md) and [base path](../guide/deploying.md#base-path)
-for details.
+See [themes](../guide/themes.md), [search](../guide/writing-pages.md#search),
+and [base path](../guide/deploying.md#base-path) for details.
 
 ## Global flags
 
@@ -93,12 +127,23 @@ These flags work with every command.
 
 | Flag              | Description |
 | ----------------- | ----------- |
-| `-q`, `--quiet`   | Print only errors. This also hides the server address and the build summary. |
+| `-q`, `--quiet`   | Print only warnings and errors. `serve` still prints the address it serves the site at. |
 | `-v`, `--verbose` | Print more detail, such as the files that triggered a rebuild. |
+| `--no-color`      | Don't use color in output. |
 
 `--quiet` and `--verbose` can't be used together.
-| `--no-color`      | Don't use color in output. |
-| `--version`       | Print the documango version and exit. |
+
+`documango --version` prints the documango version and exits.
+
+## Environment variables
+
+| Variable              | Description |
+| --------------------- | ----------- |
+| `NO_COLOR`            | Any non-empty value turns off color in output. |
+| `TERM`                | The value `dumb` turns off color in output. |
+| `DOCUMANGO_CACHE_DIR` | Folder for downloaded files: the theme catalog in `schemes/` and Pagefind in `pagefind/`. Defaults to a `documango` folder in your user cache folder. |
+| `DOCUMANGO_PAGEFIND`  | Path to a Pagefind binary to use instead of one on your `PATH` or the download. |
+| `GITHUB_TOKEN`        | GitHub token sent when documango downloads the theme catalog, which raises GitHub's rate limit. |
 
 ## Color output
 
@@ -114,7 +159,7 @@ off when any of these is true:
 | Code | Meaning |
 | ---- | ------- |
 | `0`  | Success. |
-| `1`  | The command failed, for example because the docs directory doesn't exist, a page has invalid front matter, or the port is in use. |
+| `1`  | The command failed, for example because the docs directory doesn't exist, a page has invalid front matter, or the port is in use. Cancelling `documango themes pick` also exits with `1`. |
 | `2`  | The command line is invalid, such as an unknown flag, too many arguments, or `--quiet` with `--verbose`. |
 
 A mistyped command, such as `documango biuld`, is treated as a docs directory
