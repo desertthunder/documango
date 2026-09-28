@@ -83,7 +83,7 @@ func TestRenderFeatures(t *testing.T) {
 			name: "heading anchor",
 			src:  "## Getting Started\n",
 			want: []string{
-				`<h2 id="getting-started">Getting Started<a class="heading-anchor" href="#getting-started" aria-label="Link to this section">#</a></h2>`,
+				`<h2 id="getting-started">Getting Started<a class="heading-anchor" href="#getting-started" aria-label="Link to this section" data-pagefind-ignore>#</a></h2>`,
 			},
 		},
 		{

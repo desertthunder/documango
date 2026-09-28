@@ -299,7 +299,7 @@ func renderHeading(w util.BufWriter, _ []byte, node ast.Node, entering bool) (as
 		if idBytes, ok := id.([]byte); ok {
 			_, _ = w.WriteString(`<a class="heading-anchor" href="#`)
 			_, _ = w.Write(util.EscapeHTML(util.URLEscape(idBytes, false)))
-			_, _ = w.WriteString(`" aria-label="Link to this section">#</a>`)
+			_, _ = w.WriteString(`" aria-label="Link to this section" data-pagefind-ignore>#</a>`)
 		}
 	}
 	_, _ = fmt.Fprintf(w, "</h%d>\n", n.Level)
