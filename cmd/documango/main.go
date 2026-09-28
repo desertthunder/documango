@@ -14,6 +14,7 @@ var version string
 
 func main() {
 	os.Exit(cli.Execute(context.Background(), os.Args[1:], cli.Env{
+		Stdin:   os.Stdin,
 		Stdout:  os.Stdout,
 		Stderr:  os.Stderr,
 		Environ: os.Environ(),

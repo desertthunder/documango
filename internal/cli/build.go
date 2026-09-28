@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -22,7 +23,10 @@ const buildExample = `  # Build the docs in the current folder into _site
   documango build docs --out public --clean
 
   # Build for a site hosted at https://example.com/project/
-  documango build docs --base-path /project/`
+  documango build docs --base-path /project/
+
+  # Offer two light themes and skip the Pagefind download
+  documango build docs --light-theme tomorrow,catppuccin-latte --search builtin`
 
 // buildOptions are the flags of the build command.
 type buildOptions struct {
@@ -42,7 +46,7 @@ inside dir.`,
 		Example: buildExample,
 		Args:    usageArgs(cobra.MaximumNArgs(1)),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return a.build(dirArg(args), opts)
+			return a.build(cmd.Context(), dirArg(args), opts)
 		},
 	}
 	fs := cmd.Flags()
@@ -80,7 +84,7 @@ func resolvePath(p string) (string, error) {
 }
 
 // build renders the docs in dir and writes them to the output folder.
-func (a *app) build(dir string, o *buildOptions) error {
+func (a *app) build(ctx context.Context, dir string, o *buildOptions) error {
 	start := time.Now()
 	if err := checkDir(dir, nil); err != nil {
 		return err
@@ -98,7 +102,7 @@ func (a *app) build(dir string, o *buildOptions) error {
 			"Pick an output folder outside your docs, such as the default _site.")
 	}
 
-	b, err := o.site.builder(dir, a.version)
+	b, err := a.newBuilder(ctx, dir, &o.site)
 	if err != nil {
 		return err
 	}
@@ -106,7 +110,7 @@ func (a *app) build(dir string, o *buildOptions) error {
 		rel, _ := filepath.Rel(absDir, out)
 		b.load.Exclude = []string{filepath.ToSlash(rel)}
 	}
-	s, files, err := b.build()
+	s, files, err := b.build(ctx)
 	if err != nil {
 		return err
 	}
@@ -137,8 +141,12 @@ func (a *app) build(dir string, o *buildOptions) error {
 		} else {
 			elapsed = elapsed.Round(10 * time.Millisecond)
 		}
-		fmt.Fprintf(a.stderr, "%s %d %s to %s in %s\n", successStyle.Render("Built"), len(s.Pages), pages,
-			accentStyle.Render(o.out), dimStyle.Render(elapsed.String()))
+		search := ""
+		if b.fellBack {
+			search = " with the built-in search"
+		}
+		fmt.Fprintf(a.stderr, "%s %d %s to %s%s in %s\n", successStyle.Render("Built"), len(s.Pages), pages,
+			accentStyle.Render(o.out), search, dimStyle.Render(elapsed.String()))
 	}
 	return nil
 }

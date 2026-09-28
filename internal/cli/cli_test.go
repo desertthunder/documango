@@ -6,12 +6,14 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"io/fs"
 	"log/slog"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -19,6 +21,8 @@ import (
 	"time"
 
 	"github.com/charmbracelet/colorprofile"
+
+	"github.com/desertthunder/documango/internal/theme"
 )
 
 // syncBuffer is a bytes.Buffer safe for a writer goroutine and a reading test.
@@ -39,19 +43,81 @@ func (b *syncBuffer) String() string {
 	return b.buf.String()
 }
 
+// TestMain lets the test binary stand in for pagefind: run with --site, it
+// writes a small bundle listing the pages it was given.
+func TestMain(m *testing.M) {
+	if len(os.Args) > 2 && os.Args[1] == "--site" {
+		os.Exit(fakePagefind(os.Args[2]))
+	}
+	os.Exit(m.Run())
+}
+
+func fakePagefind(site string) int {
+	var pages []string
+	_ = filepath.WalkDir(site, func(p string, d fs.DirEntry, err error) error {
+		if err == nil && !d.IsDir() {
+			rel, _ := filepath.Rel(site, p)
+			pages = append(pages, filepath.ToSlash(rel))
+		}
+		return nil
+	})
+	out := filepath.Join(site, "pagefind")
+	if err := os.MkdirAll(out, 0o755); err != nil {
+		return 2
+	}
+	entry, _ := json.Marshal(map[string][]string{"pages": pages})
+	if os.WriteFile(filepath.Join(out, "pagefind-entry.json"), entry, 0o644) != nil ||
+		os.WriteFile(filepath.Join(out, "pagefind.js"), []byte("export {}"), 0o644) != nil {
+		return 2
+	}
+	return 0
+}
+
+// testEnv returns an environment that keeps the CLI offline: a cache folder
+// holding a fresh copy of the theme list with one downloaded theme,
+// remote-dusk, and a stand-in pagefind. On Unix that is a shell script, since
+// starting the test binary costs over a second per build on macOS.
+func testEnv(t *testing.T) []string {
+	t.Helper()
+	cache := t.TempDir()
+	schemes := filepath.Join(cache, "schemes", theme.DefaultRef)
+	writeFile(t, filepath.Join(schemes, ".fetched"), time.Now().UTC().Format(time.RFC3339Nano))
+	writeFile(t, filepath.Join(schemes, "remote-dusk.yaml"), "system: base16\nname: Remote Dusk\nvariant: dark\npalette:\n"+paletteYAML())
+	bin := fakePagefindBin(t)
+	if runtime.GOOS != "windows" {
+		bin = filepath.Join(cache, "pagefind.sh")
+		writeFile(t, bin, "#!/bin/sh\nmkdir -p \"$2/pagefind\" && printf 'export {}' > \"$2/pagefind/pagefind.js\"\n")
+		if err := os.Chmod(bin, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return []string{"DOCUMANGO_CACHE_DIR=" + cache, "DOCUMANGO_PAGEFIND=" + bin}
+}
+
+// fakePagefindBin returns the test binary, which acts as pagefind (see
+// TestMain) and records the pages it indexed.
+func fakePagefindBin(t *testing.T) string {
+	t.Helper()
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return exe
+}
+
 type result struct {
 	code           int
 	stdout, stderr string
 }
 
-// run executes the CLI in-process with the given environment.
+// run executes the CLI in-process with testEnv followed by environ.
 func run(t *testing.T, environ []string, args ...string) result {
 	t.Helper()
 	var stdout, stderr bytes.Buffer
 	code := Execute(context.Background(), args, Env{
 		Stdout:  &stdout,
 		Stderr:  &stderr,
-		Environ: environ,
+		Environ: append(testEnv(t), environ...),
 		Version: "1.2.3",
 	})
 	return result{code, stdout.String(), stderr.String()}
@@ -89,7 +155,8 @@ func TestHelp(t *testing.T) {
 		{[]string{"--help"}, []string{"Usage:", "Examples:", "documango build", "serve", "themes", "--dark-theme", "--port", "--quiet", "--no-color"}},
 		{[]string{"help", "build"}, []string{"Examples:", "--out", "--clean", "--base-path", "--title"}},
 		{[]string{"serve", "-h"}, []string{"Examples:", "--port", "--host", "--light-theme"}},
-		{[]string{"themes", "--help"}, []string{"Examples:", "--variant"}},
+		{[]string{"themes", "--help"}, []string{"Examples:", "--variant", "--offline", "pick"}},
+		{[]string{"themes", "pick", "--help"}, []string{"Examples:", "--multi", "--variant", "--offline", "themes pick --variant dark"}},
 	} {
 		r := run(t, nil, tc.args...)
 		if r.code != 0 {
@@ -450,7 +517,8 @@ func TestThemes(t *testing.T) {
 	if r.code != 0 || r.stderr != "" {
 		t.Fatalf("exit %d, stderr %q", r.code, r.stderr)
 	}
-	if !strings.Contains(r.stdout, "tomorrow-night\tdark\tTomorrow Night\n") {
+	if !strings.Contains(r.stdout, "tomorrow-night\tdark\tTomorrow Night\tbuiltin\n") ||
+		!strings.Contains(r.stdout, "remote-dusk\tdark\tRemote Dusk\tdownload\n") {
 		t.Errorf("plain listing lacks tomorrow-night:\n%.300s", r.stdout)
 	}
 	if strings.Contains(r.stdout, "\x1b[") {
@@ -463,14 +531,15 @@ func TestThemes(t *testing.T) {
 		t.Fatalf("exit %d, %d lines", r.code, len(lines))
 	}
 	for _, l := range lines {
-		if f := strings.Split(l, "\t"); len(f) != 3 || f[1] != "light" {
+		if f := strings.Split(l, "\t"); len(f) != 4 || f[1] != "light" {
 			t.Errorf("unexpected line %q", l)
 		}
 	}
 
 	tty := []string{"TTY_FORCE=1", "TERM=xterm-256color"}
 	r = run(t, tty, "themes", "--variant", "dark")
-	if r.code != 0 || !strings.Contains(r.stdout, "\x1b[") || !strings.Contains(r.stdout, "Tomorrow Night") || strings.Contains(r.stdout, "\t") {
+	if r.code != 0 || !strings.Contains(r.stdout, "\x1b[") || !strings.Contains(r.stdout, "Tomorrow Night") || strings.Contains(r.stdout, "\t") ||
+		!strings.Contains(r.stdout, "built-in") || !strings.Contains(r.stdout, "Remote Dusk") {
 		t.Errorf("terminal listing: exit %d:\n%.300s", r.code, r.stdout)
 	}
 	r = run(t, append(tty, "NO_COLOR=1"), "themes")
@@ -533,11 +602,16 @@ func TestLogHandler(t *testing.T) {
 // called, and returns the address it printed.
 func startServe(t *testing.T, args ...string) (url string, stderr *syncBuffer, stop func() int) {
 	t.Helper()
+	return startServeEnv(t, testEnv(t), args...)
+}
+
+func startServeEnv(t *testing.T, environ []string, args ...string) (url string, stderr *syncBuffer, stop func() int) {
+	t.Helper()
 	stderr = &syncBuffer{}
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan int, 1)
 	go func() {
-		done <- Execute(ctx, args, Env{Stdout: io.Discard, Stderr: stderr, Version: "1.2.3"})
+		done <- Execute(ctx, args, Env{Stdout: io.Discard, Stderr: stderr, Environ: environ, Version: "1.2.3"})
 	}()
 	stop = func() int {
 		cancel()
@@ -664,5 +738,141 @@ func TestServeErrors(t *testing.T) {
 	r = run(t, nil, "serve", empty)
 	if r.code != 1 || !strings.Contains(r.stderr, "no Markdown files found") {
 		t.Errorf("empty dir: exit %d, stderr %q", r.code, r.stderr)
+	}
+}
+
+func TestThemeLists(t *testing.T) {
+	dir := docsDir(t)
+	out := filepath.Join(t.TempDir(), "out")
+	mine := filepath.Join(t.TempDir(), "mine.yaml")
+	writeFile(t, mine, "system: base16\nname: Mine\nvariant: dark\npalette:\n"+paletteYAML())
+
+	r := run(t, nil, "build", dir, "-o", out, "--dark-theme", " tomorrow-night, remote-dusk ,"+mine, "--light-theme", "tomorrow,github")
+	if r.code != 0 || strings.Contains(r.stderr, "WARN") {
+		t.Fatalf("exit %d, stderr %q", r.code, r.stderr)
+	}
+	css, _ := os.ReadFile(filepath.Join(out, "_documango", "style.css"))
+	for _, slug := range []string{"remote-dusk", "mine", "github"} {
+		if !bytes.Contains(css, []byte(slug)) {
+			t.Errorf("style.css lacks scheme %s", slug)
+		}
+	}
+
+	r = run(t, nil, "build", dir, "-o", out, "--dark-theme", "tomorrow-night,github")
+	if r.code != 0 || !strings.Contains(r.stderr, "WARN github is a light theme but is listed in --dark-theme") {
+		t.Errorf("variant mismatch: exit %d, stderr %q", r.code, r.stderr)
+	}
+
+	for _, tc := range []struct{ flag, value, msg string }{
+		{"--dark-theme", "nord,,dracula", `--dark-theme has an empty entry in "nord,,dracula"`},
+		{"--light-theme", " ", "--light-theme has an empty entry"},
+		{"--dark-theme", "nord, Nord", `--dark-theme lists "Nord" more than once`},
+		{"--search", "google", `invalid --search "google": use pagefind or builtin`},
+	} {
+		r := run(t, nil, "build", dir, "-o", out, tc.flag, tc.value)
+		if r.code != 2 || !strings.Contains(r.stderr, tc.msg) || !strings.Contains(r.stderr, "documango build --help") {
+			t.Errorf("%s %q: exit %d, stderr %q", tc.flag, tc.value, r.code, r.stderr)
+		}
+	}
+
+	// Without a usable theme cache, unknown names still get suggestions.
+	blocked := filepath.Join(t.TempDir(), "file")
+	writeFile(t, blocked, "")
+	r = run(t, []string{"DOCUMANGO_CACHE_DIR=" + blocked}, "build", dir, "-o", out, "--light-theme", "tomorow")
+	if r.code != 1 || !strings.Contains(r.stderr, `light theme: unknown theme "tomorow"; did you mean tomorrow`) ||
+		!strings.Contains(r.stderr, "catalog unavailable") || !strings.Contains(r.stderr, "Hint: Run 'documango themes'") {
+		t.Errorf("unknown theme offline: exit %d, stderr %q", r.code, r.stderr)
+	}
+}
+
+func TestThemesCatalog(t *testing.T) {
+	r := run(t, nil, "themes", "--offline")
+	if r.code != 0 || r.stderr != "" || strings.Contains(r.stdout, "remote-dusk") || !strings.Contains(r.stdout, "\tbuiltin\n") {
+		t.Errorf("--offline: exit %d, stderr %q\n%.200s", r.code, r.stderr, r.stdout)
+	}
+	offline := r.stdout
+
+	blocked := filepath.Join(t.TempDir(), "file")
+	writeFile(t, blocked, "")
+	r = run(t, []string{"DOCUMANGO_CACHE_DIR=" + blocked}, "themes")
+	if r.code != 0 || r.stdout != offline || !strings.Contains(r.stderr, "WARN showing the built-in themes only") {
+		t.Errorf("unavailable: exit %d, stderr %q", r.code, r.stderr)
+	}
+}
+
+func TestPickNeedsTerminal(t *testing.T) {
+	r := run(t, nil, "themes", "pick", "--variant", "dark")
+	if r.code != 1 || r.stdout != "" || !strings.Contains(r.stderr, "Error: themes pick needs an interactive terminal") ||
+		!strings.Contains(r.stderr, "Hint: Run 'documango themes'") {
+		t.Errorf("exit %d, stdout %q, stderr %q", r.code, r.stdout, r.stderr)
+	}
+	r = run(t, nil, "themes", "pick", "--variant", "blue")
+	if r.code != 2 || !strings.Contains(r.stderr, `invalid --variant "blue"`) {
+		t.Errorf("bad variant: exit %d, stderr %q", r.code, r.stderr)
+	}
+}
+
+func TestBuildSearch(t *testing.T) {
+	dir := docsDir(t)
+	writeFile(t, filepath.Join(dir, "old-build", "index.html"), "<h1>Hello Docs</h1>")
+	out := filepath.Join(t.TempDir(), "out")
+	r := run(t, []string{"DOCUMANGO_PAGEFIND=" + fakePagefindBin(t)}, "build", dir, "-o", out)
+	if r.code != 0 || !regexp.MustCompile(`^Built 2 pages to \S+ in \S+\n$`).MatchString(r.stderr) {
+		t.Fatalf("exit %d, stderr %q", r.code, r.stderr)
+	}
+	entry, err := os.ReadFile(filepath.Join(out, "pagefind", "pagefind-entry.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got struct{ Pages []string }
+	if err := json.Unmarshal(entry, &got); err != nil {
+		t.Fatal(err)
+	}
+	slices.Sort(got.Pages)
+	if want := []string{"guide/install/index.html", "index.html"}; !slices.Equal(got.Pages, want) {
+		t.Errorf("indexed %v, want %v", got.Pages, want)
+	}
+
+	// Switching to the built-in search drops the old bundle.
+	r = run(t, []string{"DOCUMANGO_PAGEFIND=" + filepath.Join(t.TempDir(), "missing")}, "build", dir, "-o", out, "--search", "builtin")
+	if r.code != 0 || strings.Contains(r.stderr, "WARN") || strings.Contains(r.stderr, "built-in search") || exists(filepath.Join(out, "pagefind")) {
+		t.Errorf("builtin: exit %d, stderr %q", r.code, r.stderr)
+	}
+
+	notExec := filepath.Join(t.TempDir(), "pagefind")
+	writeFile(t, notExec, "")
+	for _, bin := range []string{filepath.Join(t.TempDir(), "missing"), notExec} {
+		r = run(t, []string{"DOCUMANGO_PAGEFIND=" + bin}, "build", dir, "-o", out, "-q")
+		if r.code != 0 || strings.Count(r.stderr, "WARN pagefind search is unavailable; using the built-in search") != 1 {
+			t.Errorf("%s: exit %d, stderr %q", bin, r.code, r.stderr)
+		}
+		r = run(t, []string{"DOCUMANGO_PAGEFIND=" + bin}, "build", dir, "-o", out)
+		if !regexp.MustCompile(`Built 2 pages to \S+ with the built-in search in \S+\n$`).MatchString(r.stderr) {
+			t.Errorf("%s: summary %q", bin, r.stderr)
+		}
+	}
+}
+
+func TestServeSearch(t *testing.T) {
+	dir := docsDir(t)
+	url, _, stop := startServe(t, dir, "--port", "0")
+	if resp, body := get(t, url+"pagefind/pagefind.js"); resp.StatusCode != http.StatusOK || body != "export {}" {
+		t.Errorf("GET pagefind.js: %d %q", resp.StatusCode, body)
+	}
+	stop()
+
+	environ := append(testEnv(t), "DOCUMANGO_PAGEFIND="+filepath.Join(t.TempDir(), "missing"))
+	url, stderr, stop := startServeEnv(t, environ, dir, "--port", "0")
+	defer stop()
+	writeFile(t, filepath.Join(dir, "index.md"), "# Hello again\n")
+	deadline := time.Now().Add(5 * time.Second)
+	for !strings.Contains(stderr.String(), "rebuilt site") && time.Now().Before(deadline) {
+		time.Sleep(20 * time.Millisecond)
+	}
+	if s := stderr.String(); !strings.Contains(s, "rebuilt site") || strings.Count(s, "pagefind search is unavailable") != 1 {
+		t.Errorf("want one pagefind warning across rebuilds: %q", s)
+	}
+	if resp, _ := get(t, url+"pagefind/pagefind.js"); resp.StatusCode != http.StatusNotFound {
+		t.Errorf("GET pagefind.js after fallback: %d", resp.StatusCode)
 	}
 }

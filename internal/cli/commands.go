@@ -1,15 +1,21 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
+	"maps"
 	"os"
 	"path"
+	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
+	"github.com/desertthunder/documango/internal/pagefind"
 	"github.com/desertthunder/documango/internal/render"
 	"github.com/desertthunder/documango/internal/site"
 	"github.com/desertthunder/documango/internal/theme"
@@ -30,7 +36,13 @@ const rootExample = `  # Preview the docs in the current folder
   # Build a static site into _site
   documango build docs
 
-  # List the built-in themes
+  # Offer readers several dark themes; the first is the default
+  documango docs --dark-theme nord,gruvbox-dark-medium,./my-theme.yaml
+
+  # Pick a dark theme interactively
+  documango docs --dark-theme "$(documango themes pick --variant dark)"
+
+  # List every theme
   documango themes`
 
 // newRootCmd builds the command tree for one invocation.
@@ -59,7 +71,7 @@ func (a *app) newRootCmd() *cobra.Command {
 	root.SuggestionsMinimumDistance = 2
 
 	pf := root.PersistentFlags()
-	pf.BoolVarP(&a.quiet, "quiet", "q", false, "only print errors")
+	pf.BoolVarP(&a.quiet, "quiet", "q", false, "only print errors (serve still prints its address)")
 	pf.BoolVarP(&a.verbose, "verbose", "v", false, "print debug logs, such as which files changed")
 	pf.BoolVar(&a.noColor, "no-color", false, "turn off coloured output")
 	opts.addFlags(root.Flags())
@@ -78,35 +90,106 @@ func dirArg(args []string) string {
 
 // siteOptions are the flags shared by every command that renders the site.
 type siteOptions struct {
-	title, darkTheme, lightTheme, basePath string
+	title, darkTheme, lightTheme, basePath, search string
 }
 
 func (o *siteOptions) addFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&o.title, "title", "", `site title (default: the home page's title, else "Documentation")`)
-	fs.StringVar(&o.darkTheme, "dark-theme", "tomorrow-night", "dark mode theme: a built-in name or a base16 YAML file")
-	fs.StringVar(&o.lightTheme, "light-theme", "tomorrow", "light mode theme: a built-in name or a base16 YAML file")
+	fs.StringVar(&o.darkTheme, "dark-theme", "tomorrow-night",
+		"dark mode themes, comma-separated: names from 'documango themes' or base16 YAML files; the first is the default")
+	fs.StringVar(&o.lightTheme, "light-theme", "tomorrow",
+		"light mode themes, comma-separated: names from 'documango themes' or base16 YAML files; the first is the default")
 	fs.StringVar(&o.basePath, "base-path", "/", "URL path the site lives under, such as /docs/")
+	fs.StringVar(&o.search, "search", "pagefind", "search engine: pagefind (full-text, downloaded on first use) or builtin")
 }
 
-// builder loads the themes and returns a builder for the docs in dir.
-func (o *siteOptions) builder(dir, version string) (*builder, error) {
-	dark, err := theme.Load(o.darkTheme)
-	if err != nil {
-		return nil, withHint(fmt.Errorf("dark theme: %w", err), "Run 'documango themes' to list the built-in themes.")
+// themeList splits a comma-separated theme flag value into its entries.
+func themeList(flag, value string) ([]string, error) {
+	var list []string
+	seen := map[string]bool{}
+	for entry := range strings.SplitSeq(value, ",") {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			return nil, &usageError{fmt.Errorf("--%s has an empty entry in %q", flag, value)}
+		}
+		key := strings.ToLower(entry)
+		if seen[key] {
+			return nil, &usageError{fmt.Errorf("--%s lists %q more than once", flag, entry)}
+		}
+		seen[key] = true
+		list = append(list, entry)
 	}
-	light, err := theme.Load(o.lightTheme)
-	if err != nil {
-		return nil, withHint(fmt.Errorf("light theme: %w", err), "Run 'documango themes' to list the built-in themes.")
+	return list, nil
+}
+
+// cacheDir returns the folder set by DOCUMANGO_CACHE_DIR joined with elem,
+// or "" so the libraries use their default.
+func (a *app) cacheDir(elem ...string) string {
+	dir := a.getenv("DOCUMANGO_CACHE_DIR")
+	if dir == "" {
+		return ""
 	}
+	return filepath.Join(append([]string{dir}, elem...)...)
+}
+
+func (a *app) catalog() *theme.Catalog {
+	return &theme.Catalog{CacheDir: a.cacheDir("schemes"), Logger: a.logger()}
+}
+
+// newBuilder checks the site flags, loads the themes and returns a builder
+// for the docs in dir.
+func (a *app) newBuilder(ctx context.Context, dir string, o *siteOptions) (*builder, error) {
+	darkNames, err := themeList("dark-theme", o.darkTheme)
+	if err != nil {
+		return nil, err
+	}
+	lightNames, err := themeList("light-theme", o.lightTheme)
+	if err != nil {
+		return nil, err
+	}
+	if o.search != "pagefind" && o.search != "builtin" {
+		return nil, &usageError{fmt.Errorf("invalid --search %q: use pagefind or builtin", o.search)}
+	}
+
+	log := a.logger()
+	catalog := a.catalog()
+	load := func(mode string, names []string) ([]theme.Scheme, error) {
+		schemes := make([]theme.Scheme, len(names))
+		for i, name := range names {
+			s, err := catalog.Load(ctx, name)
+			if err != nil {
+				return nil, withHint(fmt.Errorf("%s theme: %w", mode, err), "Run 'documango themes' to list the available themes.")
+			}
+			if s.Variant != mode {
+				log.Warn(fmt.Sprintf("%s is a %s theme but is listed in --%s-theme", name, s.Variant, mode))
+			}
+			schemes[i] = s
+		}
+		return schemes, nil
+	}
+	dark, err := load("dark", darkNames)
+	if err != nil {
+		return nil, err
+	}
+	light, err := load("light", lightNames)
+	if err != nil {
+		return nil, err
+	}
+
 	base := path.Clean("/" + o.basePath)
 	if base != "/" {
 		base += "/"
 	}
-	return &builder{
+	b := &builder{
 		dir:    dir,
 		load:   site.Options{Title: o.title, BasePath: base},
-		render: render.Options{Dark: []theme.Scheme{dark}, Light: []theme.Scheme{light}, BasePath: base, Version: version},
-	}, nil
+		render: render.Options{Dark: dark, Light: light, BasePath: base, Version: a.version},
+		log:    log,
+	}
+	if o.search == "pagefind" {
+		b.finder = &pagefind.Finder{CacheDir: a.cacheDir("pagefind", pagefind.Version), Getenv: a.getenv, Logger: log}
+	}
+	return b, nil
 }
 
 // builder loads and renders the docs in one directory.
@@ -114,9 +197,16 @@ type builder struct {
 	dir    string
 	load   site.Options
 	render render.Options
+	log    *slog.Logger
+
+	// finder is nil when the site uses the built-in search, either by
+	// choice or after pagefind failed.
+	finder       *pagefind.Finder
+	pagefindPath string
+	fellBack     bool
 }
 
-func (b *builder) build() (*site.Site, map[string][]byte, error) {
+func (b *builder) build(ctx context.Context) (*site.Site, map[string][]byte, error) {
 	fsys := os.DirFS(b.dir)
 	s, err := site.Load(fsys, b.load)
 	if err != nil {
@@ -130,6 +220,30 @@ func (b *builder) build() (*site.Site, map[string][]byte, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("render %s: %w", b.dir, err)
 	}
+	if b.finder == nil {
+		return s, files, nil
+	}
+	if b.pagefindPath == "" {
+		b.pagefindPath, err = b.finder.Find(ctx)
+	}
+	var bundle map[string][]byte
+	if err == nil {
+		// Index only the rendered pages: HTML files copied from the docs
+		// folder, such as an old build, would show up as duplicate results.
+		pages := make(map[string][]byte, len(s.Pages))
+		for _, p := range s.Pages {
+			pages[p.OutPath] = files[p.OutPath]
+		}
+		bundle, err = pagefind.Index(ctx, b.pagefindPath, pages)
+	}
+	if ctx.Err() != nil {
+		return nil, nil, ctx.Err()
+	}
+	if err != nil {
+		b.log.Warn("pagefind search is unavailable; using the built-in search", "err", err)
+		b.finder, b.fellBack = nil, true
+	}
+	maps.Copy(files, bundle)
 	return s, files, nil
 }
 

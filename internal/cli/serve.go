@@ -24,7 +24,10 @@ const serveExample = `  # Preview the docs in the current folder at http://127.0
   documango serve docs --port 4000
 
   # Share the preview with other devices on your network
-  documango serve docs --host 0.0.0.0`
+  documango serve docs --host 0.0.0.0
+
+  # Let readers switch between two dark themes
+  documango serve docs --dark-theme tomorrow-night,dracula`
 
 // serveOptions are the flags of serve and the root command.
 type serveOptions struct {
@@ -64,7 +67,7 @@ func (a *app) serve(ctx context.Context, dir string, o *serveOptions, root *cobr
 	if err := checkDir(dir, root); err != nil {
 		return err
 	}
-	b, err := o.site.builder(dir, a.version)
+	b, err := a.newBuilder(ctx, dir, &o.site)
 	if err != nil {
 		return err
 	}
@@ -72,7 +75,7 @@ func (a *app) serve(ctx context.Context, dir string, o *serveOptions, root *cobr
 
 	// Build once here so errors surface as they are and the title is known;
 	// the server reuses this result as its initial build.
-	s, files, err := b.build()
+	s, files, err := b.build(ctx)
 	if err != nil {
 		return err
 	}
@@ -82,7 +85,7 @@ func (a *app) serve(ctx context.Context, dir string, o *serveOptions, root *cobr
 			files = nil
 			return initial, nil
 		}
-		_, f, err := b.build()
+		_, f, err := b.build(ctx)
 		return f, err
 	}, server.Options{Dir: dir, BasePath: b.render.BasePath, Logger: a.logger()})
 	if err != nil {

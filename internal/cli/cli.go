@@ -21,6 +21,8 @@ import (
 
 // Env is the process environment a command runs in.
 type Env struct {
+	// Stdin is read by interactive commands, which need it to be a terminal.
+	Stdin          io.Reader
 	Stdout, Stderr io.Writer
 	// Environ holds "KEY=value" pairs, as returned by os.Environ.
 	Environ []string
@@ -44,6 +46,12 @@ func Execute(ctx context.Context, args []string, env Env) int {
 	a.noColor = a.noColor || slices.Contains(args, "--no-color")
 	stderr, _ := a.writer(env.Stderr)
 
+	if errors.Is(err, errCancelled) {
+		if !a.quiet {
+			fmt.Fprintln(stderr, "Cancelled")
+		}
+		return 1
+	}
 	code, hint := 1, ""
 	var he *hintError
 	if errors.As(err, &he) {
@@ -74,6 +82,9 @@ func versionString(v string) string {
 	}
 	return "dev"
 }
+
+// errCancelled reports that the user quit an interactive command.
+var errCancelled = errors.New("cancelled")
 
 // usageError marks a mistake in how a command was invoked (exit code 2).
 type usageError struct{ err error }
