@@ -1,0 +1,31 @@
+.theme-toggle {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--muted);
+}
+
+.theme-toggle:hover {
+  color: var(--text);
+  background: var(--surface-raised);
+}
+
+.no-js .theme-toggle {
+  display: none;
+}
+
+/* The icon shows the theme a click switches to. */
+.theme-toggle__icon--sun,
+.theme-toggle[data-current="dark"] .theme-toggle__icon--moon {
+  display: none;
+}
+
+.theme-toggle[data-current="dark"] .theme-toggle__icon--sun {
+  display: block;
+}

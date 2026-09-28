@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en" class="no-js" data-base="{{.Base}}"{{with .LiveReload}} data-livereload="{{.}}"{{end}}>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}}</title>
+{{- with .Page}}{{with .Description}}
+<meta name="description" content="{{.}}">
+{{- end}}{{end}}
+<meta name="generator" content="documango{{with .Version}} {{.}}{{end}}">
+<script>(function(d){d.className="js";try{var t=localStorage.getItem("documango-theme");if(t==="light"||t==="dark")d.setAttribute("data-theme",t)}catch(e){}})(document.documentElement)</script>
+<link rel="stylesheet" href="{{.Base}}_documango/style.css">
+<script src="{{.Base}}_documango/app.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to content</a>
+<header class="site-header">
+  <button class="menu-toggle" type="button" aria-controls="sidebar" aria-expanded="false" aria-label="Show navigation">
+    <svg class="menu-toggle__icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M4 6h16M4 12h16M4 18h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+  </button>
+  <a class="site-header__title" href="{{.Base}}"{{if and .Page (eq .Page .Site.Home)}} aria-current="page"{{end}}>{{.Site.Title}}</a>
+  <form class="search" role="search" action="" autocomplete="off">
+    <label class="sr-only" for="search-input">Search</label>
+    <input class="search__input" id="search-input" type="search" placeholder="Search" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="search-results">
+    <kbd class="search__hint" aria-hidden="true">/</kbd>
+    <ul class="search__results" id="search-results" role="listbox" aria-label="Search results" hidden></ul>
+    <p class="sr-only" id="search-status" role="status" aria-live="polite"></p>
+  </form>
+  <button class="theme-toggle" type="button" aria-label="Switch theme">
+    <svg class="theme-toggle__icon theme-toggle__icon--sun" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></g></svg>
+    <svg class="theme-toggle__icon theme-toggle__icon--moon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+  </button>
+</header>
+<div class="site-layout{{if not .TOC}} site-layout--no-toc{{end}}">
+  <aside class="site-sidebar" id="sidebar">
+    <nav class="sidebar-nav" aria-label="Documentation">
+      {{- template "nav" .Nav}}
+    </nav>
+  </aside>
+  <main class="site-main" id="content" tabindex="-1">
+    <article class="prose">
+      {{- with .Heading}}
+      <h1>{{.}}</h1>
+      {{- end}}
+      {{- if .Page}}
+      {{.Page.Content}}
+      {{- else}}
+      <p>The page you asked for doesn't exist. It may have moved or been renamed.</p>
+      <p><a href="{{.Base}}">Go to the home page</a></p>
+      {{- end}}
+    </article>
+    {{- with .Page}}{{if or .Prev .Next}}
+    <nav class="pager" aria-label="Pagination">
+      {{- with .Prev}}
+      <a class="pager__link pager__link--prev" href="{{.URL}}" rel="prev"><span class="pager__label">Previous</span> <span class="pager__title">{{.Title}}</span></a>
+      {{- end}}
+      {{- with .Next}}
+      <a class="pager__link pager__link--next" href="{{.URL}}" rel="next"><span class="pager__label">Next</span> <span class="pager__title">{{.Title}}</span></a>
+      {{- end}}
+    </nav>
+    {{- end}}{{end}}
+  </main>
+  {{- with .TOC}}
+  <aside class="site-toc">
+    <nav class="toc" aria-label="On this page">
+      <h2 class="toc__title">On this page</h2>
+      <ul class="toc__list">
+        {{- range .}}
+        <li class="toc__item{{if eq .Level 3}} toc__item--sub{{end}}"><a class="toc__link" href="#{{.ID}}">{{.Text}}</a></li>
+        {{- end}}
+      </ul>
+    </nav>
+  </aside>
+  {{- end}}
+  <footer class="site-footer">
+    <p>Built with documango</p>
+  </footer>
+</div>
+</body>
+</html>
+{{- define "nav"}}
+<ul class="sidebar-nav__list">
+  {{- range .}}
+  <li class="sidebar-nav__item{{if .Children}} sidebar-nav__item--section{{end}}{{if .Active}} sidebar-nav__item--active{{end}}">
+    {{- if .URL}}<a class="sidebar-nav__link" href="{{.URL}}"{{if .Current}} aria-current="page"{{end}}>{{.Title}}</a>
+    {{- else}}<span class="sidebar-nav__label">{{.Title}}</span>{{end}}
+    {{- with .Children}}{{template "nav" .}}{{end}}
+  </li>
+  {{- end}}
+</ul>
+{{- end}}

@@ -1,0 +1,35 @@
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-header);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: var(--header-height);
+  padding-inline: var(--space-4);
+  background: var(--surface);
+  border-block-end: 1px solid var(--border);
+}
+
+.site-header__title {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--heading);
+  font-size: var(--size-md);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.site-header__title:hover {
+  color: var(--accent);
+}
+
+@media (min-width: 48.01rem) {
+  .site-header__title {
+    width: calc(var(--sidebar-width) - var(--space-4));
+    flex-shrink: 0;
+  }
+}

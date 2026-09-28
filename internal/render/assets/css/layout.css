@@ -1,0 +1,123 @@
+/*
+ * Page grid. Wide screens show navigation, content, and the table of
+ * contents; medium screens drop the table of contents; narrow screens stack
+ * everything and turn the navigation into a panel opened from the header.
+ */
+.site-layout {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--toc-width);
+  grid-template-areas:
+    "sidebar main toc"
+    "sidebar footer toc";
+  grid-template-rows: 1fr auto;
+  min-height: calc(100dvh - var(--header-height));
+}
+
+.site-layout--no-toc {
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  grid-template-areas:
+    "sidebar main"
+    "sidebar footer";
+}
+
+.site-sidebar {
+  grid-area: sidebar;
+  background: var(--surface-sidebar);
+  border-inline-end: 1px solid var(--border);
+}
+
+/* The column keeps its background full height while its contents stay in view. */
+.site-sidebar > * {
+  position: sticky;
+  top: var(--header-height);
+  max-height: calc(100dvh - var(--header-height));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-5) var(--space-4);
+}
+
+.site-main {
+  grid-area: main;
+  padding: var(--space-6) clamp(var(--space-4), 4vw, var(--space-7));
+  min-width: 0;
+}
+
+.site-main:focus {
+  outline: none;
+}
+
+.site-main > * {
+  max-width: var(--measure);
+  margin-inline: auto;
+}
+
+.site-toc {
+  grid-area: toc;
+  position: sticky;
+  top: var(--header-height);
+  align-self: start;
+  max-height: calc(100dvh - var(--header-height));
+  overflow-y: auto;
+  padding: var(--space-6) var(--space-4);
+}
+
+.site-footer {
+  grid-area: footer;
+}
+
+@media (max-width: 75rem) {
+  .site-layout,
+  .site-layout--no-toc {
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+    grid-template-areas:
+      "sidebar main"
+      "sidebar footer";
+  }
+
+  .site-toc {
+    display: none;
+  }
+}
+
+@media (max-width: 48rem) {
+  .site-layout,
+  .site-layout--no-toc {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "sidebar"
+      "main"
+      "footer";
+    grid-template-rows: auto 1fr auto;
+  }
+
+  /* Without the script the navigation stays in the page flow above the content. */
+  .site-sidebar {
+    border-inline-end: 0;
+    border-block-end: 1px solid var(--border);
+  }
+
+  .site-sidebar > * {
+    position: static;
+    max-height: none;
+  }
+
+  .js .site-sidebar {
+    position: fixed;
+    inset: var(--header-height) auto 0 0;
+    z-index: var(--z-sidebar);
+    width: min(20rem, 85vw);
+    overflow-y: auto;
+    border-inline-end: 1px solid var(--border);
+    border-block-end: 0;
+    box-shadow: var(--shadow-raised);
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition: transform var(--duration) ease-out, visibility 0s linear var(--duration);
+  }
+
+  .js .site-sidebar--open {
+    transform: none;
+    visibility: visible;
+    transition: transform var(--duration) ease-out;
+  }
+}

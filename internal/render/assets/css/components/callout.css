@@ -1,0 +1,32 @@
+.callout {
+  --callout-color: var(--note);
+  padding: var(--space-3) var(--space-4);
+  border-inline-start: 4px solid var(--callout-color);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--callout-color) 12%, var(--surface));
+}
+
+.callout > * + * {
+  margin-block-start: var(--space-2);
+}
+
+.callout__title {
+  color: var(--callout-color);
+  font-weight: 700;
+}
+
+.callout--tip {
+  --callout-color: var(--tip);
+}
+
+.callout--important {
+  --callout-color: var(--important);
+}
+
+.callout--warning {
+  --callout-color: var(--warning);
+}
+
+.callout--caution {
+  --callout-color: var(--caution);
+}

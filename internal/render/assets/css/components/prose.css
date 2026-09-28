@@ -1,0 +1,209 @@
+/* Rendered Markdown. Vertical rhythm is owned here, not by the elements. */
+.prose {
+  font-size: var(--size-md);
+  line-height: var(--line-base);
+  text-wrap: pretty;
+}
+
+.prose > * + *,
+.prose li > * + *,
+.prose blockquote > * + *,
+.prose dd > * + * {
+  margin-block-start: var(--space-4);
+}
+
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4,
+.prose h5,
+.prose h6 {
+  position: relative;
+  color: var(--heading);
+  line-height: var(--line-tight);
+  text-wrap: balance;
+  scroll-margin-top: calc(var(--header-height) + var(--space-4));
+}
+
+.prose h1 {
+  font-size: var(--size-2xl);
+  letter-spacing: -0.01em;
+}
+
+.prose h2 {
+  margin-block-start: var(--space-7);
+  padding-block-end: var(--space-2);
+  border-block-end: 1px solid var(--border);
+  font-size: var(--size-xl);
+}
+
+.prose h3 {
+  margin-block-start: var(--space-6);
+  font-size: var(--size-lg);
+}
+
+.prose h4,
+.prose h5,
+.prose h6 {
+  margin-block-start: var(--space-5);
+  font-size: var(--size-md);
+}
+
+.prose :is(h1, h2, h3, h4, h5, h6) + * {
+  margin-block-start: var(--space-3);
+}
+
+.prose .heading-anchor {
+  margin-inline-start: var(--space-2);
+  color: var(--faint);
+  font-weight: 400;
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity var(--duration);
+}
+
+.prose :is(h1, h2, h3, h4, h5, h6):hover .heading-anchor,
+.prose .heading-anchor:focus-visible {
+  opacity: 1;
+}
+
+.prose .heading-anchor:hover {
+  color: var(--link);
+}
+
+.prose a:visited {
+  color: var(--link-visited);
+}
+
+.prose .heading-anchor:visited {
+  color: var(--faint);
+}
+
+.prose ul,
+.prose ol {
+  padding-inline-start: var(--space-5);
+}
+
+.prose li + li {
+  margin-block-start: var(--space-1);
+}
+
+.prose li::marker {
+  color: var(--muted);
+}
+
+.prose li:has(> input[type="checkbox"]) {
+  list-style: none;
+  margin-inline-start: calc(-1 * var(--space-5));
+}
+
+.prose input[type="checkbox"] {
+  width: 1em;
+  height: 1em;
+  margin-inline-end: var(--space-2);
+  vertical-align: -0.1em;
+  accent-color: var(--accent);
+}
+
+.prose dt {
+  color: var(--heading);
+  font-weight: 600;
+}
+
+.prose dd {
+  margin-block-start: var(--space-1);
+  margin-inline-start: var(--space-5);
+}
+
+.prose blockquote {
+  padding-inline-start: var(--space-4);
+  border-inline-start: 3px solid var(--border);
+  color: var(--muted);
+}
+
+.prose hr {
+  border: 0;
+  border-block-start: 1px solid var(--border);
+  margin-block: var(--space-6);
+}
+
+.prose img {
+  border-radius: var(--radius-sm);
+}
+
+.prose :not(pre) > code {
+  padding: 0.1em 0.35em;
+  border-radius: var(--radius-sm);
+  background: var(--surface-code);
+  overflow-wrap: break-word;
+}
+
+.prose kbd {
+  padding: 0.05em 0.4em;
+  border: 1px solid var(--border);
+  border-block-end-width: 2px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+}
+
+.prose pre {
+  overflow-x: auto;
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface-code);
+  font-size: var(--size-sm);
+  line-height: 1.6;
+  tab-size: 4;
+}
+
+.prose pre code {
+  font-size: inherit;
+}
+
+.prose .highlight pre {
+  margin: 0;
+}
+
+.prose table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: var(--size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.prose th,
+.prose td {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  text-align: start;
+}
+
+.prose th {
+  background: var(--surface-raised);
+  color: var(--heading);
+  font-weight: 600;
+}
+
+.prose sup {
+  line-height: 0;
+}
+
+.prose .footnote-ref {
+  text-decoration: none;
+}
+
+.prose .footnotes {
+  margin-block-start: var(--space-7);
+  color: var(--muted);
+  font-size: var(--size-sm);
+}
+
+.prose .footnotes hr {
+  margin-block: 0 var(--space-4);
+}
+
+.prose .footnote-backref {
+  text-decoration: none;
+}

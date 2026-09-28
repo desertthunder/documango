@@ -1,0 +1,116 @@
+.search {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 28rem;
+  margin-inline-end: auto;
+}
+
+.no-js .search {
+  display: none;
+}
+
+.search__input {
+  width: 100%;
+  min-height: 2.25rem;
+  padding: var(--space-1) 2.25rem var(--space-1) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
+.search__input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+.search__input:focus-visible {
+  outline-offset: 0;
+  border-color: var(--focus);
+}
+
+.search__hint {
+  position: absolute;
+  top: 50%;
+  right: var(--space-2);
+  transform: translateY(-50%);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  font-size: var(--size-sm);
+  line-height: 1.4;
+  pointer-events: none;
+}
+
+.search__input:focus ~ .search__hint,
+.search__input:not(:placeholder-shown) ~ .search__hint {
+  display: none;
+}
+
+.search__results {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  left: 0;
+  z-index: var(--z-popover);
+  width: min(36rem, calc(100vw - 2 * var(--space-4)));
+  max-height: min(70vh, 32rem);
+  overflow-y: auto;
+  padding: var(--space-2);
+  list-style: none;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-raised);
+}
+
+.search__option {
+  border-radius: var(--radius-sm);
+}
+
+.search__option[aria-selected="true"] {
+  background: var(--accent-soft);
+}
+
+.search__link {
+  display: block;
+  padding: var(--space-2) var(--space-3);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.search__title {
+  display: block;
+  color: var(--link);
+  font-weight: 600;
+}
+
+.search__snippet {
+  display: block;
+  color: var(--muted);
+  font-size: var(--size-sm);
+  overflow-wrap: anywhere;
+}
+
+.search__empty {
+  padding: var(--space-2) var(--space-3);
+  color: var(--muted);
+}
+
+/* On small screens the results span the header instead of hanging off the input. */
+@media (max-width: 48rem) {
+  .search {
+    position: static;
+  }
+
+  .search__hint {
+    display: none;
+  }
+
+  .search__results {
+    top: calc(100% + var(--space-1));
+    left: var(--space-4);
+    right: var(--space-4);
+    width: auto;
+  }
+}

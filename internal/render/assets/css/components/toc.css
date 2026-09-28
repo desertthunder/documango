@@ -1,0 +1,34 @@
+.toc {
+  font-size: var(--size-sm);
+}
+
+.toc__title {
+  margin-block-end: var(--space-2);
+  color: var(--heading);
+  font-size: var(--size-sm);
+  font-weight: 700;
+}
+
+.toc__list {
+  display: grid;
+  gap: var(--space-1);
+  padding: 0;
+  list-style: none;
+  border-inline-start: 1px solid var(--border);
+}
+
+.toc__link {
+  display: block;
+  padding-inline-start: var(--space-3);
+  color: var(--muted);
+  line-height: 1.4;
+  text-decoration: none;
+}
+
+.toc__item--sub .toc__link {
+  padding-inline-start: var(--space-5);
+}
+
+.toc__link:hover {
+  color: var(--link);
+}
