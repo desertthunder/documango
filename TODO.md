@@ -186,3 +186,11 @@ documango build github.com/owner/repo/tree/v1.2.0/docs
 - Open questions: support other hosts (GitLab, Codeberg, tangled) through the
   same tarball pattern, or GitHub only? Add an "Edit on GitHub" link to each
   page when the source is a repository?
+
+## Parking lot: brand
+
+- A documango logo, favicon and brand icon, used in the README, this project's
+  docs site, and the release pages.
+- A default favicon for generated sites that set none, so browsers don't
+  request a missing `/favicon.ico`. Keep it neutral, or tint it from the
+  site's theme.
