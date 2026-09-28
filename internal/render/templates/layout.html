@@ -6,9 +6,11 @@
 <title>{{.Title}}</title>
 {{- with .Page}}{{with .Description}}
 <meta name="description" content="{{.}}">
-{{- end}}{{end}}
+{{- end}}
+<meta data-pagefind-meta="title[content]" content="{{.Title}}">
+{{- end}}
 <meta name="generator" content="documango{{with .Version}} {{.}}{{end}}">
-<script>(function(d){d.className="js";try{var t=localStorage.getItem("documango-theme");if(t==="light"||t==="dark")d.setAttribute("data-theme",t)}catch(e){}})(document.documentElement)</script>
+<script>(function(d){d.className="js";try{var t=localStorage.getItem("documango-theme");if(t==="light"||t==="dark")d.setAttribute("data-theme",t){{if .SchemeMenu}};["dark","light"].forEach(function(m){var s=localStorage.getItem("documango-"+m+"-scheme");if(s)d.setAttribute("data-"+m+"-scheme",s)}){{end}}}catch(e){}})(document.documentElement)</script>
 <link rel="stylesheet" href="{{.Base}}_documango/style.css">
 <script src="{{.Base}}_documango/app.js" defer></script>
 </head>
@@ -26,6 +28,15 @@
     <ul class="search__results" id="search-results" role="listbox" aria-label="Search results" hidden></ul>
     <p class="sr-only" id="search-status" role="status" aria-live="polite"></p>
   </form>
+  {{- if .SchemeMenu}}
+  <div class="scheme-menu" hidden>
+    <label class="sr-only" for="scheme-select">Color scheme</label>
+    <select class="scheme-menu__select" id="scheme-select"></select>
+    <svg class="scheme-menu__icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.7-.8 1.7-1.7 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.8-1.7 1.7-1.7H16a5 5 0 0 0 5-5c0-4-4-7.2-9-7.2z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10.5" cy="7" r="1"/><circle cx="15" cy="7.5" r="1"/></g></svg>
+    <template data-mode="dark">{{range .Dark}}<option value="{{.Slug}}">{{.Name}}</option>{{end}}</template>
+    <template data-mode="light">{{range .Light}}<option value="{{.Slug}}">{{.Name}}</option>{{end}}</template>
+  </div>
+  {{- end}}
   <button class="theme-toggle" type="button" aria-label="Switch theme">
     <svg class="theme-toggle__icon theme-toggle__icon--sun" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></g></svg>
     <svg class="theme-toggle__icon theme-toggle__icon--moon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
@@ -38,7 +49,7 @@
     </nav>
   </aside>
   <main class="site-main" id="content" tabindex="-1">
-    <article class="prose">
+    <article class="prose"{{if .Page}} data-pagefind-body{{end}}>
       {{- with .Heading}}
       <h1>{{.}}</h1>
       {{- end}}
@@ -80,11 +91,17 @@
 </html>
 {{- define "nav"}}
 <ul class="sidebar-nav__list">
-  {{- range .}}
+  {{- range $it := .}}
   <li class="sidebar-nav__item{{if .Children}} sidebar-nav__item--section{{end}}{{if .Active}} sidebar-nav__item--active{{end}}">
-    {{- if .URL}}<a class="sidebar-nav__link" href="{{.URL}}"{{if .Current}} aria-current="page"{{end}}>{{.Title}}</a>
-    {{- else}}<span class="sidebar-nav__label">{{.Title}}</span>{{end}}
-    {{- with .Children}}{{template "nav" .}}{{end}}
+    {{- with .URL}}<a class="sidebar-nav__link" href="{{.}}"{{if $it.Current}} aria-current="page"{{end}}>{{$it.Title}}</a>{{end}}
+    {{- with .Children}}
+    <details class="sidebar-nav__section"{{if or $it.Active $it.Current}} open{{end}}>
+      <summary class="sidebar-nav__toggle{{if $it.URL}} sidebar-nav__toggle--icon{{end}}">
+        {{- if $it.URL}}<span class="sr-only">{{$it.Title}}</span>{{else}}<span class="sidebar-nav__label">{{$it.Title}}</span>{{end -}}
+        <svg class="sidebar-nav__chevron" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+      {{- template "nav" .}}
+    </details>
+    {{- end}}
   </li>
   {{- end}}
 </ul>

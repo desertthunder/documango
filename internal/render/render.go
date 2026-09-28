@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"embed"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"html/template"
 	"io/fs"
@@ -22,9 +21,12 @@ import (
 
 // Options controls how a site is rendered.
 type Options struct {
-	// Dark and Light are both required. Pages follow the reader's
-	// prefers-color-scheme setting and offer a toggle that is remembered.
-	Dark, Light theme.Scheme
+	// Dark and Light each need at least one scheme; the first is the default
+	// for its mode. Pages follow the reader's prefers-color-scheme setting and
+	// offer a toggle that is remembered. When a mode has more than one scheme,
+	// readers can pick among them; every scheme after the first needs a
+	// unique Slug.
+	Dark, Light []theme.Scheme
 	// BasePath is the URL prefix the site is served under. It must match the
 	// value given to site.Load; it is normalized the same way ("/" or "/docs/").
 	BasePath string
@@ -56,6 +58,7 @@ var cssFiles = []string{
 	"components/skip-link.css",
 	"components/site-header.css",
 	"components/search.css",
+	"components/scheme-menu.css",
 	"components/theme-toggle.css",
 	"components/menu-toggle.css",
 	"components/sidebar-nav.css",
@@ -98,6 +101,10 @@ type layoutData struct {
 	TOC        []markdown.Heading
 	LiveReload string
 	Version    string
+	// Dark and Light fill the color scheme menu, shown when either has more
+	// than one scheme.
+	Dark, Light []theme.Scheme
+	SchemeMenu  bool
 }
 
 type searchEntry struct {
@@ -111,11 +118,11 @@ type searchEntry struct {
 // system. Keys of the result are slash paths relative to the output root, in
 // the same shape as server.Files.
 func Render(s *site.Site, src fs.FS, opts Options) (map[string][]byte, error) {
-	if opts.Dark.Palette[0] == "" {
-		return nil, errors.New("render: a dark scheme is required")
+	if err := checkSchemes("dark", opts.Dark); err != nil {
+		return nil, err
 	}
-	if opts.Light.Palette[0] == "" {
-		return nil, errors.New("render: a light scheme is required")
+	if err := checkSchemes("light", opts.Light); err != nil {
+		return nil, err
 	}
 
 	base := "/"
@@ -123,7 +130,10 @@ func Render(s *site.Site, src fs.FS, opts Options) (map[string][]byte, error) {
 		base = "/" + trimmed + "/"
 	}
 	files := map[string][]byte{}
-	data := layoutData{Site: s, Base: base, LiveReload: opts.LiveReload, Version: opts.Version}
+	data := layoutData{
+		Site: s, Base: base, LiveReload: opts.LiveReload, Version: opts.Version,
+		Dark: opts.Dark, Light: opts.Light, SchemeMenu: len(opts.Dark) > 1 || len(opts.Light) > 1,
+	}
 
 	for _, p := range s.Pages {
 		d := data
@@ -157,9 +167,7 @@ func Render(s *site.Site, src fs.FS, opts Options) (map[string][]byte, error) {
 	files["404.html"] = out
 
 	var css strings.Builder
-	fmt.Fprintf(&css, ":root { color-scheme: light; %s }\n", opts.Light.CSSVars())
-	fmt.Fprintf(&css, "@media (prefers-color-scheme: dark) {\n  :root:not([data-theme=\"light\"]) { color-scheme: dark; %s }\n}\n", opts.Dark.CSSVars())
-	fmt.Fprintf(&css, ":root[data-theme=\"dark\"] { color-scheme: dark; %s }\n", opts.Dark.CSSVars())
+	writeSchemes(&css, opts.Dark, opts.Light)
 	for _, name := range cssFiles {
 		b, err := cssFS.ReadFile("assets/css/" + name)
 		if err != nil {
@@ -207,6 +215,69 @@ func Render(s *site.Site, src fs.FS, opts Options) (map[string][]byte, error) {
 		files[name] = b
 	}
 	return files, nil
+}
+
+func checkSchemes(mode string, schemes []theme.Scheme) error {
+	if len(schemes) == 0 {
+		return fmt.Errorf("render: a %s scheme is required", mode)
+	}
+	seen := map[string]bool{}
+	for i, sc := range schemes {
+		if sc.Palette[0] == "" {
+			return fmt.Errorf("render: %s scheme %q has no colors", mode, sc.Slug)
+		}
+		if i == 0 {
+			seen[sc.Slug] = true
+			continue
+		}
+		if sc.Slug == "" {
+			return fmt.Errorf("render: %s scheme %d has no name", mode, i+1)
+		}
+		if seen[sc.Slug] {
+			return fmt.Errorf("render: %s scheme %q is listed twice", mode, sc.Slug)
+		}
+		seen[sc.Slug] = true
+	}
+	return nil
+}
+
+// writeSchemes writes the color variables of every scheme. The defaults
+// follow prefers-color-scheme and the data-theme toggle. The others apply
+// through data-light-scheme and data-dark-scheme, which the page sets from
+// the reader's choice; they come after the defaults of their mode, and dark
+// rules outrank light ones, so each only applies in its own mode.
+func writeSchemes(w *strings.Builder, dark, light []theme.Scheme) {
+	fmt.Fprintf(w, ":root { color-scheme: light; %s }\n", schemeVars(light[0]))
+	for _, s := range light[1:] {
+		fmt.Fprintf(w, ":root[data-light-scheme=%s] { color-scheme: light; %s }\n", cssString(s.Slug), schemeVars(s))
+	}
+	const system, toggled = `:root:not([data-theme="light"])`, `:root[data-theme="dark"]`
+	fmt.Fprintf(w, "@media (prefers-color-scheme: dark) {\n  %s { color-scheme: dark; %s }\n", system, schemeVars(dark[0]))
+	for _, s := range dark[1:] {
+		fmt.Fprintf(w, "  %s[data-dark-scheme=%s] { color-scheme: dark; %s }\n", system, cssString(s.Slug), schemeVars(s))
+	}
+	w.WriteString("}\n")
+	fmt.Fprintf(w, "%s { color-scheme: dark; %s }\n", toggled, schemeVars(dark[0]))
+	for _, s := range dark[1:] {
+		fmt.Fprintf(w, "%s[data-dark-scheme=%s] { color-scheme: dark; %s }\n", toggled, cssString(s.Slug), schemeVars(s))
+	}
+}
+
+// cssString quotes s as a CSS string, escaping everything but ASCII letters,
+// digits, '-' and '_' so any slug is safe inside a selector.
+func cssString(s string) string {
+	var b strings.Builder
+	b.WriteByte('"')
+	for _, r := range s {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '-', r == '_':
+			b.WriteRune(r)
+		default:
+			fmt.Fprintf(&b, "\\%x ", r)
+		}
+	}
+	b.WriteByte('"')
+	return b.String()
 }
 
 // navNodes converts items to their view from page cur and reports whether

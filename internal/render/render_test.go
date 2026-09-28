@@ -40,7 +40,7 @@ func docsFS() fstest.MapFS {
 }
 
 func defaultOpts() Options {
-	return Options{Dark: scheme("dd"), Light: scheme("aa"), Version: "1.2.3"}
+	return Options{Dark: []theme.Scheme{scheme("dd")}, Light: []theme.Scheme{scheme("aa")}, Version: "1.2.3"}
 }
 
 func build(t *testing.T, fsys fstest.MapFS, opts Options) map[string][]byte {
@@ -125,6 +125,75 @@ func TestRenderOutputSet(t *testing.T) {
 	}
 }
 
+func named(prefix, slug string) theme.Scheme {
+	s := scheme(prefix)
+	s.Slug, s.Name = slug, strings.ToUpper(slug)
+	return s
+}
+
+func TestSchemeMenu(t *testing.T) {
+	opts := defaultOpts()
+	opts.Dark = []theme.Scheme{named("dd", "night"), named("ee", `odd"slug]`)}
+	opts.Light = []theme.Scheme{named("aa", "day"), named("bb", "dawn")}
+	files := build(t, docsFS(), opts)
+	doc := get(t, files, "index.html")
+	menu := section(t, doc, `<div class="scheme-menu" hidden>`, "</div>")
+	mustContain(t, menu,
+		`<label class="sr-only" for="scheme-select">Color scheme</label>`,
+		`<select class="scheme-menu__select" id="scheme-select">`,
+		`<template data-mode="dark"><option value="night">NIGHT</option><option value="odd&#34;slug]">ODD&#34;SLUG]</option></template>`,
+		`<template data-mode="light"><option value="day">DAY</option><option value="dawn">DAWN</option></template>`,
+	)
+	mustContain(t, section(t, doc, "<script>", "</script>"), `"documango-"+m+"-scheme"`)
+
+	css := get(t, files, "_documango/style.css")
+	mustContain(t, css,
+		`:root[data-light-scheme="dawn"] { color-scheme: light; `+schemeVars(opts.Light[1])+" }",
+		`  :root:not([data-theme="light"])[data-dark-scheme="odd\22 slug\5d "] { color-scheme: dark; `+schemeVars(opts.Dark[1])+" }",
+		`:root[data-theme="dark"][data-dark-scheme="odd\22 slug\5d "] { color-scheme: dark; `+schemeVars(opts.Dark[1])+" }",
+	)
+	mustNotContain(t, css, `data-dark-scheme="night"`, `data-light-scheme="day"`)
+	// Chosen schemes follow the defaults so they win at equal specificity.
+	if strings.Index(css, `data-light-scheme="dawn"`) > strings.Index(css, "@media") {
+		t.Error("light scheme rules should precede the dark rules")
+	}
+
+	single := get(t, build(t, docsFS(), defaultOpts()), "index.html")
+	mustNotContain(t, single, "scheme-menu", "-scheme\"")
+}
+
+func TestSemanticSlots(t *testing.T) {
+	tests := map[string][7]int{
+		// Red, orange, yellow, green, cyan, blue, purple.
+		"github-dark":    {0x0E, 0x08, 0x0A, 0x0C, 0x0B, 0x09, 0x0D},
+		"tomorrow-night": {0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E},
+		"solarized-dark": {0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E},
+	}
+	for slug, want := range tests {
+		s, ok := theme.Lookup(slug)
+		if !ok {
+			t.Fatalf("no scheme %s", slug)
+		}
+		if got := semanticSlots(s.Palette); got != want {
+			t.Errorf("%s: slots = %x, want %x", slug, got, want)
+		}
+	}
+
+	// Grey and unreadable colors are never chosen.
+	var grey [16]string
+	for i := range grey {
+		grey[i] = "#808080"
+	}
+	grey[0x0C] = "bad"
+	grey[0x0D] = "#ff0000"
+	if got, want := semanticSlots(grey), [7]int{0x0D, 9, 10, 11, 12, 13, 14}; got != want {
+		t.Errorf("grey: slots = %x, want %x", got, want)
+	}
+
+	s, _ := theme.Lookup("github-dark")
+	mustContain(t, schemeVars(s), s.CSSVars()+" --red: var(--base0E); --orange: var(--base08);", "--purple: var(--base0D);")
+}
+
 func TestLayoutLandmarks(t *testing.T) {
 	doc := get(t, build(t, docsFS(), defaultOpts()), "guide/install/index.html")
 	mustContain(t, doc,
@@ -144,7 +213,7 @@ func TestLayoutLandmarks(t *testing.T) {
 		`aria-expanded="false"`,
 		`<nav class="sidebar-nav" aria-label="Documentation">`,
 		`<main class="site-main" id="content" tabindex="-1">`,
-		`<article class="prose">`,
+		`<article class="prose" data-pagefind-body>`,
 		`<footer class="site-footer">`,
 		"Built with documango",
 	)
@@ -163,6 +232,9 @@ func TestDocumentTitles(t *testing.T) {
 		mustContain(t, get(t, files, name), want)
 	}
 	mustContain(t, get(t, files, "getting-started/index.html"), `<meta name="description" content="Start here">`)
+	// Search results use the page title rather than the h1 with its anchor.
+	mustContain(t, get(t, files, "guide/install/index.html"), `<meta data-pagefind-meta="title[content]" content="Install">`)
+	mustNotContain(t, get(t, files, "404.html"), "data-pagefind-meta")
 }
 
 func TestEscaping(t *testing.T) {
@@ -210,10 +282,23 @@ func TestSidebarNav(t *testing.T) {
 	}
 	mustContain(t, section(t, nav, "sidebar-nav__item--active", "</li>"), `href="/guide/"`)
 
+	// Sections are collapsible; only the one holding the current page is open.
+	mustContain(t, nav,
+		`<details class="sidebar-nav__section" open>`+"\n"+`      <summary class="sidebar-nav__toggle sidebar-nav__toggle--icon">`,
+		`<span class="sr-only">Guide</span><svg class="sidebar-nav__chevron"`,
+		`<details class="sidebar-nav__section">`+"\n"+`      <summary class="sidebar-nav__toggle">`,
+	)
+	if n := strings.Count(nav, " open>"); n != 1 {
+		t.Errorf("open sections = %d, want 1", n)
+	}
+	guideItem := section(t, nav, `<li class="sidebar-nav__item sidebar-nav__item--section sidebar-nav__item--active">`, "<details")
+	mustContain(t, guideItem, `href="/guide/">Guide</a>`)
+
 	// Directory pages are current themselves, not ancestors.
 	guide := section(t, get(t, files, "guide/index.html"), `<nav class="sidebar-nav"`, "</nav>")
 	mustContain(t, guide, `href="/guide/" aria-current="page">Guide</a>`)
 	mustNotContain(t, guide, "sidebar-nav__item--active")
+	mustContain(t, guide, `<details class="sidebar-nav__section" open>`)
 
 	// The home page marks the site title instead of a nav link.
 	home := get(t, files, "index.html")
@@ -272,7 +357,7 @@ func TestNotFoundPage(t *testing.T) {
 		`<link rel="stylesheet" href="/docs/_documango/style.css">`,
 		`<nav class="sidebar-nav" aria-label="Documentation">`,
 	)
-	mustNotContain(t, doc, "aria-current", `class="pager"`, `class="toc"`)
+	mustNotContain(t, doc, "aria-current", `class="pager"`, `class="toc"`, "data-pagefind-body")
 }
 
 var urlAttr = regexp.MustCompile(`\b(?:href|src|data-base|data-livereload)="([^"]*)"`)
@@ -369,8 +454,8 @@ func TestSearchIndex(t *testing.T) {
 
 func TestStylesheet(t *testing.T) {
 	css := get(t, build(t, docsFS(), defaultOpts()), "_documango/style.css")
-	light := scheme("aa").CSSVars()
-	dark := scheme("dd").CSSVars()
+	light := schemeVars(scheme("aa"))
+	dark := schemeVars(scheme("dd"))
 	mustContain(t, css,
 		":root { color-scheme: light; "+light+" }",
 		"@media (prefers-color-scheme: dark) {\n  :root:not([data-theme=\"light\"]) { color-scheme: dark; "+dark+" }\n}",
@@ -379,7 +464,7 @@ func TestStylesheet(t *testing.T) {
 		".callout--caution",
 		".sidebar-nav",
 	)
-	mustNotContain(t, css, "@import")
+	mustNotContain(t, css, "@import", "data-dark-scheme", "data-light-scheme")
 	// Theme variables come before the static rules that use them, and syntax
 	// rules come last so they win over generic code styles.
 	if strings.Index(css, light) > strings.Index(css, "box-sizing") {
@@ -415,7 +500,7 @@ func TestEveryStylesheetIsBundled(t *testing.T) {
 
 func TestScript(t *testing.T) {
 	js := get(t, build(t, docsFS(), defaultOpts()), "_documango/app.js")
-	mustContain(t, js, "EventSource", "search.json", "localStorage")
+	mustContain(t, js, "EventSource", "search.json", "localStorage", `"pagefind/pagefind.js"`)
 }
 
 func TestRenderErrors(t *testing.T) {
@@ -429,14 +514,32 @@ func TestRenderErrors(t *testing.T) {
 		{
 			name: "missing dark scheme",
 			fsys: docsFS(),
-			opts: func(o *Options) { o.Dark = theme.Scheme{} },
+			opts: func(o *Options) { o.Dark = nil },
 			want: "dark scheme",
 		},
 		{
 			name: "missing light scheme",
 			fsys: docsFS(),
-			opts: func(o *Options) { o.Light = theme.Scheme{} },
+			opts: func(o *Options) { o.Light = nil },
 			want: "light scheme",
+		},
+		{
+			name: "empty scheme",
+			fsys: docsFS(),
+			opts: func(o *Options) { o.Light = append(o.Light, theme.Scheme{Slug: "blank"}) },
+			want: `light scheme "blank" has no colors`,
+		},
+		{
+			name: "scheme without slug",
+			fsys: docsFS(),
+			opts: func(o *Options) { o.Dark = append(o.Dark, scheme("ee")) },
+			want: "dark scheme 2 has no name",
+		},
+		{
+			name: "duplicate scheme",
+			fsys: docsFS(),
+			opts: func(o *Options) { o.Dark = []theme.Scheme{named("dd", "x"), named("ee", "x")} },
+			want: `dark scheme "x" is listed twice`,
 		},
 		{
 			name: "asset collides with page",

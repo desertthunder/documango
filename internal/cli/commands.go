@@ -105,7 +105,7 @@ func (o *siteOptions) builder(dir, version string) (*builder, error) {
 	return &builder{
 		dir:    dir,
 		load:   site.Options{Title: o.title, BasePath: base},
-		render: render.Options{Dark: dark, Light: light, BasePath: base, Version: version},
+		render: render.Options{Dark: []theme.Scheme{dark}, Light: []theme.Scheme{light}, BasePath: base, Version: version},
 	}, nil
 }
 

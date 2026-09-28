@@ -1,0 +1,79 @@
+.scheme-menu {
+  display: grid;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.scheme-menu[hidden] {
+  display: none;
+}
+
+.scheme-menu__select,
+.scheme-menu__icon {
+  grid-area: 1 / 1;
+}
+
+.scheme-menu__select {
+  width: 100%;
+  max-width: 11rem;
+  min-height: 2.25rem;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--text);
+  font-size: var(--size-sm);
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.scheme-menu__select:hover {
+  border-color: var(--muted);
+}
+
+.scheme-menu__select:focus-visible {
+  outline-offset: 0;
+  border-color: var(--focus);
+}
+
+.scheme-menu__icon {
+  display: none;
+}
+
+/*
+ * Small screens show an icon button; the native select sits invisibly on top
+ * so tapping it opens the platform's scheme picker.
+ */
+@media (max-width: 48rem) {
+  .scheme-menu {
+    flex-shrink: 0;
+    place-items: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: var(--radius-md);
+    color: var(--muted);
+  }
+
+  .scheme-menu:hover,
+  .scheme-menu:focus-within {
+    color: var(--text);
+    background: var(--surface-raised);
+  }
+
+  .scheme-menu:has(:focus-visible) {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  .scheme-menu__icon {
+    display: block;
+    pointer-events: none;
+  }
+
+  .scheme-menu__select {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    opacity: 0;
+  }
+}

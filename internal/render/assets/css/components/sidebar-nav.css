@@ -1,5 +1,6 @@
 .sidebar-nav {
   font-size: var(--size-sm);
+  --row-height: calc(var(--size-sm) * 1.4 + 2 * var(--space-1));
 }
 
 .sidebar-nav__list {
@@ -16,6 +17,10 @@
   border-inline-start: 1px solid var(--border);
 }
 
+.sidebar-nav__item--section {
+  position: relative;
+}
+
 .sidebar-nav__item--section:not(:first-child) {
   margin-block-start: var(--space-3);
 }
@@ -25,7 +30,7 @@
 }
 
 .sidebar-nav__link,
-.sidebar-nav__label {
+.sidebar-nav__toggle {
   display: block;
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
@@ -48,20 +53,63 @@
   font-weight: 600;
 }
 
-.sidebar-nav__label {
-  color: var(--muted);
+.sidebar-nav__item--section > .sidebar-nav__link {
+  padding-inline-end: calc(var(--row-height) + var(--space-1));
   font-weight: 600;
 }
 
-.sidebar-nav__item--section > .sidebar-nav__link {
+/* A section without a page of its own: the whole row opens and closes it. */
+.sidebar-nav__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  color: var(--muted);
   font-weight: 600;
+  list-style: none;
+  cursor: pointer;
+}
+
+.sidebar-nav__toggle::-webkit-details-marker {
+  display: none;
+}
+
+.sidebar-nav__toggle:hover {
+  color: var(--text);
+  background: var(--surface);
+}
+
+/* A section with its own page: the link fills the row and the toggle sits at its end. */
+.sidebar-nav__toggle--icon {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: 0;
+  justify-content: center;
+  width: var(--row-height);
+  height: var(--row-height);
+  padding: 0;
+}
+
+.sidebar-nav__chevron {
+  flex-shrink: 0;
+  transition: rotate var(--duration) ease-out;
+}
+
+.sidebar-nav__section[open] > .sidebar-nav__toggle .sidebar-nav__chevron {
+  rotate: 90deg;
 }
 
 .sidebar-nav__item--active > .sidebar-nav__link,
-.sidebar-nav__item--active > .sidebar-nav__label {
+.sidebar-nav__item--active > .sidebar-nav__section > .sidebar-nav__toggle {
   color: var(--accent);
 }
 
-.sidebar-nav__item--active > .sidebar-nav__list {
+.sidebar-nav__item--active > .sidebar-nav__section > .sidebar-nav__list {
   border-inline-start-color: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-nav__chevron {
+    transition: none;
+  }
 }

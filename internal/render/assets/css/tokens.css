@@ -1,6 +1,7 @@
 /*
- * Semantic tokens mapped onto the base16 palette (--base00..--base0F), which
- * the generated theme block above defines for the light and dark schemes.
+ * Semantic tokens mapped onto the base16 palette (--base00..--base0F) and the
+ * hue-matched accents (--red..--purple), which the generated theme blocks
+ * above define for each scheme.
  */
 :root {
   --surface: var(--base00);
@@ -13,18 +14,18 @@
   --muted: var(--base04);
   --text: var(--base05);
   --heading: var(--base05);
-  --link: var(--base0D);
-  --link-visited: var(--base0E);
-  --accent: var(--base0D);
+  --link: var(--blue);
+  --link-visited: var(--purple);
+  --accent: var(--blue);
   --accent-soft: color-mix(in srgb, var(--accent) 14%, var(--surface));
-  --focus: var(--base0D);
+  --focus: var(--blue);
 
-  --note: var(--base0D);
-  --tip: var(--base0B);
-  --important: var(--base0E);
-  --warning: var(--base0A);
-  --caution: var(--base08);
-  --danger: var(--base08);
+  --note: var(--blue);
+  --tip: var(--green);
+  --important: var(--purple);
+  --warning: var(--yellow);
+  --caution: var(--red);
+  --danger: var(--red);
 
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;

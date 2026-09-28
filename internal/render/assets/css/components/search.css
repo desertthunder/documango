@@ -114,3 +114,9 @@
     width: auto;
   }
 }
+
+.search__snippet mark {
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--yellow) 30%, transparent);
+  color: var(--text);
+}
