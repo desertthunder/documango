@@ -191,7 +191,7 @@
    them next to unbreakable code; the table scrolls sideways. */
 @media (max-width: 48rem) {
   .prose td:not(:has(> code:only-child)) {
-    min-width: 24ch;
+    min-width: 14ch;
   }
 }
 
