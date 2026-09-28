@@ -50,6 +50,10 @@ go mod tidy -diff                    # the release fails if this prints anything
   terminal.
 - Commits use conventional commit messages, short, with no LLM attribution
   trailers.
+- A change a user would notice gets a one-line entry under `[Unreleased]` in
+  `CHANGELOG.md`, in the same commit, written for readers of the docs rather
+  than for developers. Internal refactors, tests and CI changes get none.
+  Release notes are taken from this file.
 
 ## Working with agents
 

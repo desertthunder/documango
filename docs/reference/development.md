@@ -160,24 +160,34 @@ command again.
 ## Releasing
 
 Releases are built by [GoReleaser](https://goreleaser.com) from a version tag.
-To release v0.1.0, tag a commit on `main` and push the tag:
+Release notes come from `CHANGELOG.md`, which is written by hand in the
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format: each change a
+user would notice gets a one-line entry under `[Unreleased]` when it lands.
 
-```sh
-git tag v0.1.0
-git push origin v0.1.0
-```
+To release v0.1.0:
+
+1. In `CHANGELOG.md`, rename `## [Unreleased]` to `## [0.1.0] - YYYY-MM-DD`
+   and add a new, empty `## [Unreleased]` above it. Commit the change.
+2. Tag the commit on `main` and push the tag:
+
+   ```sh
+   git tag v0.1.0
+   git push origin v0.1.0
+   ```
 
 The tag starts the release workflow in `.github/workflows/release.yml`. It
-runs the same checks as CI: `go vet`, the tests with the race detector, and
-the browser tests. If they pass, GoReleaser:
+first checks that `CHANGELOG.md` has a section for the version and stops if it
+doesn't. It then runs the same checks as CI: `go vet`, the tests with the race
+detector, and the browser tests. If they pass, GoReleaser:
 
 1. Builds `documango` for macOS, Linux, and Windows on amd64 and arm64.
 2. Packs each binary with `README.md` and `LICENSE` into a `.tar.gz` file, or
    a `.zip` file on Windows, and writes `checksums.txt`.
-3. Creates a GitHub release for the tag with these files. The release notes
-   list the commits since the previous tag, grouped into features (`feat:`),
-   fixes (`fix:`), and other changes. Commits that start with `docs:`,
-   `test:`, `ci:`, `chore:`, or `build:` are left out.
+3. Creates a GitHub release for the tag with these files, using the version's
+   section of `CHANGELOG.md` as the release notes.
+
+To preview the notes for a version, run
+`sh .github/scripts/release-notes.sh v0.1.0`.
 
 A tag with a suffix, such as `v0.2.0-rc.1`, is marked as a pre-release.
 

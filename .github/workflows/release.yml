@@ -12,7 +12,15 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Fails fast when CHANGELOG.md has no section for the tag.
+  notes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sh .github/scripts/release-notes.sh "$GITHUB_REF_NAME"
+
   ci:
+    needs: notes
     uses: ./.github/workflows/ci.yml
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
@@ -29,11 +37,13 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+      - name: Extract release notes from CHANGELOG.md
+        run: sh .github/scripts/release-notes.sh "$GITHUB_REF_NAME" > "$RUNNER_TEMP/notes.md"
       - uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
           version: "~> v2"
-          args: release --clean
+          args: release --clean --release-notes ${{ runner.temp }}/notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

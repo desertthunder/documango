@@ -42,22 +42,9 @@ checksum:
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
 
+# Release notes come from CHANGELOG.md (see .github/scripts/release-notes.sh).
 changelog:
-  use: github
-  sort: asc
-  filters:
-    exclude:
-      - "^(docs|test|ci|chore|build)(\\(.+\\))?!?:"
-      - "^Merge "
-  groups:
-    - title: Features
-      regexp: "^feat(\\(.+\\))?!?:"
-      order: 0
-    - title: Fixes
-      regexp: "^fix(\\(.+\\))?!?:"
-      order: 1
-    - title: Other changes
-      order: 999
+  disable: true
 
 release:
   github:
