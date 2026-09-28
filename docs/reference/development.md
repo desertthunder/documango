@@ -77,7 +77,7 @@ Static builds don't include the live reload connection.
 
 ## Update the built-in themes
 
-The 24 built-in schemes in `internal/theme/schemes/` are copied from the
+The 26 built-in schemes in `internal/theme/schemes/` are copied from the
 [tinted-theming schemes](https://github.com/tinted-theming/schemes) project,
 which is distributed under the MIT License. Its license is kept next to the
 schemes in `internal/theme/schemes/LICENSE`. The list of built-in schemes is

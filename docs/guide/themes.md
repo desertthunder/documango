@@ -34,13 +34,14 @@ documango docs --light-theme gruvbox-light-medium --dark-theme gruvbox-dark-medi
 Theme names are case-insensitive. If documango doesn't recognize a name, the
 error suggests up to three similar names.
 
-documango includes 24 schemes, so they work without a network connection:
+documango includes 26 schemes, so they work without a network connection:
 
 `catppuccin-latte`, `catppuccin-mocha`, `default-dark`, `default-light`,
 `dracula`, `everforest-dark-medium`, `everforest-light-medium`, `github`,
 `github-dark`, `gruvbox-dark-medium`, `gruvbox-light-medium`, `kanagawa`,
 `nord`, `nord-light`, `one-light`, `onedark`, `rose-pine`, `rose-pine-dawn`,
-`solarized-dark`, `solarized-light`, `tokyo-night-dark`, `tokyo-night-light`,
+`solarized-dark`, `solarized-light`, `tokyo-city-dark`, `tokyo-city-light`,
+`tokyo-night-dark`, `tokyo-night-light`,
 `tomorrow`, and `tomorrow-night`.
 
 When you name any other scheme, documango downloads the full tinted-theming

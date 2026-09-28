@@ -26,7 +26,8 @@ var curated = []string{
 	"everforest-dark-medium", "everforest-light-medium", "github", "github-dark",
 	"gruvbox-dark-medium", "gruvbox-light-medium", "kanagawa", "nord", "nord-light",
 	"one-light", "onedark", "rose-pine", "rose-pine-dawn", "solarized-dark", "solarized-light",
-	"tokyo-night-dark", "tokyo-night-light", "tomorrow", "tomorrow-night",
+	"tokyo-city-dark", "tokyo-city-light", "tokyo-night-dark", "tokyo-night-light", "tomorrow",
+	"tomorrow-night",
 }
 
 // Curated returns the slugs of the embedded schemes.
