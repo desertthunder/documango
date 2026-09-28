@@ -39,3 +39,6 @@ e2e/screenshots/
 
 # GoReleaser output
 dist/
+
+# Agent instructions: AGENTS.md is tracked; CLAUDE.md is a local symlink to it
+!AGENTS.md
