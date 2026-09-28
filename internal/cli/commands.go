@@ -80,6 +80,7 @@ func (a *app) newRootCmd() *cobra.Command {
 	opts.addFlags(root.Flags())
 
 	root.AddCommand(a.newServeCmd(), a.newBuildCmd(), a.newThemesCmd())
+	root.AddCommand(a.newInitCmd())
 	return root
 }
 

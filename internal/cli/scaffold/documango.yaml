@@ -1,0 +1,34 @@
+# Settings for the {{.Title}} docs site. Uncomment a line to use it.
+
+title: {{quote .Title}}
+
+# One sentence about the project, used by search engines and link previews.
+# description: ""
+
+# The address the site is published at. Enables canonical links and feeds.
+# url: https://example.com/docs/
+
+# The URL path the site lives under, if not the root of its domain.
+# base_path: /docs/
+
+# The author named in each page's metadata.
+# author: ""
+
+# The language of the pages, as an HTML language code.
+# language: en
+
+# Image files in this folder to use as the browser tab icon and header logo.
+# favicon: favicon.svg
+# logo: logo.svg
+
+theme:
+  # Color themes for dark and light mode. Run 'documango themes' to list them.
+  dark: tomorrow-night
+  light: tomorrow
+  # The search engine: pagefind (downloaded on first use) or builtin (no download).
+  # search: pagefind
+
+# Links shown in the site header. Add more items to the list.
+# links:
+#   - title: GitHub
+#     url: https://github.com/you/project
