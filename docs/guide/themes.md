@@ -70,6 +70,10 @@ applies it on every page of the site.
 A list can mix names and [scheme files](#use-your-own-scheme). Each scheme can
 appear only once in a list.
 
+This site offers a sample of the built-in schemes. Open the **Color scheme**
+menu in the header to try them, and use the light and dark toggle to switch
+between the two lists.
+
 ## List the themes
 
 `documango themes` prints every scheme you can use, one per line. In a

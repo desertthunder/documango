@@ -5,6 +5,18 @@ description = "Turn a directory of Markdown files into a documentation website."
 title = "GitHub"
 url = "https://github.com/desertthunder/documango"
 
+# A sample of the built-in schemes, so readers can try them from the
+# Color scheme menu in the header.
+[theme]
+dark = [
+  "tomorrow-night", "catppuccin-mocha", "dracula", "github-dark",
+  "gruvbox-dark-medium", "kanagawa", "nord", "rose-pine", "tokyo-night-dark",
+]
+light = [
+  "tomorrow", "catppuccin-latte", "github", "gruvbox-light-medium",
+  "rose-pine-dawn", "solarized-light", "tokyo-night-light",
+]
+
 [fonts]
 body = "Plus Jakarta Sans"
 mono = "Google Sans Code"
