@@ -269,8 +269,12 @@ func Render(s *site.Site, src fs.FS, opts Options) (map[string][]byte, error) {
 	files[stylePath] = []byte(css.String())
 	files[scriptPath] = appJS
 
-	index := make([]searchEntry, len(s.Pages))
-	for i, p := range s.Pages {
+	// The generated contents page only repeats the sidebar.
+	index := make([]searchEntry, 0, len(s.Pages))
+	for _, p := range s.Pages {
+		if p.Generated {
+			continue
+		}
 		headings := make([]string, len(p.Headings))
 		for j, h := range p.Headings {
 			headings[j] = h.Text
@@ -286,7 +290,7 @@ func Render(s *site.Site, src fs.FS, opts Options) (map[string][]byte, error) {
 				text = text[:cut]
 			}
 		}
-		index[i] = searchEntry{Title: p.Title, URL: p.URL, Headings: headings, Text: text}
+		index = append(index, searchEntry{Title: p.Title, URL: p.URL, Headings: headings, Text: text})
 	}
 	if files[searchPath], err = json.Marshal(index); err != nil {
 		return nil, fmt.Errorf("encode search index: %w", err)

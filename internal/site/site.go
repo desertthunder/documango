@@ -25,6 +25,17 @@ type Options struct {
 	Title    string   // site title; defaults to the home page title, else "Documentation"
 	BasePath string   // URL prefix, normalized to start and end with "/" (default "/")
 	Exclude  []string // slash-separated paths relative to the fs root to skip entirely
+	// Include lists patterns of files to publish even when no page links to
+	// them: slash-separated paths relative to the fs root, matched segment by
+	// segment with path.Match, where a final "/**" matches everything under
+	// a folder. A "*" never matches a name starting with "." or "_"; such a
+	// segment is matched only by writing it out.
+	Include []string
+	// Publish lists files published even when no page links to them, such as
+	// the favicon and logo.
+	Publish []string
+	// Footer is the Markdown shown on every page; files it links to are published.
+	Footer string
 }
 
 // Page is a single rendered Markdown document.
@@ -40,6 +51,9 @@ type Page struct {
 	Headings    []markdown.Heading
 	Text        string
 	Prev, Next  *Page // neighbours in flattened nav order; nil at the ends
+	// Generated is set on the contents page documango makes when the docs
+	// folder has no home page. It has no Source and is not searchable.
+	Generated bool
 }
 
 // NavItem is a node in the navigation tree.
@@ -58,9 +72,15 @@ type Site struct {
 	// Nav is the top level of the navigation tree. The home page is not part
 	// of it: templates link to it through the site title.
 	Nav []*NavItem
-	// Assets lists the slash paths of non-Markdown files to copy verbatim, sorted.
+	// Assets lists the slash paths of files to copy verbatim, sorted: files a
+	// page or the footer links to, Options.Publish and Options.Include files,
+	// and well-known site files such as CNAME at the root.
 	Assets []string
-	// Home is the root index page, or nil if there is none.
+	// Skipped lists the slash paths of the other non-Markdown files, sorted.
+	// Files in folders starting with "." or "_" are not listed.
+	Skipped []string
+	// Home is the root index page. Without one, it is a generated contents
+	// page; it is nil only when there are no pages.
 	Home *Page
 	// Warnings lists problems found while loading, each prefixed with the
 	// source file, such as a heading with no text or a broken relative link.
@@ -95,8 +115,15 @@ type loader struct {
 	bySource map[string]*Page
 	byDir    map[string]*Page // directory path ("." for root) -> index page
 	drafts   map[string]bool  // sources of draft pages
-	assets   map[string]bool
+	assets   map[string]bool  // files that may be published
+	linked   map[string]bool  // assets a page or the footer links to
 	links    map[*Page][]link // relative links in each page, in document order
+}
+
+// siteFiles are the well-known files published from the root of the docs
+// folder even when no page links to them, as Include patterns.
+var siteFiles = []string{
+	"CNAME", "robots.txt", "favicon.ico", "humans.txt", ".nojekyll", "_headers", "_redirects", ".well-known/**",
 }
 
 // link is a relative link or image in a page, checked once every page is
@@ -111,8 +138,9 @@ type link struct {
 // Load reads every Markdown file in fsys and builds the site model.
 //
 // Hidden entries, entries starting with "_", node_modules folders, excluded
-// paths, drafts, and symbolic links to folders are skipped. index.md (or README.md when there is no index.md) becomes its
-// directory's page.
+// paths, drafts, and symbolic links to folders are skipped, apart from files
+// matched by Options.Include and the well-known site files. index.md (or
+// README.md when there is no index.md) becomes its directory's page.
 func Load(fsys fs.FS, opts Options) (*Site, error) {
 	l := &loader{
 		basePath: normalizeBasePath(opts.BasePath),
@@ -120,7 +148,12 @@ func Load(fsys fs.FS, opts Options) (*Site, error) {
 		byDir:    map[string]*Page{},
 		drafts:   map[string]bool{},
 		assets:   map[string]bool{},
+		linked:   map[string]bool{},
 		links:    map[*Page][]link{},
+	}
+	include := make([][]string, 0, len(siteFiles)+len(opts.Include))
+	for _, p := range slices.Concat(siteFiles, opts.Include) {
+		include = append(include, strings.Split(p, "/"))
 	}
 
 	exclude := map[string]bool{}
@@ -128,7 +161,7 @@ func Load(fsys fs.FS, opts Options) (*Site, error) {
 		exclude[path.Clean(strings.Trim(e, "/"))] = true
 	}
 
-	var sources []string
+	var sources, files []string
 	s := &Site{byURL: map[string]*Page{}}
 	err := fs.WalkDir(fsys, ".", func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -138,9 +171,20 @@ func Load(fsys fs.FS, opts Options) (*Site, error) {
 			return nil
 		}
 		name := d.Name()
-		if strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_") || name == "node_modules" || exclude[p] {
+		if name == "node_modules" || exclude[p] {
 			if d.IsDir() {
 				return fs.SkipDir
+			}
+			return nil
+		}
+		// Hidden paths hold only the files that include names.
+		segs := strings.Split(p, "/")
+		if slices.ContainsFunc(segs, hidden) {
+			switch {
+			case d.IsDir() && !slices.ContainsFunc(include, func(pat []string) bool { return entersDir(pat, segs) }):
+				return fs.SkipDir
+			case !d.IsDir() && !isMarkdown(p) && slices.ContainsFunc(include, func(pat []string) bool { return matchPath(pat, segs) }):
+				files = append(files, p)
 			}
 			return nil
 		}
@@ -157,16 +201,15 @@ func Load(fsys fs.FS, opts Options) (*Site, error) {
 		case isMarkdown(p):
 			sources = append(sources, p)
 		default:
-			s.Assets = append(s.Assets, p)
+			files = append(files, p)
 		}
 		return nil
 	})
 	if err != nil {
 		return nil, fmt.Errorf("scan docs: %w", err)
 	}
-	slices.Sort(s.Assets)
-	for _, a := range s.Assets {
-		l.assets[a] = true
+	for _, f := range files {
+		l.assets[f] = true
 	}
 
 	// Parse front matter first so drafts are gone before index pages are chosen.
@@ -249,6 +292,25 @@ func Load(fsys fs.FS, opts Options) (*Site, error) {
 			s.Warnings = append(s.Warnings, p.Source+": "+w)
 		}
 	}
+	if opts.Footer != "" {
+		// Rendered only to find the files it links to.
+		if _, err := md.Render([]byte(opts.Footer), l.resolver(nil)); err != nil {
+			return nil, fmt.Errorf("footer: %w", err)
+		}
+	}
+	for _, p := range opts.Publish {
+		l.linked[p] = true
+	}
+	for _, f := range files {
+		segs := strings.Split(f, "/")
+		if l.linked[f] || slices.ContainsFunc(include, func(pat []string) bool { return matchPath(pat, segs) }) {
+			s.Assets = append(s.Assets, f)
+		} else {
+			s.Skipped = append(s.Skipped, f)
+		}
+	}
+	slices.Sort(s.Assets)
+	slices.Sort(s.Skipped)
 
 	// Build the directory tree, creating ancestors of every page's directory.
 	nodes := map[string]*dirNode{".": {path: "."}}
@@ -276,6 +338,21 @@ func Load(fsys fs.FS, opts Options) (*Site, error) {
 	s.Home = root.index
 	s.resolve = l.resolver(nil)
 	s.Nav = navChildren(root)
+	s.Title = opts.Title
+	// A home page titled only by the "Home" fallback does not name the site.
+	if s.Title == "" && s.Home != nil && (s.Home.Meta.Title != "" || s.Home.HasH1) {
+		s.Title = s.Home.Title
+	}
+	s.Title = cmp.Or(s.Title, "Documentation")
+	if s.Home == nil && len(pages) > 0 {
+		var content strings.Builder
+		if err := contentsTemplate.Execute(&content, s.Nav); err != nil {
+			return nil, fmt.Errorf("contents page: %w", err)
+		}
+		s.Home = &Page{URL: l.basePath, OutPath: "index.html", Title: s.Title, Content: template.HTML(content.String()), Generated: true}
+		s.byURL[s.Home.URL] = s.Home
+		s.Warnings = append(s.Warnings, "no index.md or README.md at the top of the docs folder; documango generated a contents page")
+	}
 	if s.Home != nil {
 		s.Pages = append(s.Pages, s.Home)
 	}
@@ -298,13 +375,55 @@ func Load(fsys fs.FS, opts Options) (*Site, error) {
 		}
 	}
 
-	s.Title = opts.Title
-	// A home page titled only by the "Home" fallback does not name the site.
-	if s.Title == "" && s.Home != nil && (s.Home.Meta.Title != "" || s.Home.HasH1) {
-		s.Title = s.Home.Title
-	}
-	s.Title = cmp.Or(s.Title, "Documentation")
 	return s, nil
+}
+
+// contentsTemplate renders the nav tree as nested lists of links for the
+// generated contents page.
+var contentsTemplate = template.Must(template.New("list").Parse(
+	`<ul>{{range .}}<li>{{if .URL}}<a href="{{.URL}}">{{.Title}}</a>{{else}}{{.Title}}{{end}}` +
+		`{{with .Children}}{{template "list" .}}{{end}}</li>{{end}}</ul>`))
+
+// hidden reports whether a path segment names a hidden or "_" entry.
+func hidden(seg string) bool {
+	return strings.HasPrefix(seg, ".") || strings.HasPrefix(seg, "_")
+}
+
+// matchSegment matches one path segment against one pattern segment. Hidden
+// segments match only when the pattern names them exactly.
+func matchSegment(pat, seg string) bool {
+	if hidden(seg) {
+		return pat == seg
+	}
+	ok, _ := path.Match(pat, seg)
+	return ok
+}
+
+// matchPath reports whether the split file path segs matches the split
+// Include pattern pat.
+func matchPath(pat, segs []string) bool {
+	if n := len(pat); n > 0 && pat[n-1] == "**" {
+		return len(segs) >= n && entersDir(pat, segs[:len(segs)-1]) && !hidden(segs[len(segs)-1])
+	}
+	return len(segs) == len(pat) && entersDir(pat, segs[:len(segs)-1]) && matchSegment(pat[len(pat)-1], segs[len(segs)-1])
+}
+
+// entersDir reports whether files matching the split Include pattern pat may
+// lie in the folder whose split path is dir.
+func entersDir(pat, dir []string) bool {
+	prefix, all := pat, false
+	if n := len(pat); n > 0 && pat[n-1] == "**" {
+		prefix, all = pat[:n-1], true
+	}
+	if !all && len(dir) >= len(prefix) {
+		return false
+	}
+	for i, seg := range dir {
+		if i < len(prefix) && !matchSegment(prefix[i], seg) || i >= len(prefix) && hidden(seg) {
+			return false
+		}
+	}
+	return true
 }
 
 // navChildren returns the sorted nav items for a directory's pages and
@@ -380,17 +499,25 @@ func (l *loader) resolver(from *Page) markdown.Resolver {
 		if page == nil {
 			page = l.byDir[target]
 		}
+		// A link without an extension, as other docs tools write them, may
+		// name a Markdown page.
+		extensionless := page == nil && !l.assets[target] && path.Ext(target) == ""
+		if extensionless {
+			page = cmp.Or(l.bySource[target+".md"], l.bySource[target+".markdown"])
+		}
 		if page != nil {
 			record(dest, "", page, suffix)
 			return page.URL + suffix
 		}
 		switch {
-		case l.drafts[target]:
+		case l.drafts[target] || extensionless && (l.drafts[target+".md"] || l.drafts[target+".markdown"]):
 			record(dest, "is a draft", nil, "")
 		case isMarkdown(target):
 			record(dest, "does not match a page", nil, "")
 		case !l.assets[target]:
 			record(dest, "does not match a page or file", nil, "")
+		default:
+			l.linked[target] = true
 		}
 		fallback := path.Join(dir, raw)
 		if escapes(fallback) {

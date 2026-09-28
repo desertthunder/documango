@@ -283,7 +283,14 @@ func (b *builder) configure(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	b.load = site.Options{Title: setting("title", cfg.Title), BasePath: base, Exclude: b.exclude}
+	var footer string
+	if cfg.Footer != nil {
+		footer = *cfg.Footer
+	}
+	b.load = site.Options{
+		Title: setting("title", cfg.Title), BasePath: base, Exclude: b.exclude,
+		Include: cfg.Include, Publish: []string{cfg.Favicon, cfg.Logo}, Footer: footer,
+	}
 	b.render = render.Options{
 		Dark: dark, Light: light, BasePath: base, Version: b.version,
 		Description: cfg.Description, URL: cfg.URL, Author: cfg.Author, Language: cfg.Language,
@@ -345,6 +352,16 @@ func (b *builder) build(ctx context.Context) (*site.Site, map[string][]byte, err
 		warned[w] = true
 	}
 	b.warned = warned
+	if len(s.Skipped) > 0 {
+		files := "files"
+		if len(s.Skipped) == 1 {
+			files = "file"
+		}
+		b.log.Debug(fmt.Sprintf("not publishing %d %s that no page links to; add them to include in the config to publish them", len(s.Skipped), files))
+		for _, f := range s.Skipped {
+			b.log.Debug("  " + f)
+		}
+	}
 	files, err := render.Render(s, fsys, b.render)
 	if err != nil {
 		return nil, nil, fmt.Errorf("render %s: %w", b.dir, err)
@@ -361,7 +378,9 @@ func (b *builder) build(ctx context.Context) (*site.Site, map[string][]byte, err
 		// folder, such as an old build, would show up as duplicate results.
 		pages := make(map[string][]byte, len(s.Pages))
 		for _, p := range s.Pages {
-			pages[p.OutPath] = files[p.OutPath]
+			if !p.Generated {
+				pages[p.OutPath] = files[p.OutPath]
+			}
 		}
 		bundle, err = pagefind.Index(ctx, b.pagefindPath, pages)
 	}

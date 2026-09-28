@@ -28,6 +28,12 @@ case-insensitive, so `Readme.md` and `INDEX.markdown` also work.
 The `index.md` at the top of the docs directory is the home page. It doesn't
 appear in the sidebar. Readers reach it through the site title in the header.
 
+If the docs directory has no `index.md` or `README.md` at the top, documango
+makes a contents page for `/` instead. It lists every page in sidebar order,
+with the site title as its heading, and isn't included in search. documango
+prints a warning when it does this, so add an `index.md` to write your own
+home page.
+
 Two files can't produce the same URL. For example, `guide.md` and
 `guide/index.md` both map to `/guide/`, and documango stops with a "duplicate
 page URL" error that names both files.
@@ -36,7 +42,10 @@ page URL" error that names both files.
 
 documango skips any file or folder whose name starts with `.` or `_`, along
 with everything inside such a folder. Use this for drafts folders, partials,
-or anything else you keep next to your docs but don't want published.
+or anything else you keep next to your docs but don't want published. The
+[`include`](../reference/configuration.md#include) key can publish files from
+these folders, and a few site files, such as `.nojekyll`, are always published.
+See [other files](#other-files).
 
 documango also skips every `node_modules` folder, so the packages of a
 JavaScript project in your docs folder never become pages.
@@ -49,9 +58,25 @@ that output folder.
 
 ### Other files
 
-Files that aren't Markdown, such as images, PDFs, or downloads, are copied to
-the site at the same path. `images/diagram.png` in the docs directory is
-served at `/images/diagram.png`.
+documango publishes a file that isn't Markdown, such as an image or a PDF, only
+when the site uses it. It copies the file to the site at the same path, so
+`images/diagram.png` in the docs directory is served at `/images/diagram.png`.
+A file is published when:
+
+- A page or the footer links to it with a Markdown link or image, such as
+  `![Diagram](images/diagram.png)` or `[Report](files/report.pdf)`.
+- It's the `favicon` or `logo` in the [config file](../reference/configuration.md).
+- It's one of these files at the top of the docs directory, which hosts read:
+  `CNAME`, `robots.txt`, `favicon.ico`, `humans.txt`, `.nojekyll`, `_headers`,
+  `_redirects`, or anything in `.well-known/`.
+- It matches a pattern in the [`include`](../reference/configuration.md#include)
+  config key.
+
+Other files, such as `package.json` or a config file for another tool, stay
+out of the site. Run `documango build -v` to list them.
+
+documango doesn't see links written as raw HTML, such as
+`<img src="images/diagram.png">`. Add the files they point to to `include`.
 
 A file can't use a path that documango generates itself. A `404.html` at the
 top of your docs directory, for example, stops the build with an error.
@@ -74,6 +99,9 @@ page that contains it:
 - A path to a Markdown file becomes that page's URL.
 - A path to a folder with an `index.md` or `README.md` becomes that folder's
   URL, so `[Guide](../guide/)` works.
+- A path without an extension that names a Markdown file, such as
+  `[Install](../installation)` for `installation.md`, becomes that page's URL.
+  A file or folder with the exact name wins.
 - Any other path, such as an image, gets the site's base path in front of it.
   See [base path](deploying.md#base-path).
 

@@ -90,9 +90,13 @@ func TestLoadStructure(t *testing.T) {
 		t.Errorf("Nav =\n%s\nwant\n%s", got, wantNav)
 	}
 
-	wantAssets := []string{"assets-only/file.txt", "guide/advanced/diagram.svg", "img/logo.png"}
+	wantAssets := []string{"img/logo.png"}
 	if !reflect.DeepEqual(s.Assets, wantAssets) {
 		t.Errorf("Assets = %q, want %q", s.Assets, wantAssets)
+	}
+	wantSkipped := []string{"assets-only/file.txt", "guide/advanced/diagram.svg"}
+	if !reflect.DeepEqual(s.Skipped, wantSkipped) {
+		t.Errorf("Skipped = %q, want %q", s.Skipped, wantSkipped)
 	}
 }
 
@@ -624,12 +628,187 @@ func TestSymlinks(t *testing.T) {
 	if p := s.PageByURL("/linked/"); p == nil || p.Title != "Outside" {
 		t.Errorf("linked page = %+v", p)
 	}
-	if !slices.Equal(s.Assets, []string{"pic.png", "real.png"}) {
-		t.Errorf("Assets = %q", s.Assets)
+	if !slices.Equal(s.Assets, []string{"pic.png"}) || !slices.Equal(s.Skipped, []string{"real.png"}) {
+		t.Errorf("Assets = %q, Skipped = %q", s.Assets, s.Skipped)
 	}
 	want := []string{
 		"dirlink/ is a symbolic link to a folder; documango skips it",
 		"loop/ is a symbolic link to a folder; documango skips it",
+	}
+	if !slices.Equal(s.Warnings, want) {
+		t.Errorf("Warnings = %q, want %q", s.Warnings, want)
+	}
+}
+
+func TestContentsPage(t *testing.T) {
+	t.Parallel()
+	s := load(t, fstest.MapFS{
+		"install.md":       file("# Install\n"),
+		"usage.md":         file("# Usage & more\n"),
+		"guide/index.md":   file("# Guide\n"),
+		"guide/deep.md":    file("# Deep\n"),
+		"notes/a.md":       file("# Note A\n"),
+		"notes/b/c.md":     file("# Note C\n"),
+		"extra/picture.md": file("---\ndraft: true\n---\n# Draft\n"),
+	}, Options{Title: "My docs", BasePath: "/docs/"})
+
+	home := s.Home
+	if home == nil || !home.Generated || home.URL != "/docs/" || home.OutPath != "index.html" || home.Title != "My docs" {
+		t.Fatalf("Home = %+v", home)
+	}
+	if s.PageByURL("/docs/") != home || s.Pages[0] != home {
+		t.Error("the contents page is not the first page or not found by URL")
+	}
+	if home.Prev != nil || home.Next != s.Pages[1] || s.Pages[1].URL != "/docs/guide/" {
+		t.Errorf("contents page next = %+v", home.Next)
+	}
+	if len(home.Headings) != 0 || home.Text != "" || home.HasH1 {
+		t.Errorf("contents page has headings or text: %+v", home)
+	}
+	want := `<ul><li><a href="/docs/guide/">Guide</a><ul><li><a href="/docs/guide/deep/">Deep</a></li></ul></li>` +
+		`<li><a href="/docs/install/">Install</a></li>` +
+		`<li>Notes<ul><li>B<ul><li><a href="/docs/notes/b/c/">Note C</a></li></ul></li><li><a href="/docs/notes/a/">Note A</a></li></ul></li>` +
+		`<li><a href="/docs/usage/">Usage &amp; more</a></li></ul>`
+	if string(home.Content) != want {
+		t.Errorf("Content =\n%s\nwant\n%s", home.Content, want)
+	}
+	wantWarn := []string{"no index.md or README.md at the top of the docs folder; documango generated a contents page"}
+	if !slices.Equal(s.Warnings, wantWarn) {
+		t.Errorf("Warnings = %q, want %q", s.Warnings, wantWarn)
+	}
+}
+
+func TestNoContentsPageWithoutPages(t *testing.T) {
+	t.Parallel()
+	s := load(t, fstest.MapFS{"a.png": file("x")}, Options{})
+	if s.Home != nil || len(s.Pages) != 0 || len(s.Warnings) != 0 {
+		t.Errorf("Home = %+v, Pages = %d, Warnings = %q", s.Home, len(s.Pages), s.Warnings)
+	}
+}
+
+func TestPublishedFiles(t *testing.T) {
+	t.Parallel()
+	fsys := fstest.MapFS{
+		"index.md":                    file("# Home\n\n![a](img/a.png) [b](guide/b%20c.pdf) [raw](<guide/d e.zip>)\n"),
+		"guide/page.md":               file("# Page\n\n![up](../img/up.svg)\n"),
+		"draft.md":                    file("---\ndraft: true\n---\n![x](drafted.png)\n"),
+		"img/a.png":                   file("a"),
+		"img/up.svg":                  file("up"),
+		"img/unused.png":              file("u"),
+		"guide/b c.pdf":               file("b"),
+		"guide/d e.zip":               file("d"),
+		"drafted.png":                 file("x"),
+		"book.toml":                   file("x"),
+		"package.json":                file("x"),
+		"legal.pdf":                   file("footer"),
+		"favicon.svg":                 file("fav"),
+		"CNAME":                       file("x"),
+		"robots.txt":                  file("x"),
+		"favicon.ico":                 file("x"),
+		"humans.txt":                  file("x"),
+		".nojekyll":                   file(""),
+		"_headers":                    file("x"),
+		"_redirects":                  file("x"),
+		".well-known/security.txt":    file("x"),
+		".well-known/sub/key.txt":     file("x"),
+		".well-known/page.md":         file("# Not a page\n"),
+		"sub/CNAME":                   file("nested"),
+		"sub/.nojekyll":               file(""),
+		".git/config":                 file("x"),
+		".DS_Store":                   file("x"),
+		"downloads/tool.tar.gz":       file("x"),
+		"downloads/deep/more.bin":     file("x"),
+		"downloads/.DS_Store":         file("x"),
+		"reports/q1.pdf":              file("x"),
+		"reports/q1.txt":              file("x"),
+		"_static/site.css":            file("x"),
+		"_static/other.js":            file("x"),
+		"_private/x.css":              file("x"),
+		"node_modules/pkg/report.pdf": file("x"),
+	}
+	s := load(t, fsys, Options{
+		Include: []string{"downloads/**", "reports/*.pdf", "_static/*.css", "node_modules/**"},
+		Publish: []string{"favicon.svg"},
+		Footer:  "[Legal](legal.pdf)",
+	})
+	wantAssets := []string{
+		".nojekyll", ".well-known/security.txt", ".well-known/sub/key.txt", "CNAME", "_headers", "_redirects", "_static/site.css",
+		"downloads/deep/more.bin", "downloads/tool.tar.gz", "favicon.ico", "favicon.svg",
+		"guide/b c.pdf", "guide/d e.zip", "humans.txt", "img/a.png", "img/up.svg", "legal.pdf", "reports/q1.pdf", "robots.txt",
+	}
+	if !slices.Equal(s.Assets, wantAssets) {
+		t.Errorf("Assets =\n%q\nwant\n%q", s.Assets, wantAssets)
+	}
+	wantSkipped := []string{"book.toml", "drafted.png", "img/unused.png", "package.json", "reports/q1.txt", "sub/CNAME"}
+	if !slices.Equal(s.Skipped, wantSkipped) {
+		t.Errorf("Skipped =\n%q\nwant\n%q", s.Skipped, wantSkipped)
+	}
+	if s.PageByURL("/.well-known/page/") != nil {
+		t.Error("Markdown under .well-known became a page")
+	}
+	if len(s.Warnings) != 0 {
+		t.Errorf("Warnings = %q", s.Warnings)
+	}
+}
+
+func TestIncludeLinksToHiddenFiles(t *testing.T) {
+	t.Parallel()
+	fsys := fstest.MapFS{
+		"index.md":         file("# Home\n\n[a](_static/a.css) [b](_other/b.css)\n"),
+		"_static/a.css":    file("a"),
+		"_other/b.css":     file("b"),
+		"_static/.keep":    file(""),
+		"_static/n/c.css":  file("c"),
+		"_static/_n/d.css": file("d"),
+	}
+	s := load(t, fsys, Options{Include: []string{"_static/**"}})
+	if want := []string{"_static/a.css", "_static/n/c.css"}; !slices.Equal(s.Assets, want) {
+		t.Errorf("Assets = %q, want %q", s.Assets, want)
+	}
+	want := []string{`index.md: link to "_other/b.css" does not match a page or file`}
+	if !slices.Equal(s.Warnings, want) {
+		t.Errorf("Warnings = %q, want %q", s.Warnings, want)
+	}
+}
+
+func TestExtensionlessLinks(t *testing.T) {
+	t.Parallel()
+	fsys := fstest.MapFS{
+		"index.md":             file("# Home\n"),
+		"installation.md":      file("# Installation\n\n## Steps\n"),
+		"usage/state.markdown": file("# State\n"),
+		"usage/index.md":       file("# Usage\n\n[Install](../installation#steps) [State](./state?x=1) [Missing](../nothing) [Bad](../installation#nope) [Draft](../draft)\n"),
+		"usage/guide/index.md": file("# Guide folder\n"),
+		"LICENSE":              file("MIT"),
+		"LICENSE.md":           file("# License page\n"),
+		"draft.md":             file("---\ndraft: true\n---\n# Draft\n"),
+	}
+	s := load(t, fsys, Options{})
+	usage := s.PageByURL("/usage/")
+	for _, want := range []string{
+		`href="/installation/#steps"`, `href="/usage/state/?x=1"`, `href="/nothing"`,
+	} {
+		if !strings.Contains(string(usage.Content), want) {
+			t.Errorf("usage page lacks %s:\n%s", want, usage.Content)
+		}
+	}
+	resolve := s.Resolver()
+	for dest, want := range map[string]string{
+		"usage/guide":        "/usage/guide/",
+		"LICENSE":            "/LICENSE", // the file wins over LICENSE.md
+		"installation#steps": "/installation/#steps",
+	} {
+		if got := resolve(dest); got != want {
+			t.Errorf("resolve(%q) = %q, want %q", dest, got, want)
+		}
+	}
+	if s.PageByURL("/usage/guide/").Source != "usage/guide/index.md" {
+		t.Error("wrong page for /usage/guide/")
+	}
+	want := []string{
+		`usage/index.md: link to "../nothing" does not match a page or file`,
+		`usage/index.md: link to "../installation#nope": the target page has no heading "#nope"`,
+		`usage/index.md: link to "../draft" is a draft`,
 	}
 	if !slices.Equal(s.Warnings, want) {
 		t.Errorf("Warnings = %q, want %q", s.Warnings, want)

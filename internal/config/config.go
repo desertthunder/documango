@@ -38,9 +38,12 @@ type Config struct {
 	// Favicon and Logo are clean slash paths of files in the docs folder.
 	Favicon string `toml:"favicon" yaml:"favicon"`
 	Logo    string `toml:"logo" yaml:"logo"`
-	Theme   Theme  `toml:"theme" yaml:"theme"`
-	Fonts   Fonts  `toml:"fonts" yaml:"fonts"`
-	Links   []Link `toml:"links" yaml:"links"`
+	// Include lists slash-separated patterns of files in the docs folder to
+	// publish even when no page links to them, such as "downloads/**".
+	Include []string `toml:"include" yaml:"include"`
+	Theme   Theme    `toml:"theme" yaml:"theme"`
+	Fonts   Fonts    `toml:"fonts" yaml:"fonts"`
+	Links   []Link   `toml:"links" yaml:"links"`
 	// Footer is Markdown shown at the foot of every page. nil keeps the
 	// default footer; "" removes the footer.
 	Footer *string `toml:"footer" yaml:"footer"`
@@ -226,6 +229,31 @@ func (c *Config) check(dir string) error {
 			return fmt.Errorf("%s %q is a folder, not a file", f.key, *f.path)
 		}
 		*f.path = name
+	}
+
+	for i, p := range c.Include {
+		p = strings.TrimPrefix(p, "./")
+		switch {
+		case strings.TrimSpace(p) == "":
+			return errors.New("include has an empty entry")
+		case strings.HasPrefix(p, "/") || p == ".." || strings.HasPrefix(p, "../") || strings.Contains(p, "/../") || strings.HasSuffix(p, "/.."):
+			return fmt.Errorf("include %q must be a path inside the docs folder", c.Include[i])
+		case path.Clean(p) != p:
+			return fmt.Errorf("include %q must be a clean path, such as downloads/** or files/*.pdf", c.Include[i])
+		}
+		segs := strings.Split(p, "/")
+		for j, seg := range segs {
+			switch {
+			case strings.Contains(seg, "**") && (seg != "**" || j != len(segs)-1):
+				return fmt.Errorf("include %q: ** must be the last part of the pattern, as in downloads/**", c.Include[i])
+			case seg == "node_modules":
+				return fmt.Errorf("include %q: node_modules folders are never published", c.Include[i])
+			}
+			if _, err := path.Match(seg, ""); err != nil {
+				return fmt.Errorf("include %q is not a valid pattern", c.Include[i])
+			}
+		}
+		c.Include[i] = p
 	}
 
 	for _, t := range []struct {

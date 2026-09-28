@@ -94,7 +94,7 @@
     {{- end}}
   </aside>
   <main class="site-main" id="content" tabindex="-1">
-    <article class="prose"{{if .Page}} data-pagefind-body{{end}}>
+    <article class="prose"{{if and .Page (not .Page.Generated)}} data-pagefind-body{{end}}>
       {{- with .Heading}}
       <h1>{{.}}</h1>
       {{- end}}

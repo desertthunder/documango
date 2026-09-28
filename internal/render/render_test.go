@@ -33,7 +33,7 @@ func docsFS() fstest.MapFS {
 		"index.md":           file("# Welcome\n\nIntro text.\n"),
 		"getting-started.md": file("---\norder: 1\ndescription: Start here\n---\nNo heading.\n\n## Install\n\nRun it.\n\n### From source\n\nBuild it.\n"),
 		"guide/index.md":     file("---\norder: 2\n---\n# Guide\n\n## Only section\n"),
-		"guide/install.md":   file("# Install\n\n## Requirements\n\n## Steps\n\nSee [the guide](index.md).\n"),
+		"guide/install.md":   file("# Install\n\n## Requirements\n\n## Steps\n\nSee [the guide](index.md).\n\n![Logo](../img/logo.png)\n"),
 		"reference/api.md":   file("---\ntitle: API <script>alert(1)</script>\n---\nBody & more.\n"),
 		"img/logo.png":       &fstest.MapFile{Data: []byte{0x89, 'P', 'N', 'G', 0}},
 	}
@@ -677,12 +677,12 @@ func TestRenderErrors(t *testing.T) {
 		},
 		{
 			name: "asset collides with page",
-			fsys: fstest.MapFS{"index.md": file("# Home\n"), "index.html": file("<p>raw</p>")},
+			fsys: fstest.MapFS{"index.md": file("# Home\n\n[raw](index.html)\n"), "index.html": file("<p>raw</p>")},
 			want: `asset "index.html"`,
 		},
 		{
 			name: "asset collides with generated file",
-			fsys: fstest.MapFS{"index.md": file("# Home\n"), "404.html": file("<p>raw</p>")},
+			fsys: fstest.MapFS{"index.md": file("# Home\n\n[raw](404.html)\n"), "404.html": file("<p>raw</p>")},
 			want: `asset "404.html"`,
 		},
 		{
@@ -723,12 +723,28 @@ func TestRenderErrors(t *testing.T) {
 	}
 }
 
-func TestSiteWithoutHome(t *testing.T) {
-	fsys := fstest.MapFS{"a.md": file("# A\n")}
+func TestContentsPage(t *testing.T) {
+	fsys := fstest.MapFS{"a.md": file("# A\n\n## One\n\n## Two\n"), "notes/b.md": file("# B\n")}
 	files := build(t, fsys, defaultOpts())
 	mustContain(t, get(t, files, "a/index.html"), `<a class="site-header__title" href="/"><span class="site-header__name">Documentation</span></a>`)
-	if _, ok := files["index.html"]; ok {
-		t.Error("no home page should be rendered")
+	doc := get(t, files, "index.html")
+	mustContain(t, doc,
+		`<title>Documentation</title>`,
+		`<a class="site-header__title" href="/" aria-current="page">`,
+		`<article class="prose">`,
+		`<h1>Documentation</h1>`,
+		`<ul><li><a href="/a/">A</a></li><li>Notes<ul><li><a href="/notes/b/">B</a></li></ul></li></ul>`,
+		`<a class="pager__link pager__link--next" href="/a/" rel="next">`,
+		`class="site-footer"`,
+	)
+	mustNotContain(t, doc, "data-pagefind-body", `class="toc"`, "pager__link--prev")
+
+	var entries []searchEntry
+	if err := json.Unmarshal(files["_documango/search.json"], &entries); err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 2 || entries[0].URL != "/a/" {
+		t.Errorf("search index = %+v, want only the two pages", entries)
 	}
 }
 

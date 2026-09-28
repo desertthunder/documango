@@ -25,6 +25,10 @@ title: {{quote .Title}}
 # footer: |
 #   Copyright Acme. Read the [guide](guide/index.md).
 
+# Files to publish even when no page links to them. Files a page links to
+# are always published.
+# include: ["downloads/**", "*.pdf"]
+
 theme:
   # Color themes for dark and light mode. Run 'documango themes' to list them.
   dark: tomorrow-night

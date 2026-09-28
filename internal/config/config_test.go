@@ -26,6 +26,7 @@ author = "Acme Inc."
 language = "fr"
 favicon = "favicon.svg"
 logo = "./img/logo.png"
+include = ["downloads/**", "./files/*.pdf", "_static/site.css"]
 
 [theme]
 dark = ["tomorrow-night", "github-dark"]
@@ -52,6 +53,7 @@ author: Acme Inc.
 language: fr
 favicon: favicon.svg
 logo: ./img/logo.png
+include: [downloads/**, ./files/*.pdf, _static/site.css]
 theme:
   dark: [tomorrow-night, github-dark]
   light: tomorrow
@@ -93,6 +95,7 @@ func TestLoadFormats(t *testing.T) {
 				Language:    "fr",
 				Favicon:     "favicon.svg",
 				Logo:        "img/logo.png",
+				Include:     []string{"downloads/**", "files/*.pdf", "_static/site.css"},
 				Theme:       Theme{Dark: Themes{"tomorrow-night", "github-dark"}, Light: Themes{"tomorrow"}, Search: "builtin"},
 				Fonts:       Fonts{Body: "Inter", Mono: "JetBrains Mono"},
 				Links:       []Link{{"GitHub", "https://github.com/acme/acme"}, {"Blog", "/blog/"}},
@@ -201,6 +204,17 @@ func TestLoadErrors(t *testing.T) {
 		{"documango.yaml", "fonts:\n  mono: \"</style>\"\n", "fonts.mono"},
 		{"documango.yaml", "fonts:\n  mono: \"a\\\\b\"\n", "fonts.mono"},
 		{"documango.yaml", "fonts:\n  body: \"a\\nb\"\n", "fonts.body"},
+		{"documango.toml", `include = "a"`, "documango.toml:"},
+		{"documango.toml", `include = [""]`, "include has an empty entry"},
+		{"documango.toml", `include = ["/etc/*"]`, `include "/etc/*" must be a path inside the docs folder`},
+		{"documango.toml", `include = ["../x/*"]`, `include "../x/*" must be a path inside the docs folder`},
+		{"documango.toml", `include = ["a/../../x"]`, "must be a path inside the docs folder"},
+		{"documango.toml", `include = ["a//b"]`, `include "a//b" must be a clean path`},
+		{"documango.toml", `include = ["downloads/"]`, `include "downloads/" must be a clean path, such as downloads/**`},
+		{"documango.toml", `include = ["**/*.pdf"]`, `include "**/*.pdf": ** must be the last part of the pattern`},
+		{"documango.toml", `include = ["a/b**"]`, "** must be the last part"},
+		{"documango.toml", `include = ["node_modules/pkg/**"]`, `include "node_modules/pkg/**": node_modules folders are never published`},
+		{"documango.yaml", "include: [\"a[\"]\n", `include "a[" is not a valid pattern`},
 		{"documango.toml", "[[links]]\nurl = \"/a/\"\n[[links]]\nurl = \"/b/\"\ntitle = \"B\"", "links[1]: title is empty"},
 	} {
 		dir := t.TempDir()

@@ -105,6 +105,7 @@ Every key is optional.
 | `language`    | `en`    | Language of the pages, as a language tag such as `en` or `pt-BR`. |
 | `favicon`     | none    | Icon for browser tabs: the path of an image in the docs directory, such as `favicon.svg`. SVG, PNG, ICO, GIF, JPEG, WebP, and AVIF files get a matching type. |
 | `logo`        | none    | Image shown before the title in the header, sized to the header's height: the path of an image in the docs directory. |
+| `include`     | none    | Files to publish even when no page links to them, as a list of patterns such as `["downloads/**", "*.pdf"]`. See [include](#include). |
 | `theme.dark`  | `tomorrow-night` | Dark color schemes: one name or a list. Each is a name from `documango themes` or a path to a base16 YAML file. The first is the default. |
 | `theme.light` | `tomorrow` | Light color schemes, in the same form as `theme.dark`. |
 | `theme.search` | `pagefind` | Search engine: `pagefind` or `builtin`. |
@@ -152,6 +153,35 @@ to the documango repository and the author's site. To remove the footer, set
 ```toml
 footer = ""
 ```
+
+### Include
+
+documango publishes files that pages link to, the favicon and logo, and a few
+site files such as `CNAME`. See [other files](../guide/writing-pages.md#other-files).
+`include` publishes more:
+
+```toml
+include = ["downloads/**", "*.pdf", "files/report.pdf", "_static/site.css"]
+```
+
+Each pattern is a path relative to the docs directory, with `/` between
+folders:
+
+- `*` matches any part of a single file or folder name, `?` matches one
+  character, and `[a-z]` matches one character in a range.
+- A pattern that ends in `/**` matches every file under that folder, at any
+  depth.
+- A pattern matches whole paths, so `*.pdf` matches `guide.pdf` but not
+  `files/guide.pdf`. Use `files/*.pdf` for that.
+
+A file or folder whose name starts with `.` or `_` is published only when the
+pattern spells out that name: `_static/**` publishes `_static/site.css`, but
+`*/site.css` and `downloads/**` skip anything in a `_` or `.` folder. Markdown
+files there still don't become pages. Files in `node_modules` folders and files
+outside the docs directory are never published.
+
+Use `include` for files that only raw HTML links to, such as
+`<img src="images/diagram.png">`, which documango doesn't see.
 
 ### Page metadata
 

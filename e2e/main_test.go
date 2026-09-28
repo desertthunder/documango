@@ -233,11 +233,17 @@ type served struct {
 // The server stops when t ends.
 func serve(t *testing.T, env []string, args ...string) *served {
 	t.Helper()
+	return serveDocs(t, fixture, env, args...)
+}
+
+// serveDocs is serve with docs in place of fixture.
+func serveDocs(t *testing.T, docs map[string]string, env []string, args ...string) *served {
+	t.Helper()
 	if skipReason != "" {
 		t.Skip(skipReason)
 	}
 	dir := t.TempDir()
-	for name, body := range fixture {
+	for name, body := range docs {
 		path := filepath.Join(dir, filepath.FromSlash(name))
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 			t.Fatal(err)

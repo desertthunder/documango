@@ -567,3 +567,32 @@ func TestFooter(t *testing.T) {
 		check(t, expect.Locator(page.Locator("footer")).ToHaveCount(0), "no footer")
 	})
 }
+
+func TestContentsPage(t *testing.T) {
+	t.Parallel()
+	docs := map[string]string{}
+	for name, body := range fixture {
+		if name != "index.md" {
+			docs[name] = body
+		}
+	}
+	site := serveDocs(t, docs, nil)
+	page := newPage(t)
+	errs := watchErrors(page)
+	site.open(t, page, "/")
+	check(t, expect.Page(page).ToHaveTitle("Documentation"), "contents page title")
+	check(t, expect.Locator(page.Locator("h1")).ToHaveText("Documentation"), "contents page h1")
+	check(t, expect.Locator(page.Locator("[data-pagefind-body]")).ToHaveCount(0), "not indexed")
+	check(t, expect.Locator(page.Locator(".toc")).ToHaveCount(0), "no On this page")
+
+	contents := page.Locator(".prose")
+	check(t, expect.Locator(contents.GetByRole("link")).ToHaveText([]string{"CLI", "API", "Guide", "Install", "Configure"}), "contents links in sidebar order")
+	check(t, expect.Locator(contents.Locator("li").First()).ToContainText("Reference"), "folder label")
+	check(t, expect.Locator(page.Locator("a[rel=next]")).ToHaveAttribute("href", "/reference/cli/"), "next is the first page")
+	check(t, contents.GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "Install"}).Click(), "follow contents link")
+	check(t, expect.Page(page).ToHaveURL(site.URL+"guide/install/"), "contents link target")
+	check(t, expect.Locator(page.Locator("h1")).ToHaveText("Install"), "page after contents link")
+	if e := errs(); len(e) > 0 {
+		t.Errorf("page errors:\n%s", strings.Join(e, "\n"))
+	}
+}

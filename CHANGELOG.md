@@ -13,6 +13,10 @@ All notable changes to documango are listed here. The format follows
   version keeps serving.
 - `documango build` writes a static site with clean URLs and a 404 page, and
   removes files left over from earlier builds.
+- Only files your pages link to are published, plus the favicon, logo, and
+  host files such as `CNAME`. The `include` config key publishes others.
+- A contents page at `/` when the docs folder has no `index.md` or
+  `README.md`.
 - `documango init` creates a starter docs folder and config file.
 - A sidebar built from your folders, an "On this page" list, and previous and
   next links on every page.
@@ -32,3 +36,5 @@ All notable changes to documango are listed here. The format follows
   text.
 - Warnings for relative links and images that point to a missing page, file,
   or heading, a draft, or somewhere outside the docs folder.
+- Links to pages without the `.md` extension, such as `[Install](installation)`,
+  as other docs tools write them.

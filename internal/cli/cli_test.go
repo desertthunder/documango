@@ -268,6 +268,7 @@ func TestDirErrors(t *testing.T) {
 
 func TestBuild(t *testing.T) {
 	dir := docsDir(t)
+	writeFile(t, filepath.Join(dir, "index.md"), "# Hello Docs\n\nWelcome. ![Logo](img/logo.png)\n")
 	writeFile(t, filepath.Join(dir, "img", "logo.png"), "png")
 	out := filepath.Join(t.TempDir(), "site")
 
@@ -1092,11 +1093,48 @@ func TestBuildFlagsOverrideConfig(t *testing.T) {
 	}
 }
 
+func TestBuildPublishesLinkedFiles(t *testing.T) {
+	dir := configDocs(t, "documango.toml", "favicon = \"icon.svg\"\ninclude = [\"downloads/**\"]\nfooter = \"[Terms](terms.pdf)\"")
+	writeFile(t, filepath.Join(dir, "index.md"), "# Home\n\n![Logo](img/logo.png) [State](guide/state)\n")
+	writeFile(t, filepath.Join(dir, "guide", "state.md"), "# State\n")
+	for _, f := range []string{"img/logo.png", "icon.svg", "terms.pdf", "CNAME", "downloads/tool.zip", "book.toml", "package.json", "img/unused.png"} {
+		writeFile(t, filepath.Join(dir, filepath.FromSlash(f)), "x")
+	}
+	out := filepath.Join(t.TempDir(), "site")
+	r := run(t, nil, "build", dir, "-o", out, "--search", "builtin", "-v")
+	if r.code != 0 {
+		t.Fatalf("exit %d, stderr %q", r.code, r.stderr)
+	}
+	for _, f := range []string{"img/logo.png", "icon.svg", "terms.pdf", "CNAME", "downloads/tool.zip"} {
+		if !exists(filepath.Join(out, f)) {
+			t.Errorf("missing %s", f)
+		}
+	}
+	for _, f := range []string{"book.toml", "package.json", "img/unused.png"} {
+		if exists(filepath.Join(out, f)) {
+			t.Errorf("%s was published", f)
+		}
+	}
+	for _, w := range []string{"DEBU not publishing 4 files that no page links to", "DEBU   book.toml", "DEBU   img/unused.png"} {
+		if !strings.Contains(r.stderr, w) {
+			t.Errorf("stderr lacks %q:\n%s", w, r.stderr)
+		}
+	}
+	if strings.Contains(r.stderr, "WARN") {
+		t.Errorf("unexpected warning:\n%s", r.stderr)
+	}
+	home, _ := os.ReadFile(filepath.Join(out, "index.html"))
+	if !bytes.Contains(home, []byte(`href="/guide/state/"`)) {
+		t.Error("extensionless link not resolved")
+	}
+}
+
 func TestBuildExplicitConfig(t *testing.T) {
-	dir := configDocs(t, "documango.toml", `title = "Implicit"`)
-	writeFile(t, filepath.Join(dir, "conf", "site.yml"), "title: Inside\n")
+	// include = ["**"] would publish every file but the config in use.
+	dir := configDocs(t, "documango.toml", "title = \"Implicit\"\ninclude = [\"**\"]")
+	writeFile(t, filepath.Join(dir, "conf", "site.yml"), "title: Inside\ninclude: [\"**\"]\n")
 	outside := filepath.Join(t.TempDir(), "site.toml")
-	writeFile(t, outside, `title = "Outside"`)
+	writeFile(t, outside, "title = \"Outside\"\ninclude = [\"**\"]")
 	out := filepath.Join(t.TempDir(), "site")
 
 	for _, tc := range []struct{ config, title string }{
