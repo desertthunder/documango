@@ -156,3 +156,65 @@ go run ./cmd/tools schemes -ref main -out /tmp/schemes
 
 To add or remove a built-in scheme, edit the `curated` list and run the
 command again.
+
+## Releasing
+
+Releases are built by [GoReleaser](https://goreleaser.com) from a version tag.
+To release v0.1.0, tag a commit on `main` and push the tag:
+
+```sh
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The tag starts the release workflow in `.github/workflows/release.yml`. It
+runs the same checks as CI: `go vet`, the tests with the race detector, and
+the browser tests. If they pass, GoReleaser:
+
+1. Builds `documango` for macOS, Linux, and Windows on amd64 and arm64.
+2. Packs each binary with `README.md` and `LICENSE` into a `.tar.gz` file, or
+   a `.zip` file on Windows, and writes `checksums.txt`.
+3. Creates a GitHub release for the tag with these files. The release notes
+   list the commits since the previous tag, grouped into features (`feat:`),
+   fixes (`fix:`), and other changes. Commits that start with `docs:`,
+   `test:`, `ci:`, `chore:`, or `build:` are left out.
+
+A tag with a suffix, such as `v0.2.0-rc.1`, is marked as a pre-release.
+
+The release settings are in `.goreleaser.yaml`. To check them and build
+every archive into `dist/` without publishing anything:
+
+```sh
+goreleaser check
+goreleaser release --snapshot --clean
+```
+
+### pkg.go.dev
+
+[pkg.go.dev](https://pkg.go.dev/github.com/desertthunder/documango) lists a
+version after the Go module proxy has fetched it. The last step of the release
+workflow requests the new version from `proxy.golang.org`, which is one of the
+ways pkg.go.dev [documents for adding a
+package](https://pkg.go.dev/about#adding-a-package). The page can take a few
+minutes to appear. If it doesn't, open the pkg.go.dev page for the module and
+select **Request**.
+
+The page for the command shows the package comment in
+`cmd/documango/main.go`. Update it when commands change.
+
+### Version numbers
+
+`documango --version` prints the version the binary was built from:
+
+| How it was built | Output |
+| ---------------- | ------ |
+| Downloaded from a GitHub release | `documango v0.1.0`, set at link time by GoReleaser |
+| `go install github.com/desertthunder/documango/cmd/documango@v0.1.0` | `documango v0.1.0`, read from the module version |
+| `go build` in a clone | A pseudo-version such as `v0.1.1-0.20260928070444-8c04d3755b81`, with `+dirty` when there are uncommitted changes |
+
+Builds without version information print `documango dev`. To set a version
+by hand, pass it to the linker:
+
+```sh
+go build -ldflags "-X main.version=v0.1.0" ./cmd/documango
+```

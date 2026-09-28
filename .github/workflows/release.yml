@@ -1,0 +1,50 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  release:
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # pkg.go.dev lists a version once the Go module proxy has fetched it.
+      # See https://pkg.go.dev/about#adding-a-package.
+      - name: Request the version from the Go module proxy
+        run: |
+          for _ in 1 2 3 4 5; do
+            if curl -sf "https://proxy.golang.org/github.com/desertthunder/documango/@v/${GITHUB_REF_NAME}.info"; then
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::warning::proxy.golang.org did not return ${GITHUB_REF_NAME}; request it at https://pkg.go.dev/github.com/desertthunder/documango"

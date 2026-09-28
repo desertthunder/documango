@@ -1,0 +1,49 @@
+name: Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "internal/**"
+      - "cmd/**"
+      - "go.*"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Let a running deploy finish; queue at most one more.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - id: pages
+        uses: actions/configure-pages@v6
+      # Builds this repository's docs with documango itself. The first build
+      # downloads Pagefind for the search index.
+      - run: go run ./cmd/documango build docs -o _site --base-path "${{ steps.pages.outputs.base_path }}/"
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

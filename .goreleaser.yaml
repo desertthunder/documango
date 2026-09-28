@@ -1,0 +1,66 @@
+# Release configuration for documango. The release workflow runs this on
+# every v* tag. Check it locally with:
+#
+#   goreleaser check
+#   goreleaser release --snapshot --clean
+version: 2
+
+project_name: documango
+
+before:
+  hooks:
+    - go mod tidy -diff
+
+builds:
+  - id: documango
+    main: ./cmd/documango
+    binary: documango
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version=v{{.Version}}
+    goos: [darwin, linux, windows]
+    goarch: [amd64, arm64]
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: documango
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: checksums.txt
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^(docs|test|ci|chore|build)(\\(.+\\))?!?:"
+      - "^Merge "
+  groups:
+    - title: Features
+      regexp: "^feat(\\(.+\\))?!?:"
+      order: 0
+    - title: Fixes
+      regexp: "^fix(\\(.+\\))?!?:"
+      order: 1
+    - title: Other changes
+      order: 999
+
+release:
+  github:
+    owner: desertthunder
+    name: documango
+  prerelease: auto

@@ -36,3 +36,6 @@ _site/
 
 # Browser test screenshots
 e2e/screenshots/
+
+# GoReleaser output
+dist/
