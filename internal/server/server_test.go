@@ -95,6 +95,22 @@ func TestNew(t *testing.T) {
 			t.Errorf("EventsURL = %q, want %q", got, EventsPath)
 		}
 	})
+	t.Run("events url for base path", func(t *testing.T) {
+		for in, want := range map[string]string{
+			"":       EventsPath,
+			"/":      EventsPath,
+			"docs":   "/docs" + EventsPath,
+			"/docs/": "/docs" + EventsPath,
+		} {
+			if got := EventsURLFor(in); got != want {
+				t.Errorf("EventsURLFor(%q) = %q, want %q", in, got, want)
+			}
+			s := newTestServer(t, staticBuild(Files{}), Options{BasePath: in})
+			if got := s.EventsURL(); got != want {
+				t.Errorf("EventsURL with base %q = %q, want %q", in, got, want)
+			}
+		}
+	})
 }
 
 func TestServeHTTP(t *testing.T) {
@@ -584,56 +600,61 @@ func TestWatchMissingDir(t *testing.T) {
 	}
 }
 
-func TestListenAndServe(t *testing.T) {
-	t.Run("port in use", func(t *testing.T) {
-		ln, err := net.Listen("tcp", "127.0.0.1:0")
+func TestServeShutsDownWithOpenStream(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := newTestServer(t, staticBuild(Files{"index.html": []byte("hi")}), Options{})
+	ctx, cancel := context.WithCancel(context.Background())
+	errc := make(chan error, 1)
+	go func() { errc <- Serve(ctx, ln, s) }()
+
+	resp, err := http.Get("http://" + ln.Addr().String() + s.EventsURL())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	waitLine(t, readEvents(resp), "retry: 1000")
+
+	cancel()
+	select {
+	case err := <-errc:
 		if err != nil {
-			t.Fatal(err)
+			t.Errorf("Serve = %v, want nil on shutdown", err)
 		}
-		defer ln.Close()
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if err := ListenAndServe(ctx, ln.Addr().String(), http.NotFoundHandler()); err == nil {
-			t.Fatal("want error for address in use")
-		}
-	})
+	case <-time.After(5 * time.Second):
+		t.Fatal("Serve did not return after cancel")
+	}
+}
 
-	t.Run("graceful shutdown with open stream", func(t *testing.T) {
-		ln, err := net.Listen("tcp", "127.0.0.1:0")
+func TestServe(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := newTestServer(t, staticBuild(Files{"index.html": []byte("hi")}), Options{})
+	ctx, cancel := context.WithCancel(context.Background())
+	errc := make(chan error, 1)
+	go func() { errc <- Serve(ctx, ln, s) }()
+
+	resp, err := http.Get("http://" + ln.Addr().String() + "/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if string(body) != "hi" {
+		t.Errorf("body = %q, want %q", body, "hi")
+	}
+
+	cancel()
+	select {
+	case err := <-errc:
 		if err != nil {
-			t.Fatal(err)
+			t.Errorf("Serve = %v, want nil on shutdown", err)
 		}
-		addr := ln.Addr().String()
-		ln.Close()
-
-		s := newTestServer(t, staticBuild(Files{"index.html": []byte("hi")}), Options{})
-		ctx, cancel := context.WithCancel(context.Background())
-		errc := make(chan error, 1)
-		go func() { errc <- ListenAndServe(ctx, addr, s) }()
-
-		var resp *http.Response
-		deadline := time.Now().Add(5 * time.Second)
-		for {
-			resp, err = http.Get("http://" + addr + s.EventsURL())
-			if err == nil {
-				break
-			}
-			if time.Now().After(deadline) {
-				t.Fatalf("server never came up: %v", err)
-			}
-			time.Sleep(10 * time.Millisecond)
-		}
-		defer resp.Body.Close()
-		waitLine(t, readEvents(resp), "retry: 1000")
-
-		cancel()
-		select {
-		case err := <-errc:
-			if err != nil {
-				t.Errorf("ListenAndServe = %v, want nil on shutdown", err)
-			}
-		case <-time.After(5 * time.Second):
-			t.Fatal("ListenAndServe did not return after cancel")
-		}
-	})
+	case <-time.After(5 * time.Second):
+		t.Fatal("Serve did not return after cancel")
+	}
 }

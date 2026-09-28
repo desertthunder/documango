@@ -84,16 +84,13 @@ func New(build BuildFunc, opts Options) (*Server, error) {
 	s := &Server{
 		build:     build,
 		dir:       dir,
-		base:      path.Clean("/"+opts.BasePath) + "/",
+		base:      normalizeBase(opts.BasePath),
 		debounce:  opts.Debounce,
 		log:       opts.Logger,
 		keepalive: 15 * time.Second,
 		clients:   make(map[chan event]struct{}),
 		ready:     make(chan struct{}),
 		done:      make(chan struct{}),
-	}
-	if s.base == "//" {
-		s.base = "/"
 	}
 	if s.debounce <= 0 {
 		s.debounce = 100 * time.Millisecond
@@ -113,9 +110,24 @@ func New(build BuildFunc, opts Options) (*Server, error) {
 	return s, nil
 }
 
+// normalizeBase returns basePath with exactly one leading and trailing slash.
+func normalizeBase(basePath string) string {
+	if b := path.Clean("/" + basePath); b != "/" {
+		return b + "/"
+	}
+	return "/"
+}
+
+// EventsURLFor returns the URL path of the live-reload event stream for a
+// site served under basePath. It lets callers render pages before a Server
+// exists; it always equals [Server.EventsURL] for the same base path.
+func EventsURLFor(basePath string) string {
+	return strings.TrimSuffix(normalizeBase(basePath), "/") + EventsPath
+}
+
 // EventsURL returns the URL path of the live-reload event stream.
 func (s *Server) EventsURL() string {
-	return strings.TrimSuffix(s.base, "/") + EventsPath
+	return EventsURLFor(s.base)
 }
 
 // Rebuild builds the site and, on success, swaps in the new files and
@@ -290,14 +302,9 @@ func (s *Server) broadcast(ev event) {
 	}
 }
 
-// ListenAndServe serves h on addr until ctx is done, then shuts down
-// gracefully and returns nil. Listen errors, such as a port in use, are
-// returned immediately.
-func ListenAndServe(ctx context.Context, addr string, h http.Handler) error {
-	ln, err := net.Listen("tcp", addr)
-	if err != nil {
-		return fmt.Errorf("server: listen: %w", err)
-	}
+// Serve serves h on ln until ctx is done, then shuts down gracefully and
+// returns nil. Serve closes ln.
+func Serve(ctx context.Context, ln net.Listener, h http.Handler) error {
 	srv := &http.Server{
 		Handler:           h,
 		ReadHeaderTimeout: 10 * time.Second,
