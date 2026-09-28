@@ -154,3 +154,35 @@ version.
 7. Browser tests: listing order, tag pages, newer and older links, the drawer
    at desktop width, the root reader, live reload of a new post, drafts,
    search dates, the feed and print styles.
+
+## Parking lot: render a GitHub folder
+
+Take a GitHub path instead of a local folder and render it as a site:
+
+```sh
+documango github.com/owner/repo/tree/main/docs
+documango build github.com/owner/repo/tree/v1.2.0/docs
+```
+
+- Accept a GitHub tree URL (`https://github.com/owner/repo/tree/<ref>/<path>`)
+  and a short form such as `owner/repo/docs@ref`. The ref defaults to the
+  repository's default branch.
+- Download the repository tarball from
+  `api.github.com/repos/<owner>/<repo>/tarball/<ref>`, the same endpoint the
+  theme catalog uses, extract only `<path>`, and cache it under the user cache
+  directory keyed by the resolved commit SHA. Use `GITHUB_TOKEN` for private
+  repositories and higher rate limits.
+- Pin to a commit: resolve the ref to a SHA first so a build is reproducible,
+  and print the SHA in the build summary.
+- `serve` has nothing local to watch. It could check the ref every minute or
+  so with a conditional request (ETag) and rebuild when the SHA changes, or
+  just serve a fixed snapshot.
+- Links that leave the folder, such as `../CONTRIBUTING.md`, should point at
+  the file on GitHub (`github.com/owner/repo/blob/<sha>/...`) instead of
+  becoming broken site links. A `README.md` without an `index.md` is already
+  the folder's page.
+- Relative images work once the files are extracted. Git LFS files and
+  submodules are out of scope.
+- Open questions: support other hosts (GitLab, Codeberg, tangled) through the
+  same tarball pattern, or GitHub only? Add an "Edit on GitHub" link to each
+  page when the source is a repository?
