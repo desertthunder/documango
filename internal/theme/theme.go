@@ -19,6 +19,21 @@ import (
 //go:embed schemes/*.yaml
 var schemeFiles embed.FS
 
+// curated lists the slugs of the embedded schemes. The schemes tool refreshes
+// exactly these from tinted-theming/schemes; add a slug here to embed it.
+var curated = []string{
+	"catppuccin-latte", "catppuccin-mocha", "default-dark", "default-light", "dracula",
+	"everforest-dark-medium", "everforest-light-medium", "github", "github-dark",
+	"gruvbox-dark-medium", "gruvbox-light-medium", "kanagawa", "nord", "nord-light",
+	"one-light", "onedark", "rose-pine", "rose-pine-dawn", "solarized-dark", "solarized-light",
+	"tokyo-night-dark", "tokyo-night-light", "tomorrow", "tomorrow-night",
+}
+
+// Curated returns the slugs of the embedded schemes.
+func Curated() []string {
+	return slices.Clone(curated)
+}
+
 // Scheme is a base16 color scheme.
 type Scheme struct {
 	// Slug is the file name without extension, e.g. "tomorrow-night".
@@ -138,7 +153,11 @@ func Builtin() []Scheme {
 
 // Lookup returns the embedded scheme with the given slug.
 func Lookup(slug string) (Scheme, bool) {
-	schemes := builtin()
+	return find(builtin(), slug)
+}
+
+// find returns the scheme with the given slug from schemes sorted by slug.
+func find(schemes []Scheme, slug string) (Scheme, bool) {
 	i, ok := slices.BinarySearchFunc(schemes, slug, func(s Scheme, slug string) int {
 		return strings.Compare(s.Slug, slug)
 	})
@@ -150,53 +169,62 @@ func Lookup(slug string) (Scheme, bool) {
 
 // Load resolves nameOrPath to a scheme. Values ending in .yaml or .yml, or
 // containing a path separator, are read from disk and take their Slug from
-// the file name. Anything else is looked up case-insensitively among the embedded schemes; an
-// unknown name yields an error listing up to three similar slugs.
+// the file name. Anything else is looked up case-insensitively among the
+// embedded schemes; an unknown name yields an error listing up to three
+// similar slugs. Catalog.Load also resolves schemes that are not embedded.
 func Load(nameOrPath string) (Scheme, error) {
-	ext := strings.ToLower(filepath.Ext(nameOrPath))
-	if ext == ".yaml" || ext == ".yml" || strings.ContainsAny(nameOrPath, `/\`) {
-		data, err := os.ReadFile(nameOrPath)
-		if err != nil {
-			return Scheme{}, fmt.Errorf("load theme: %w", err)
-		}
-		s, err := Parse(data)
-		if err != nil {
-			return Scheme{}, fmt.Errorf("load theme %s: %w", nameOrPath, err)
-		}
-		return withSlug(s, strings.TrimSuffix(filepath.Base(nameOrPath), filepath.Ext(nameOrPath))), nil
+	if isPath(nameOrPath) {
+		return loadFile(nameOrPath)
 	}
-
 	if s, ok := Lookup(strings.ToLower(nameOrPath)); ok {
 		return s, nil
 	}
-	msg := fmt.Sprintf("unknown theme %q", nameOrPath)
-	if hints := suggest(nameOrPath); len(hints) > 0 {
-		msg += "; did you mean " + strings.Join(hints, ", ")
-	}
-	return Scheme{}, errors.New(msg)
+	return Scheme{}, errors.New(unknownTheme(nameOrPath, builtin()))
 }
 
-// suggest returns up to three embedded slugs close to name, nearest first.
-func suggest(name string) []string {
+func isPath(nameOrPath string) bool {
+	ext := strings.ToLower(filepath.Ext(nameOrPath))
+	return ext == ".yaml" || ext == ".yml" || strings.ContainsAny(nameOrPath, `/\`)
+}
+
+func loadFile(name string) (Scheme, error) {
+	data, err := os.ReadFile(name)
+	if err != nil {
+		return Scheme{}, fmt.Errorf("load theme: %w", err)
+	}
+	s, err := Parse(data)
+	if err != nil {
+		return Scheme{}, fmt.Errorf("load theme %s: %w", name, err)
+	}
+	return withSlug(s, strings.TrimSuffix(filepath.Base(name), filepath.Ext(name))), nil
+}
+
+// unknownTheme describes an unknown theme name, suggesting up to three slugs
+// from schemes that are close to it, nearest first.
+func unknownTheme(name string, schemes []Scheme) string {
 	type candidate struct {
 		slug string
 		dist int
 	}
+	msg := fmt.Sprintf("unknown theme %q", name)
 	name = strings.ToLower(name)
 	maxDist := max(2, len(name)/3)
 	var found []candidate
-	for _, s := range builtin() {
+	for _, s := range schemes {
 		d := levenshtein(name, s.Slug)
 		if d <= maxDist || strings.Contains(s.Slug, name) || (len(s.Slug) >= 3 && strings.Contains(name, s.Slug)) {
 			found = append(found, candidate{s.Slug, d})
 		}
 	}
-	slices.SortStableFunc(found, func(a, b candidate) int { return a.dist - b.dist })
-	var out []string
-	for _, c := range found[:min(3, len(found))] {
-		out = append(out, c.slug)
+	if len(found) == 0 {
+		return msg
 	}
-	return out
+	slices.SortStableFunc(found, func(a, b candidate) int { return a.dist - b.dist })
+	var hints []string
+	for _, c := range found[:min(3, len(found))] {
+		hints = append(hints, c.slug)
+	}
+	return msg + "; did you mean " + strings.Join(hints, ", ")
 }
 
 func levenshtein(a, b string) int {

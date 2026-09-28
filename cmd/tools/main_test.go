@@ -11,31 +11,27 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/desertthunder/documango/internal/theme"
 )
 
-type tarEntry struct {
-	name string
-	body string
-	dir  bool
-}
-
-func makeTarball(t *testing.T, entries []tarEntry) []byte {
+// makeTarball builds an upstream tarball holding LICENSE and a base16 file
+// per slug.
+func makeTarball(t *testing.T, slugs ...string) []byte {
 	t.Helper()
+	files := map[string]string{"LICENSE": "MIT License"}
+	for _, s := range slugs {
+		files["base16/"+s+".yaml"] = "name: " + s
+	}
 	var buf bytes.Buffer
 	gz := gzip.NewWriter(&buf)
 	tw := tar.NewWriter(gz)
-	for _, e := range entries {
-		hdr := &tar.Header{Name: e.name, Mode: 0o644, Size: int64(len(e.body)), Typeflag: tar.TypeReg}
-		if e.dir {
-			hdr = &tar.Header{Name: e.name, Mode: 0o755, Typeflag: tar.TypeDir}
-		}
-		if err := tw.WriteHeader(hdr); err != nil {
+	for name, body := range files {
+		if err := tw.WriteHeader(&tar.Header{Name: "schemes-abc/" + name, Mode: 0o644, Size: int64(len(body)), Typeflag: tar.TypeReg}); err != nil {
 			t.Fatal(err)
 		}
-		if !e.dir {
-			if _, err := tw.Write([]byte(e.body)); err != nil {
-				t.Fatal(err)
-			}
+		if _, err := tw.Write([]byte(body)); err != nil {
+			t.Fatal(err)
 		}
 	}
 	if err := tw.Close(); err != nil {
@@ -47,17 +43,17 @@ func makeTarball(t *testing.T, entries []tarEntry) []byte {
 	return buf.Bytes()
 }
 
-func serve(t *testing.T, wantPath string, body []byte) *httptest.Server {
+func serve(t *testing.T, ref string, body []byte) string {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != wantPath {
+		if r.URL.Path != "/repos/tinted-theming/schemes/tarball/"+ref {
 			http.NotFound(w, r)
 			return
 		}
 		_, _ = w.Write(body)
 	}))
 	t.Cleanup(srv.Close)
-	return srv
+	return srv.URL
 }
 
 func listDir(t *testing.T, dir string) []string {
@@ -73,51 +69,43 @@ func listDir(t *testing.T, dir string) []string {
 	return names
 }
 
-func TestRunSchemes(t *testing.T) {
-	t.Parallel()
-	tarball := makeTarball(t, []tarEntry{
-		{name: "schemes-spec-0.11/", dir: true},
-		{name: "schemes-spec-0.11/LICENSE", body: "MIT License"},
-		{name: "schemes-spec-0.11/README.md", body: "readme"},
-		{name: "schemes-spec-0.11/base16/", dir: true},
-		{name: "schemes-spec-0.11/base16/tomorrow.yaml", body: "name: Tomorrow"},
-		{name: "schemes-spec-0.11/base16/tomorrow-night.yaml", body: "name: Tomorrow Night"},
-		{name: "schemes-spec-0.11/base16/notes.txt", body: "skip"},
-		{name: "schemes-spec-0.11/base16/nested/deep.yaml", body: "skip"},
-		{name: "schemes-spec-0.11/base24/dracula.yaml", body: "skip"},
-	})
-	srv := serve(t, "/tar.gz/spec-0.11", tarball)
-
-	out := filepath.Join(t.TempDir(), "schemes")
-	if err := os.MkdirAll(out, 0o755); err != nil {
+func writeFiles(t *testing.T, dir string, files map[string]string) {
+	t.Helper()
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	for name, body := range map[string]string{"stale.yaml": "old", "tomorrow.yaml": "old", "keep.txt": "keep"} {
-		if err := os.WriteFile(filepath.Join(out, name), []byte(body), 0o644); err != nil {
+	for name, body := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
+}
+
+func TestRunSchemes(t *testing.T) {
+	t.Parallel()
+	curated := theme.Curated()
+	base := serve(t, theme.DefaultRef, makeTarball(t, append(curated, "zenburn", "monokai")...))
+	out := filepath.Join(t.TempDir(), "schemes")
+	writeFiles(t, out, map[string]string{"stale.yaml": "old", "tomorrow.yaml": "old", "keep.txt": "keep"})
 
 	var stdout, stderr bytes.Buffer
-	code := run([]string{"schemes", "-base", srv.URL + "/tar.gz", "-out", out}, &stdout, &stderr)
-	if code != 0 {
+	if code := run(t.Context(), []string{"schemes", "-base", base, "-out", out}, &stdout, &stderr); code != 0 {
 		t.Fatalf("exit %d, stderr: %s", code, stderr.String())
 	}
 
-	got := listDir(t, out)
-	want := []string{"LICENSE", "keep.txt", "tomorrow-night.yaml", "tomorrow.yaml"}
-	if !slices.Equal(got, want) {
-		t.Errorf("out dir = %v, want %v", got, want)
+	want := []string{"LICENSE", "keep.txt"}
+	for _, s := range curated {
+		want = append(want, s+".yaml")
 	}
-	data, err := os.ReadFile(filepath.Join(out, "tomorrow.yaml"))
-	if err != nil {
-		t.Fatal(err)
+	slices.Sort(want)
+	if got := listDir(t, out); !slices.Equal(got, want) {
+		t.Errorf("out dir = %v\nwant %v", got, want)
 	}
-	if string(data) != "name: Tomorrow" {
+	if data, _ := os.ReadFile(filepath.Join(out, "tomorrow.yaml")); string(data) != "name: tomorrow" {
 		t.Errorf("tomorrow.yaml = %q, not replaced", data)
 	}
-	if !strings.Contains(stdout.String(), "2 schemes") {
-		t.Errorf("stdout = %q, want scheme count", stdout.String())
+	if want := "wrote 24 schemes"; len(curated) != 24 || !strings.Contains(stdout.String(), want) {
+		t.Errorf("stdout = %q, want %q", stdout.String(), want)
 	}
 	if leftovers, _ := filepath.Glob(filepath.Join(filepath.Dir(out), ".schemes-*")); len(leftovers) != 0 {
 		t.Errorf("staging dirs left behind: %v", leftovers)
@@ -126,69 +114,45 @@ func TestRunSchemes(t *testing.T) {
 
 func TestRunSchemesCreatesOutDir(t *testing.T) {
 	t.Parallel()
-	tarball := makeTarball(t, []tarEntry{
-		{name: "root/LICENSE", body: "MIT"},
-		{name: "root/base16/a.yaml", body: "a"},
-	})
-	srv := serve(t, "/tar.gz/main", tarball)
+	base := serve(t, "main", makeTarball(t, theme.Curated()...))
 	out := filepath.Join(t.TempDir(), "new", "schemes")
-
 	var stdout, stderr bytes.Buffer
-	if code := run([]string{"schemes", "-ref", "main", "-base", srv.URL + "/tar.gz", "-out", out}, &stdout, &stderr); code != 0 {
+	if code := run(t.Context(), []string{"schemes", "-ref", "main", "-base", base, "-out", out}, &stdout, &stderr); code != 0 {
 		t.Fatalf("exit %d, stderr: %s", code, stderr.String())
 	}
-	if got := listDir(t, out); !slices.Equal(got, []string{"LICENSE", "a.yaml"}) {
-		t.Errorf("out dir = %v", got)
+	if got := len(listDir(t, out)); got != len(theme.Curated())+1 {
+		t.Errorf("out dir has %d files", got)
 	}
 }
 
 func TestRunSchemesFailures(t *testing.T) {
 	t.Parallel()
+	curated := theme.Curated()
 	tests := []struct {
 		name    string
-		body    []byte
+		base    string
 		wantErr string
 	}{
-		{name: "not gzip", body: []byte("plain text"), wantErr: "gzip"},
-		{name: "no schemes", body: makeTarball(t, []tarEntry{{name: "r/LICENSE", body: "MIT"}}), wantErr: "no base16 schemes"},
-		{name: "no license", body: makeTarball(t, []tarEntry{{name: "r/base16/a.yaml", body: "a"}}), wantErr: "LICENSE"},
-		{name: "truncated tar", body: makeTarball(t, []tarEntry{{name: "r/base16/a.yaml", body: "a"}})[:30], wantErr: "read tarball"},
+		{name: "http error", base: serve(t, "other", nil), wantErr: "404"},
+		{name: "curated scheme missing", base: serve(t, theme.DefaultRef, makeTarball(t, curated[1:]...)), wantErr: "curated schemes missing upstream: " + curated[0]},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			srv := serve(t, "/tar.gz/spec-0.11", tt.body)
 			out := filepath.Join(t.TempDir(), "schemes")
-			if err := os.MkdirAll(out, 0o755); err != nil {
-				t.Fatal(err)
-			}
-			existing := filepath.Join(out, "existing.yaml")
-			if err := os.WriteFile(existing, []byte("x"), 0o644); err != nil {
-				t.Fatal(err)
-			}
+			writeFiles(t, out, map[string]string{"existing.yaml": "x"})
 
 			var stdout, stderr bytes.Buffer
-			code := run([]string{"schemes", "-base", srv.URL + "/tar.gz", "-out", out}, &stdout, &stderr)
-			if code != 1 {
+			if code := run(t.Context(), []string{"schemes", "-base", tt.base, "-out", out}, &stdout, &stderr); code != 1 {
 				t.Fatalf("exit %d, want 1", code)
 			}
 			if !strings.Contains(stderr.String(), tt.wantErr) {
 				t.Errorf("stderr = %q, want %q", stderr.String(), tt.wantErr)
 			}
-			if _, err := os.Stat(existing); err != nil {
-				t.Errorf("existing scheme removed on failure: %v", err)
+			if got := listDir(t, out); !slices.Equal(got, []string{"existing.yaml"}) {
+				t.Errorf("out dir changed on failure: %v", got)
 			}
 		})
-	}
-}
-
-func TestRunSchemesHTTPError(t *testing.T) {
-	t.Parallel()
-	srv := serve(t, "/nothing", nil)
-	var stdout, stderr bytes.Buffer
-	code := run([]string{"schemes", "-base", srv.URL, "-out", t.TempDir()}, &stdout, &stderr)
-	if code != 1 || !strings.Contains(stderr.String(), "404") {
-		t.Errorf("exit %d, stderr %q; want 1 and 404", code, stderr.String())
 	}
 }
 
@@ -209,23 +173,12 @@ func TestRunUsage(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			var stdout, stderr bytes.Buffer
-			if code := run(tt.args, &stdout, &stderr); code != tt.wantCode {
+			if code := run(t.Context(), tt.args, &stdout, &stderr); code != tt.wantCode {
 				t.Errorf("exit %d, want %d", code, tt.wantCode)
 			}
 			if !strings.Contains(stderr.String(), tt.wantErr) {
 				t.Errorf("stderr = %q, want %q", stderr.String(), tt.wantErr)
 			}
 		})
-	}
-}
-
-func TestRunSchemesUnreachable(t *testing.T) {
-	t.Parallel()
-	srv := httptest.NewServer(http.NotFoundHandler())
-	srv.Close()
-	var stdout, stderr bytes.Buffer
-	code := run([]string{"schemes", "-base", srv.URL, "-out", t.TempDir()}, &stdout, &stderr)
-	if code != 1 || !strings.Contains(stderr.String(), "download") {
-		t.Errorf("exit %d, stderr %q; want 1 and download error", code, stderr.String())
 	}
 }

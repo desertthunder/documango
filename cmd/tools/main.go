@@ -5,36 +5,33 @@
 //	go run ./cmd/tools schemes [-ref spec-0.11] [-out internal/theme/schemes]
 //
 // The schemes subcommand downloads the tinted-theming/schemes repository at the
-// given ref and copies its base16 YAML files and LICENSE into the out directory.
+// given ref and copies the curated base16 schemes (see theme.Curated) and the
+// LICENSE into the out directory.
 package main
 
 import (
-	"archive/tar"
-	"compress/gzip"
-	"errors"
+	"context"
 	"flag"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
-	"path"
 	"path/filepath"
+	"slices"
 	"strings"
-	"time"
+
+	"github.com/desertthunder/documango/internal/theme"
 )
 
 const (
-	defaultBase = "https://codeload.github.com/tinted-theming/schemes/tar.gz"
-	defaultRef  = "spec-0.11"
-	defaultOut  = "internal/theme/schemes"
-	usage       = "usage: tools schemes [-ref REF] [-out DIR]\n"
+	defaultOut = "internal/theme/schemes"
+	usage      = "usage: tools schemes [-ref REF] [-out DIR]\n"
 )
 
 func main() {
-	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
+	os.Exit(run(context.Background(), os.Args[1:], os.Stdout, os.Stderr))
 }
 
-func run(args []string, stdout, stderr io.Writer) int {
+func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
 		fmt.Fprint(stderr, usage)
 		return 2
@@ -46,9 +43,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 	fs := flag.NewFlagSet("schemes", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	ref := fs.String("ref", defaultRef, "tinted-theming/schemes git ref to download")
+	ref := fs.String("ref", theme.DefaultRef, "tinted-theming/schemes git ref to download")
 	out := fs.String("out", defaultOut, "directory to write scheme files into")
-	base := fs.String("base", defaultBase, "tarball download base URL")
+	base := fs.String("base", theme.DefaultBaseURL, "GitHub API base URL")
 	if err := fs.Parse(args[1:]); err != nil {
 		return 2
 	}
@@ -57,7 +54,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	n, err := syncSchemes(*base+"/"+*ref, *out)
+	n, err := syncSchemes(ctx, &theme.Catalog{Ref: *ref, BaseURL: *base}, *out)
 	if err != nil {
 		fmt.Fprintf(stderr, "schemes: %v\n", err)
 		return 1
@@ -66,19 +63,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 	return 0
 }
 
-// syncSchemes downloads the tarball at url and replaces the YAML files in out
-// with its base16 schemes. It returns the number of schemes written.
-func syncSchemes(url, out string) (int, error) {
-	client := &http.Client{Timeout: 2 * time.Minute}
-	resp, err := client.Get(url)
-	if err != nil {
-		return 0, fmt.Errorf("download %s: %w", url, err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return 0, fmt.Errorf("download %s: %s", url, resp.Status)
-	}
-
+// syncSchemes downloads the curated schemes and LICENSE from cat and replaces
+// the YAML files in out with them. It fails without touching out when any
+// curated scheme is missing upstream, and returns the number written.
+func syncSchemes(ctx context.Context, cat *theme.Catalog, out string) (int, error) {
 	parent := filepath.Dir(filepath.Clean(out))
 	if err := os.MkdirAll(parent, 0o755); err != nil {
 		return 0, fmt.Errorf("create %s: %w", parent, err)
@@ -89,9 +77,19 @@ func syncSchemes(url, out string) (int, error) {
 	}
 	defer os.RemoveAll(stage)
 
-	n, err := extract(resp.Body, stage)
+	curated := theme.Curated()
+	got, err := cat.Download(ctx, stage, func(slug string) bool { return slices.Contains(curated, slug) })
 	if err != nil {
 		return 0, err
+	}
+	var missing []string
+	for _, slug := range curated {
+		if !slices.Contains(got, slug) {
+			missing = append(missing, slug)
+		}
+	}
+	if len(missing) > 0 {
+		return 0, fmt.Errorf("curated schemes missing upstream: %s", strings.Join(missing, ", "))
 	}
 
 	if err := os.MkdirAll(out, 0o755); err != nil {
@@ -115,69 +113,5 @@ func syncSchemes(url, out string) (int, error) {
 			return 0, fmt.Errorf("move %s: %w", e.Name(), err)
 		}
 	}
-	return n, nil
-}
-
-// extract writes base16/*.yaml and LICENSE from the gzipped tarball r into dir.
-// Paths in the archive are expected under a single top-level directory.
-func extract(r io.Reader, dir string) (int, error) {
-	gz, err := gzip.NewReader(r)
-	if err != nil {
-		return 0, fmt.Errorf("open gzip: %w", err)
-	}
-	defer gz.Close()
-
-	tr := tar.NewReader(gz)
-	schemes, license := 0, false
-	for {
-		hdr, err := tr.Next()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			return 0, fmt.Errorf("read tarball: %w", err)
-		}
-		if hdr.Typeflag != tar.TypeReg {
-			continue
-		}
-		_, rel, ok := strings.Cut(hdr.Name, "/")
-		if !ok {
-			continue
-		}
-		var name string
-		switch {
-		case rel == "LICENSE":
-			name, license = "LICENSE", true
-		case path.Dir(rel) == "base16" && path.Ext(rel) == ".yaml":
-			name = path.Base(rel)
-			schemes++
-		default:
-			continue
-		}
-		if err := writeFile(filepath.Join(dir, name), tr); err != nil {
-			return 0, err
-		}
-	}
-	if schemes == 0 {
-		return 0, errors.New("no base16 schemes found in tarball")
-	}
-	if !license {
-		return 0, errors.New("LICENSE not found in tarball")
-	}
-	return schemes, nil
-}
-
-func writeFile(name string, r io.Reader) error {
-	f, err := os.Create(name)
-	if err != nil {
-		return fmt.Errorf("create %s: %w", name, err)
-	}
-	if _, err := io.Copy(f, r); err != nil {
-		f.Close()
-		return fmt.Errorf("write %s: %w", name, err)
-	}
-	if err := f.Close(); err != nil {
-		return fmt.Errorf("close %s: %w", name, err)
-	}
-	return nil
+	return len(got), nil
 }
