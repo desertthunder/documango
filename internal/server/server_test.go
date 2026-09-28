@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -472,12 +473,59 @@ func writeFile(t *testing.T, path, body string) {
 	}
 }
 
+// sentinelBuild is a build that records each call and whether the sentinel
+// file existed at that time.
+type sentinelBuild struct {
+	sentinel string
+	calls    atomic.Int64
+	saw      atomic.Bool
+}
+
+func (b *sentinelBuild) build() (Files, error) {
+	b.calls.Add(1)
+	if _, err := os.Stat(b.sentinel); err == nil {
+		b.saw.Store(true)
+	}
+	return Files{}, nil
+}
+
+// waitSentinel writes the sentinel file and waits for a build that sees it.
+func waitSentinel(t *testing.T, b *sentinelBuild) {
+	t.Helper()
+	writeFile(t, b.sentinel, "x")
+	deadline := time.Now().Add(5 * time.Second)
+	for !b.saw.Load() {
+		if time.Now().After(deadline) {
+			t.Fatal("no rebuild after the sentinel change")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
+// logBuffer collects log output written from the watcher goroutine.
+type logBuffer struct {
+	mu  sync.Mutex
+	buf strings.Builder
+}
+
+func (b *logBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *logBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
 func TestWatchRebuildsAndDebounces(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(dir, "guide"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	b := &switchBuild{files: Files{}}
+	b := &sentinelBuild{sentinel: filepath.Join(dir, "sentinel.md")}
 	s := newTestServer(t, b.build, Options{Dir: dir, Debounce: 100 * time.Millisecond})
 	ch := s.subscribe()
 	defer s.unsubscribe(ch)
@@ -496,10 +544,10 @@ func TestWatchRebuildsAndDebounces(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("no reload after changes")
 	}
-	// Wait past another debounce window to confirm no second rebuild followed.
-	time.Sleep(300 * time.Millisecond)
-	if got := b.calls.Load(); got != 2 {
-		t.Errorf("build calls = %d, want 2 (initial + one debounced)", got)
+	// Any rebuild left over from the burst would run before the sentinel's.
+	waitSentinel(t, b)
+	if got := b.calls.Load(); got != 3 {
+		t.Errorf("build calls = %d, want 3 (initial, burst, sentinel)", got)
 	}
 }
 
@@ -533,16 +581,22 @@ func TestWatchIgnoresPaths(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	b := &switchBuild{files: Files{}}
-	s := newTestServer(t, b.build, Options{Dir: dir, Ignore: []string{"_site"}, Debounce: 20 * time.Millisecond})
+	b := &sentinelBuild{sentinel: filepath.Join(dir, "page.md")}
+	var logs logBuffer
+	logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	s := newTestServer(t, b.build, Options{Dir: dir, Ignore: []string{"_site"}, Debounce: 20 * time.Millisecond, Logger: logger})
 	startWatch(t, s)
 
 	writeFile(t, filepath.Join(dir, "_site", "index.html"), "x")
 	writeFile(t, filepath.Join(dir, ".git", "HEAD"), "x")
 	writeFile(t, filepath.Join(dir, ".page.md.swp"), "x")
-	time.Sleep(200 * time.Millisecond)
-	if got := b.calls.Load(); got != 1 {
-		t.Errorf("build calls = %d after ignored writes, want 1", got)
+	waitSentinel(t, b)
+	if got := b.calls.Load(); got != 2 {
+		t.Errorf("build calls = %d, want 2 (initial, sentinel)", got)
+	}
+	// The sentinel's batch may not include the ignored paths either.
+	if l := logs.String(); !strings.Contains(l, "page.md") || strings.Contains(l, "_site") || strings.Contains(l, ".git") || strings.Contains(l, ".swp") {
+		t.Errorf("logs = %q, want only the sentinel change", l)
 	}
 }
 

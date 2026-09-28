@@ -101,13 +101,13 @@ func (a *app) serve(ctx context.Context, dir string, o *serveOptions, root *cobr
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	host := o.host
+	if host == "" {
+		host = "localhost"
+	}
+	url := "http://" + net.JoinHostPort(host, strconv.Itoa(ln.Addr().(*net.TCPAddr).Port)) + b.render.BasePath
+	fmt.Fprintf(a.stderr, "Serving %s at %s\n", boldStyle.Render(s.Title), accentStyle.Render(url))
 	if !a.quiet {
-		host := o.host
-		if host == "" {
-			host = "localhost"
-		}
-		url := "http://" + net.JoinHostPort(host, strconv.Itoa(ln.Addr().(*net.TCPAddr).Port)) + b.render.BasePath
-		fmt.Fprintf(a.stderr, "Serving %s at %s\n", boldStyle.Render(s.Title), accentStyle.Render(url))
 		fmt.Fprintln(a.stderr, dimStyle.Render("Press Ctrl+C to stop"))
 	}
 

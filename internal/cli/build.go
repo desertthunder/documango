@@ -58,19 +58,40 @@ func isWithin(path, base string) bool {
 	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
+// resolvePath returns the absolute path of p with symlinks resolved. When p
+// does not exist, its nearest existing ancestor is resolved instead.
+func resolvePath(p string) (string, error) {
+	abs, err := filepath.Abs(p)
+	if err != nil {
+		return "", fmt.Errorf("resolve %s: %w", p, err)
+	}
+	var missing []string
+	for dir := abs; ; dir = filepath.Dir(dir) {
+		resolved, err := filepath.EvalSymlinks(dir)
+		if err == nil {
+			slices.Reverse(missing)
+			return filepath.Join(append([]string{resolved}, missing...)...), nil
+		}
+		if !errors.Is(err, fs.ErrNotExist) || filepath.Dir(dir) == dir {
+			return "", fmt.Errorf("resolve %s: %w", p, err)
+		}
+		missing = append(missing, filepath.Base(dir))
+	}
+}
+
 // build renders the docs in dir and writes them to the output folder.
 func (a *app) build(dir string, o *buildOptions) error {
 	start := time.Now()
 	if err := checkDir(dir, nil); err != nil {
 		return err
 	}
-	absDir, err := filepath.Abs(dir)
+	absDir, err := resolvePath(dir)
 	if err != nil {
-		return fmt.Errorf("resolve %s: %w", dir, err)
+		return err
 	}
-	out, err := filepath.Abs(o.out)
+	out, err := resolvePath(o.out)
 	if err != nil {
-		return fmt.Errorf("resolve %s: %w", o.out, err)
+		return err
 	}
 	if isWithin(absDir, out) {
 		return withHint(fmt.Errorf("cannot build into %s: it contains the docs", o.out),
@@ -94,8 +115,15 @@ func (a *app) build(dir string, o *buildOptions) error {
 			return err
 		}
 	}
+	if err := addManifest(files); err != nil {
+		return err
+	}
+	old := readManifest(out)
 	if err := render.Write(files, out); err != nil {
 		return fmt.Errorf("write site: %w", err)
+	}
+	if err := removeStale(out, old, files); err != nil {
+		return err
 	}
 
 	if !a.quiet {

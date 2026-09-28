@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"log/slog"
 	"net"
@@ -11,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -265,6 +267,103 @@ func TestBuildRefusesDocsDirOrAncestor(t *testing.T) {
 	}
 	if !exists(filepath.Join(dir, "index.md")) {
 		t.Fatal("docs were deleted")
+	}
+}
+
+func TestBuildSymlinkedDocs(t *testing.T) {
+	docs := docsDir(t)
+	link := filepath.Join(t.TempDir(), "link")
+	if err := os.Symlink(docs, link); err != nil {
+		t.Fatal(err)
+	}
+
+	r := run(t, nil, "build", link, "-o", docs)
+	if r.code != 1 || !strings.Contains(r.stderr, "cannot build into") {
+		t.Errorf("-o docs via symlink: exit %d, stderr %q", r.code, r.stderr)
+	}
+	if exists(filepath.Join(docs, "index.html")) {
+		t.Error("built into the docs folder")
+	}
+
+	out := filepath.Join(docs, "public")
+	writeFile(t, filepath.Join(out, "stray.md"), "# Stray\n")
+	for range 2 {
+		if r := run(t, nil, "build", link, "-o", out); r.code != 0 {
+			t.Fatalf("exit %d, stderr %q", r.code, r.stderr)
+		}
+	}
+	if exists(filepath.Join(out, "public")) || exists(filepath.Join(out, "stray", "index.html")) {
+		t.Error("output directory was included in the site")
+	}
+}
+
+func TestBuildRemovesStaleFiles(t *testing.T) {
+	dir := docsDir(t)
+	out := filepath.Join(t.TempDir(), "site")
+	if r := run(t, nil, "build", dir, "-o", out); r.code != 0 {
+		t.Fatalf("exit %d, stderr %q", r.code, r.stderr)
+	}
+	writeFile(t, filepath.Join(out, "notes.txt"), "keep me")
+	writeFile(t, filepath.Join(out, "guide", "keep.txt"), "keep me")
+	if err := os.Rename(filepath.Join(dir, "guide", "install.md"), filepath.Join(dir, "guide", "setup.md")); err != nil {
+		t.Fatal(err)
+	}
+	if r := run(t, nil, "build", dir, "-o", out); r.code != 0 {
+		t.Fatalf("exit %d, stderr %q", r.code, r.stderr)
+	}
+	if exists(filepath.Join(out, "guide", "install")) {
+		t.Error("renamed page's old output remains")
+	}
+	for _, f := range []string{"guide/setup/index.html", "notes.txt", "guide/keep.txt"} {
+		if !exists(filepath.Join(out, f)) {
+			t.Errorf("missing %s", f)
+		}
+	}
+
+	manifest, err := os.ReadFile(filepath.Join(out, "_documango", "manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var paths []string
+	if err := json.Unmarshal(manifest, &paths); err != nil {
+		t.Fatalf("manifest: %v", err)
+	}
+	if !slices.IsSorted(paths) || !slices.Contains(paths, "_documango/manifest.json") || !slices.Contains(paths, "guide/setup/index.html") {
+		t.Errorf("manifest = %q", paths)
+	}
+	if slices.Contains(paths, "notes.txt") {
+		t.Error("manifest lists a user file")
+	}
+}
+
+func TestBuildIgnoresBadManifest(t *testing.T) {
+	dir := docsDir(t)
+	tmp := t.TempDir()
+	out := filepath.Join(tmp, "site")
+	outside := filepath.Join(tmp, "outside")
+	writeFile(t, filepath.Join(tmp, "victim.txt"), "keep me")
+	writeFile(t, filepath.Join(outside, "victim.txt"), "keep me")
+	if err := os.MkdirAll(out, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(out, "link")); err != nil {
+		t.Fatal(err)
+	}
+	manifest := filepath.Join(out, "_documango", "manifest.json")
+
+	for _, body := range []string{
+		`["../victim.txt", "/etc/passwd", "link/victim.txt", "link", "."]`,
+		`not json`,
+	} {
+		writeFile(t, manifest, body)
+		if r := run(t, nil, "build", dir, "-o", out); r.code != 0 {
+			t.Fatalf("%s: exit %d, stderr %q", body, r.code, r.stderr)
+		}
+		for _, f := range []string{filepath.Join(tmp, "victim.txt"), filepath.Join(outside, "victim.txt"), filepath.Join(out, "link")} {
+			if !exists(f) {
+				t.Errorf("%s: deleted %s", body, f)
+			}
+		}
 	}
 }
 
@@ -528,38 +627,15 @@ func TestServeEvents(t *testing.T) {
 }
 
 func TestServeQuiet(t *testing.T) {
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
+	url, stderr, stop := startServe(t, "serve", docsDir(t), "--port", "0", "--quiet")
+	if resp, _ := get(t, url); resp.StatusCode != http.StatusOK {
+		t.Errorf("GET %s: %d", url, resp.StatusCode)
 	}
-	addr := ln.Addr().String()
-	ln.Close()
-
-	var stderr syncBuffer
-	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan int, 1)
-	go func() {
-		done <- Execute(ctx, []string{"serve", docsDir(t), "--port", strings.TrimPrefix(addr, "127.0.0.1:"), "--quiet"},
-			Env{Stdout: io.Discard, Stderr: &stderr})
-	}()
-	deadline := time.Now().Add(5 * time.Second)
-	for {
-		resp, err := http.Get("http://" + addr + "/")
-		if err == nil {
-			resp.Body.Close()
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatalf("server never came up: %v", err)
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	cancel()
-	if code := <-done; code != 0 {
+	if code := stop(); code != 0 {
 		t.Errorf("exit %d", code)
 	}
-	if s := stderr.String(); s != "" {
-		t.Errorf("quiet serve printed %q", s)
+	if s := stderr.String(); !regexp.MustCompile(`^Serving Hello Docs at http://127\.0\.0\.1:\d+/\n$`).MatchString(s) {
+		t.Errorf("quiet serve printed %q, want only the address line", s)
 	}
 }
 
