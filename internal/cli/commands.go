@@ -212,6 +212,10 @@ type builder struct {
 	// search.
 	fellBack bool
 
+	// warned holds the site warnings of the last build, so serve prints
+	// only new ones.
+	warned map[string]bool
+
 	fonts *fonts.Loader
 	// fontsKey is the [fonts] config that fontFiles were loaded for.
 	fontsKey  string
@@ -281,7 +285,7 @@ func (b *builder) configure(ctx context.Context) error {
 	b.render = render.Options{
 		Dark: dark, Light: light, BasePath: base, Version: b.version,
 		Description: cfg.Description, URL: cfg.URL, Author: cfg.Author, Language: cfg.Language,
-		Favicon: cfg.Favicon, Logo: cfg.Logo, Links: links,
+		Favicon: cfg.Favicon, Logo: cfg.Logo, Links: links, Footer: cfg.Footer,
 		FontCSS: font.CSS, FontFiles: font.Files,
 	}
 	if b.serving {
@@ -331,6 +335,14 @@ func (b *builder) build(ctx context.Context) (*site.Site, map[string][]byte, err
 		return nil, nil, withHint(fmt.Errorf("no Markdown files found in %s", b.dir),
 			"Add an index.md or README.md, or pass the folder that holds your docs, such as 'documango docs'.")
 	}
+	warned := make(map[string]bool, len(s.Warnings))
+	for _, w := range s.Warnings {
+		if !warned[w] && !b.warned[w] {
+			b.log.Warn(w)
+		}
+		warned[w] = true
+	}
+	b.warned = warned
 	files, err := render.Render(s, fsys, b.render)
 	if err != nil {
 		return nil, nil, fmt.Errorf("render %s: %w", b.dir, err)

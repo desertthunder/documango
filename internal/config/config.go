@@ -41,6 +41,9 @@ type Config struct {
 	Theme   Theme  `toml:"theme" yaml:"theme"`
 	Fonts   Fonts  `toml:"fonts" yaml:"fonts"`
 	Links   []Link `toml:"links" yaml:"links"`
+	// Footer is Markdown shown at the foot of every page. nil keeps the
+	// default footer; "" removes the footer.
+	Footer *string `toml:"footer" yaml:"footer"`
 }
 
 // Fonts names the web fonts of the site, by family name such as "Inter" or

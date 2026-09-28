@@ -21,6 +21,10 @@ title: {{quote .Title}}
 # favicon: favicon.svg
 # logo: logo.svg
 
+# Markdown shown at the foot of every page. Set it to "" to remove the footer.
+# footer: |
+#   Copyright Acme. Read the [guide](guide/index.md).
+
 theme:
   # Color themes for dark and light mode. Run 'documango themes' to list them.
   dark: tomorrow-night

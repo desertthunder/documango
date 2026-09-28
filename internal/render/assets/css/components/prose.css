@@ -181,6 +181,20 @@
   text-align: start;
 }
 
+/* Keep flags such as --title whole; a wide table scrolls instead. */
+.prose th code,
+.prose td code {
+  white-space: nowrap;
+}
+
+/* On small screens, give cells with prose room to read instead of squeezing
+   them next to unbreakable code; the table scrolls sideways. */
+@media (max-width: 48rem) {
+  .prose td:not(:has(> code:only-child)) {
+    min-width: 24ch;
+  }
+}
+
 .prose th {
   background: var(--surface-raised);
   color: var(--heading);

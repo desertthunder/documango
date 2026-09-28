@@ -419,3 +419,32 @@ func TestImageHeadings(t *testing.T) {
 	}
 	assertNotContains(t, res.Text, "Acme", "Install steps")
 }
+
+func TestExternalLinkRel(t *testing.T) {
+	src := "[Site](https://acme.dev) [Proto](//cdn.acme.dev/x) [Mail](mailto:a@acme.dev) [Page](guide.md) [Top](#top) [Root](/about/) <https://auto.dev> www.bare.dev\n"
+	res, err := New(WithExternalLinkRel("noopener")).Render([]byte(src), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(res.HTML)
+	for _, w := range []string{
+		`<a href="https://acme.dev" rel="noopener">Site</a>`,
+		`<a href="//cdn.acme.dev/x" rel="noopener">Proto</a>`,
+		`<a href="https://auto.dev" rel="noopener">https://auto.dev</a>`,
+		`<a href="http://www.bare.dev" rel="noopener">www.bare.dev</a>`,
+		`<a href="mailto:a@acme.dev">Mail</a>`,
+		`<a href="guide.md">Page</a>`,
+		`<a href="#top">Top</a>`,
+		`<a href="/about/">Root</a>`,
+	} {
+		if !strings.Contains(got, w) {
+			t.Errorf("output lacks %s\n%s", w, got)
+		}
+	}
+	if strings.Contains(got, "target=") {
+		t.Errorf("links open a new tab: %s", got)
+	}
+	if plain := render(t, src, nil); strings.Contains(string(plain.HTML), "rel=") {
+		t.Errorf("default renderer adds rel: %s", plain.HTML)
+	}
+}

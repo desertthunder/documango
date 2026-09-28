@@ -48,11 +48,21 @@ type Resolver func(dest string) string
 
 // Renderer converts Markdown to HTML. It is safe for concurrent use.
 type Renderer struct {
-	md goldmark.Markdown
+	md          goldmark.Markdown
+	externalRel string
+}
+
+// Option configures a Renderer.
+type Option func(*Renderer)
+
+// WithExternalLinkRel sets the rel attribute of links to other sites: http
+// and https URLs and protocol-relative ones such as //example.com/.
+func WithExternalLinkRel(rel string) Option {
+	return func(r *Renderer) { r.externalRel = rel }
 }
 
 // New returns a Renderer configured for documango pages.
-func New() *Renderer {
+func New(opts ...Option) *Renderer {
 	md := goldmark.New(
 		goldmark.WithExtensions(
 			extension.GFM,
@@ -72,7 +82,11 @@ func New() *Renderer {
 			renderer.WithNodeRenderers(util.Prioritized(nodeRenderer{}, 100)),
 		),
 	)
-	return &Renderer{md: md}
+	r := &Renderer{md: md}
+	for _, o := range opts {
+		o(r)
+	}
+	return r
 }
 
 // Render converts src to HTML. resolve may be nil.
@@ -108,6 +122,11 @@ func (r *Renderer) Render(src []byte, resolve Resolver) (Result, error) {
 			if resolve != nil && isRelative(n.Destination) {
 				n.Destination = []byte(resolve(string(n.Destination)))
 			}
+			r.markExternal(n, n.Destination)
+		case *ast.AutoLink:
+			if n.AutoLinkType == ast.AutoLinkURL {
+				r.markExternal(n, n.URL(src))
+			}
 		case *ast.Image:
 			if resolve != nil && isRelative(n.Destination) {
 				n.Destination = []byte(resolve(string(n.Destination)))
@@ -129,6 +148,18 @@ func (r *Renderer) Render(src []byte, resolve Resolver) (Result, error) {
 	}
 	res.HTML = template.HTML(buf.String())
 	return res, nil
+}
+
+// markExternal sets the configured rel attribute on link n when dest is on
+// another site.
+func (r *Renderer) markExternal(n ast.Node, dest []byte) {
+	if r.externalRel == "" {
+		return
+	}
+	lower := bytes.ToLower(dest)
+	if bytes.HasPrefix(lower, []byte("http://")) || bytes.HasPrefix(lower, []byte("https://")) || bytes.HasPrefix(dest, []byte("//")) {
+		n.SetAttributeString("rel", []byte(r.externalRel))
+	}
 }
 
 var schemeRE = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9+.-]*:`)

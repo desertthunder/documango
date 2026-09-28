@@ -128,9 +128,11 @@
     </nav>
   </aside>
   {{- end}}
+  {{- with .Footer}}
   <footer class="site-footer">
-    <p>Built with documango</p>
+    {{.}}
   </footer>
+  {{- end}}
 </div>
 </body>
 </html>

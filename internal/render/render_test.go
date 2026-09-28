@@ -215,10 +215,56 @@ func TestLayoutLandmarks(t *testing.T) {
 		`<main class="site-main" id="content" tabindex="-1">`,
 		`<article class="prose" data-pagefind-body>`,
 		`<footer class="site-footer">`,
-		"Built with documango",
 	)
 	mustNotContain(t, doc, "data-livereload", `<meta name="description"`, `<meta name="author"`, `rel="canonical"`, `rel="icon"`,
 		"og:url", "og:description", `class="site-header__logo"`, `aria-label="Site"`)
+}
+
+func TestFooter(t *testing.T) {
+	footer := func(s string) *string { return &s }
+	tests := []struct {
+		name   string
+		footer *string
+		base   string
+		want   []string
+		absent []string
+	}{
+		{
+			name: "default",
+			want: []string{
+				`<footer class="site-footer">`,
+				`<p>Built with <a href="https://github.com/desertthunder/documango" rel="noopener">documango</a> by <a href="https://desertthunder.dev" rel="noopener">Owais</a></p>`,
+			},
+		},
+		{
+			name:   "custom markdown under a base path",
+			footer: footer("Read the [install guide](guide/install.md#steps) or [the API](/api/).\n\n**Acme** [site](https://acme.dev)\n"),
+			base:   "/docs/",
+			want: []string{
+				`<a href="/docs/guide/install/#steps">install guide</a>`,
+				`<a href="/api/">the API</a>`,
+				`<p><strong>Acme</strong> <a href="https://acme.dev" rel="noopener">site</a></p>`,
+			},
+			absent: []string{"Built with", "target="},
+		},
+		{
+			name:   "empty",
+			footer: footer(""),
+			absent: []string{"<footer", "Built with"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			opts := defaultOpts()
+			opts.Footer, opts.BasePath = tt.footer, tt.base
+			files := build(t, docsFS(), opts)
+			for _, page := range []string{"index.html", "guide/install/index.html", "404.html"} {
+				doc := get(t, files, page)
+				mustContain(t, doc, tt.want...)
+				mustNotContain(t, doc, tt.absent...)
+			}
+		})
+	}
 }
 
 func TestSiteMetadata(t *testing.T) {
@@ -444,7 +490,8 @@ func TestBasePathPrefixesInternalURLs(t *testing.T) {
 		}
 		for _, m := range urlAttr.FindAllStringSubmatch(string(data), -1) {
 			u := m[1]
-			if strings.HasPrefix(u, "#") {
+			// Fragments and the default footer's links to other sites.
+			if strings.HasPrefix(u, "#") || strings.HasPrefix(u, "https://") {
 				continue
 			}
 			if !strings.HasPrefix(u, "/docs/") {

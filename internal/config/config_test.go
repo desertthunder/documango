@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -233,4 +234,40 @@ func TestLoadUnknownExtension(t *testing.T) {
 	if _, err := Load(t.TempDir(), t.TempDir()); err == nil {
 		t.Error("folder as config: no error")
 	}
+}
+
+func TestFooter(t *testing.T) {
+	const multi = "Made by [Acme](https://acme.dev).\n\nSee [the guide](guide/index.md).\n"
+	for _, tc := range []struct {
+		name, file, body string
+		want             *string
+	}{
+		{"toml unset", "documango.toml", `title = "Acme"`, nil},
+		{"toml empty", "documango.toml", `footer = ""`, ptr("")},
+		{"toml multi-line", "documango.toml", "footer = \"\"\"\n" + multi + "\"\"\"", ptr(multi)},
+		{"yaml unset", "documango.yaml", "title: Acme", nil},
+		{"yaml empty", "documango.yaml", `footer: ""`, ptr("")},
+		{"yaml multi-line", "documango.yaml", "footer: |\n  Made by [Acme](https://acme.dev).\n\n  See [the guide](guide/index.md).\n", ptr(multi)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeFile(t, filepath.Join(dir, tc.file), tc.body)
+			c, err := Load(dir, "")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(c.Footer, tc.want) {
+				t.Errorf("footer = %v, want %v", deref(c.Footer), deref(tc.want))
+			}
+		})
+	}
+}
+
+func ptr(s string) *string { return &s }
+
+func deref(s *string) string {
+	if s == nil {
+		return "<unset>"
+	}
+	return strconv.Quote(*s)
 }

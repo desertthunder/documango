@@ -435,3 +435,27 @@ func TestWarnings(t *testing.T) {
 		t.Errorf("Warnings = %q, want %q", s.Warnings, want)
 	}
 }
+
+func TestRootResolver(t *testing.T) {
+	t.Parallel()
+	fsys := fstest.MapFS{
+		"index.md":         file("# Home\n"),
+		"guide/index.md":   file("# Guide\n"),
+		"guide/install.md": file("# Install\n"),
+	}
+	resolve := load(t, fsys, Options{BasePath: "docs"}).Resolver()
+	for dest, want := range map[string]string{
+		"guide/install.md#run": "/docs/guide/install/#run",
+		"guide/":               "/docs/guide/",
+		"index.md":             "/docs/",
+		"img/logo.png":         "/docs/img/logo.png",
+		"../up.md":             "../up.md",
+	} {
+		if got := resolve(dest); got != want {
+			t.Errorf("resolve(%q) = %q, want %q", dest, got, want)
+		}
+	}
+	if (&Site{}).Resolver() != nil {
+		t.Error("a site that was not loaded has a resolver")
+	}
+}

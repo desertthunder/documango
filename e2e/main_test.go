@@ -195,6 +195,13 @@ The acme command.
 
 Pass --help for every flag.
 
+| Flag | Default | Description |
+| --- | --- | --- |
+| ` + "`--title`" + ` | home page title | Site title shown in the header and the browser tab |
+| ` + "`--dark-theme`" + ` | ` + "`tomorrow-night`" + ` | Dark mode themes, comma-separated; the first is the default |
+| ` + "`--light-theme`" + ` | ` + "`tomorrow`" + ` | Light mode themes, comma-separated; the first is the default |
+| ` + "`--base-path`" + ` | ` + "`/`" + ` | URL path the site lives under |
+
 ## Exit codes
 
 Zero means success.

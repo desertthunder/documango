@@ -4,8 +4,8 @@ description: The documango.toml and documango.yaml config file, its keys, and ho
 order: 2
 ---
 
-A config file sets the site title, page metadata, themes, fonts, and header
-links.
+A config file sets the site title, page metadata, themes, fonts, header
+links, and footer.
 It's optional: without one, documango uses its defaults and the
 [site flags](cli.md#site-flags).
 
@@ -44,6 +44,11 @@ author = "Acme Inc."
 language = "en"
 favicon = "favicon.svg"
 logo = "logo.svg"
+footer = """
+Copyright Acme Inc. Read the [install guide](guide/install.md).
+
+[Status page](https://status.acme.dev)
+"""
 
 [theme]
 dark = ["tomorrow-night", "github-dark"]
@@ -69,6 +74,10 @@ author: Acme Inc.
 language: en
 favicon: favicon.svg
 logo: logo.svg
+footer: |
+  Copyright Acme Inc. Read the [install guide](guide/install.md).
+
+  [Status page](https://status.acme.dev)
 
 theme:
   dark: [tomorrow-night, github-dark]
@@ -105,6 +114,7 @@ Every key is optional.
 | `fonts.heading` | `fonts.body` | Font for headings. |
 | `fonts.mono`  | system monospace font | Font for code, such as `"JetBrains Mono"`. |
 | `links`       | none    | Links shown in the header, in order. Each has a `title` and a `url`. |
+| `footer`      | "Built with documango by Owais" | Markdown shown at the bottom of every page. Set it to `""` to remove the footer. See [footer](#footer). |
 
 Paths to theme files are relative to the config file. Paths to the favicon
 and the logo are relative to the docs directory.
@@ -126,6 +136,24 @@ url = "/docs/changelog/"
 Links open in the same tab. On narrow screens, they move into the navigation
 menu. documango uses each `url` as written, so a link to a page of your own
 site needs the base path.
+
+### Footer
+
+`footer` holds Markdown that documango shows at the bottom of every page. It
+can span several lines: use a `"""` string in TOML or a `|` block in YAML, as
+in the [example](#example).
+
+Relative links in the footer work as they do in a page at the top of the docs
+directory: `guide/install.md` links to the install page, with the base path in
+front. Links open in the same tab.
+
+Without a `footer` key, pages show "Built with documango by Owais", with links
+to the documango repository and the author's site. To remove the footer, set
+`footer` to an empty string:
+
+```toml
+footer = ""
+```
 
 ### Page metadata
 

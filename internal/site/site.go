@@ -64,12 +64,20 @@ type Site struct {
 	// source file, such as a heading with no text.
 	Warnings []string
 
-	byURL map[string]*Page
+	byURL   map[string]*Page
+	resolve markdown.Resolver
 }
 
 // PageByURL returns the page whose URL is exactly u, or nil.
 func (s *Site) PageByURL(u string) *Page {
 	return s.byURL[u]
+}
+
+// Resolver maps relative links in Markdown shown outside the pages, such as
+// the footer, to site URLs. Links resolve as they would in a page at the root
+// of the docs folder. It is nil for a Site that was not loaded.
+func (s *Site) Resolver() markdown.Resolver {
+	return s.resolve
 }
 
 // dirNode groups the pages of one directory while building the nav.
@@ -184,7 +192,7 @@ func Load(fsys fs.FS, opts Options) (*Site, error) {
 
 	md := markdown.New()
 	for _, p := range pages {
-		res, err := md.Render(bodies[p], l.resolver(p))
+		res, err := md.Render(bodies[p], l.resolver(path.Dir(p.Source)))
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", p.Source, err)
 		}
@@ -230,6 +238,7 @@ func Load(fsys fs.FS, opts Options) (*Site, error) {
 
 	root := nodes["."]
 	s.Home = root.index
+	s.resolve = l.resolver(".")
 	s.Nav = navChildren(root)
 	if s.Home != nil {
 		s.Pages = append(s.Pages, s.Home)
@@ -296,12 +305,11 @@ func navChildren(n *dirNode) []*NavItem {
 	return items
 }
 
-// resolver maps relative Markdown links on page p to site URLs. Targets are
-// resolved against p's source directory; known pages and page directories map
-// to their URLs, anything else to BasePath plus the cleaned path. Paths that
-// escape the root are returned unchanged.
-func (l *loader) resolver(p *Page) markdown.Resolver {
-	dir := path.Dir(p.Source)
+// resolver maps relative Markdown links written in source directory dir to
+// site URLs. Known pages and page directories map to their URLs, anything
+// else to BasePath plus the cleaned path. Paths that escape the root are
+// returned unchanged.
+func (l *loader) resolver(dir string) markdown.Resolver {
 	return func(dest string) string {
 		raw, suffix := dest, ""
 		if i := strings.IndexAny(dest, "?#"); i >= 0 {

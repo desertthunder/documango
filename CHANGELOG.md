@@ -28,3 +28,5 @@ All notable changes to documango are listed here. The format follows
 - Fonts from Fontsource, downloaded once and served from your own site.
 - `--open` to open the preview in your browser, and `--base-path` for sites
   served from a subpath.
+- A warning for headings with no text, such as an image heading without alt
+  text.

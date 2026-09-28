@@ -1046,6 +1046,9 @@ author = "Acme Inc."
 language = "de"
 favicon = "favicon.svg"
 logo = "img/logo.png"
+footer = """
+Read the [install guide](guide/install.md).
+"""
 
 [theme]
 dark = ["remote-dusk", "github-dark"]
@@ -1069,6 +1072,7 @@ func TestBuildConfig(t *testing.T) {
 		`<meta name="author" content="Acme Inc.">`, `<link rel="canonical" href="https://acme.dev/docs/">`,
 		`<link rel="icon" href="/docs/favicon.svg"`, `src="/docs/img/logo.png"`, "/docs/_documango/style.css",
 		`href="https://github.com/acme/acme" rel="noopener">GitHub</a>`, `<option value="github-dark">`,
+		`<p>Read the <a href="/docs/guide/install/">install guide</a>.</p>`,
 	} {
 		if !bytes.Contains(home, []byte(w)) {
 			t.Errorf("index.html lacks %q", w)
@@ -1179,8 +1183,11 @@ func TestServeReloadsConfig(t *testing.T) {
 		t.Errorf("config file served: %d", resp.StatusCode)
 	}
 
-	writeFile(t, filepath.Join(dir, "documango.toml"), "title = \"Second\"\nbase_path = \"/docs/\"\n[[links]]\ntitle = \"Blog\"\nurl = \"/blog/\"")
+	writeFile(t, filepath.Join(dir, "documango.toml"), "title = \"Second\"\nbase_path = \"/docs/\"\nfooter = \"See [install](guide/install.md)\"\n[[links]]\ntitle = \"Blog\"\nurl = \"/blog/\"")
 	waitFor(t, url, ">Blog</a>")
+	if _, body := get(t, url); !strings.Contains(body, `<p>See <a href="/docs/guide/install/">install</a></p>`) {
+		t.Error("footer from the reloaded config not applied")
+	}
 
 	// A broken config fails the rebuild but keeps the last good site.
 	writeFile(t, filepath.Join(dir, "documango.toml"), `colour = "red"`)
@@ -1305,5 +1312,59 @@ func TestServeFonts(t *testing.T) {
 	waitFor(t, url, "No Fonts")
 	if resp, _ := get(t, url+"_documango/fonts/inter-latin-wght-normal.woff2"); resp.StatusCode != http.StatusNotFound {
 		t.Errorf("font kept after removing [fonts]: %d", resp.StatusCode)
+	}
+}
+
+const headingWarning = `guide/about.md: a level-2 heading has no text; give its image \"diagram.svg\" alt text`
+
+// warningDocs returns a docs folder whose guide/about.md has a heading made
+// of an image without alt text.
+func warningDocs(t *testing.T) string {
+	t.Helper()
+	dir := docsDir(t)
+	writeFile(t, filepath.Join(dir, "guide", "about.md"), "# About\n\n## ![](diagram.svg)\n")
+	return dir
+}
+
+func TestBuildWarnings(t *testing.T) {
+	dir := warningDocs(t)
+	out := filepath.Join(t.TempDir(), "site")
+	r := run(t, nil, "build", dir, "-o", out)
+	if r.code != 0 {
+		t.Fatalf("exit %d, stderr %q", r.code, r.stderr)
+	}
+	if !regexp.MustCompile(`^\S+ WARN guide/about\.md: a level-2 heading has no text; give its image "diagram\.svg" alt text\nBuilt 3 pages`).MatchString(r.stderr) {
+		t.Errorf("stderr = %q, want the warning once before the summary", r.stderr)
+	}
+
+	r = run(t, nil, "build", dir, "-o", out, "-q")
+	if r.code != 0 || strings.Count(r.stderr, "WARN") != 1 || !strings.Contains(r.stderr, `give its image "diagram.svg" alt text`) {
+		t.Errorf("quiet build: exit %d, stderr %q", r.code, r.stderr)
+	}
+}
+
+func TestServeWarnings(t *testing.T) {
+	dir := warningDocs(t)
+	url, stderr, stop := startServe(t, dir, "--port", "0", "-q")
+	defer stop()
+	about := filepath.Join(dir, "guide", "about.md")
+	count := func() int { return strings.Count(stderr.String(), "give its image") }
+	if count() != 1 {
+		t.Fatalf("first build: %q", stderr.String())
+	}
+
+	// An unrelated edit keeps the warning without repeating it.
+	writeFile(t, filepath.Join(dir, "guide", "install.md"), "# Install v2\n")
+	waitFor(t, url+"guide/install/", "Install v2")
+	// Fixing the heading drops it; breaking it again warns again.
+	writeFile(t, about, "# About\n\n## ![Diagram](diagram.svg)\n")
+	waitFor(t, url+"guide/about/", `alt="Diagram"`)
+	if count() != 1 {
+		t.Errorf("warning repeated before it changed: %q", stderr.String())
+	}
+	writeFile(t, about, "# About again\n\n## ![](diagram.svg)\n")
+	waitFor(t, url+"guide/about/", "About again")
+	if count() != 2 {
+		t.Errorf("returning warning printed %d times in all, want 2: %q", count(), stderr.String())
 	}
 }

@@ -4,3 +4,15 @@
   font-size: var(--size-sm);
   text-align: center;
 }
+
+.site-footer > * + * {
+  margin-block-start: var(--space-2);
+}
+
+.site-footer a {
+  color: inherit;
+}
+
+.site-footer a:hover {
+  color: var(--text);
+}

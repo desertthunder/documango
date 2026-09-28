@@ -342,7 +342,7 @@ func TestMobileNoHorizontalOverflow(t *testing.T) {
 	t.Parallel()
 	site := serve(t, nil)
 	page := newPage(t, mobile)
-	for _, path := range []string{"/", "/guide/install/"} {
+	for _, path := range []string{"/", "/guide/install/", "/reference/cli/"} {
 		site.open(t, page, path)
 		got, err := page.Evaluate(`() => [document.documentElement.scrollWidth, window.innerWidth]`)
 		check(t, err, "measure "+path)
@@ -507,4 +507,63 @@ func TestMobileHeaderLinks(t *testing.T) {
 	github := links.GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "GitHub"})
 	check(t, expect.Locator(github).ToBeVisible(), "links in the menu")
 	check(t, expect.Locator(github).ToHaveAttribute("rel", "noopener"), "menu link rel")
+}
+
+func TestTableCodeStaysWhole(t *testing.T) {
+	t.Parallel()
+	site := serve(t, nil)
+	page := newPage(t, mobile)
+	site.open(t, page, "/reference/cli/")
+	got, err := page.Evaluate(`() => {
+		const table = document.querySelector(".prose table");
+		const broken = [...table.querySelectorAll("code")].filter(c => c.getClientRects().length > 1).map(c => c.textContent);
+		return [broken.length, table.scrollWidth > table.clientWidth];
+	}`)
+	check(t, err, "measure table")
+	w := got.([]any)
+	if w[0].(int) != 0 {
+		t.Errorf("%d code spans in the flag table wrap onto two lines", w[0])
+	}
+	if !w[1].(bool) {
+		t.Error("the flag table does not scroll inside its own box")
+	}
+}
+
+func TestFooter(t *testing.T) {
+	t.Parallel()
+	t.Run("default", func(t *testing.T) {
+		t.Parallel()
+		site := serve(t, nil)
+		page := newPage(t)
+		site.open(t, page, "/guide/")
+		footer := page.Locator("footer")
+		for name, href := range map[string]string{"documango": "https://github.com/desertthunder/documango", "Owais": "https://desertthunder.dev"} {
+			link := footer.GetByRole("link", playwright.LocatorGetByRoleOptions{Name: name, Exact: playwright.Bool(true)})
+			check(t, expect.Locator(link).ToBeVisible(), name+" link visible")
+			check(t, expect.Locator(link).ToHaveAttribute("href", href), name+" link href")
+			check(t, expect.Locator(link).ToHaveAttribute("rel", "noopener"), name+" link rel")
+		}
+		check(t, expect.Locator(footer).ToHaveText("Built with documango by Owais"), "footer text")
+		check(t, expect.Locator(footer.Locator("[target]")).ToHaveCount(0), "links open in the same tab")
+	})
+	t.Run("custom", func(t *testing.T) {
+		t.Parallel()
+		site := serveWithConfig(t, "footer = \"\"\"\nAcme Inc. Read the [install guide](guide/install.md).\n\n[Status](https://status.acme.dev)\n\"\"\"\n", "--base-path", "/docs/")
+		page := newPage(t)
+		site.open(t, page, "/reference/api/")
+		footer := page.Locator("footer")
+		install := footer.GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "install guide"})
+		check(t, expect.Locator(install).ToHaveAttribute("href", "/docs/guide/install/"), "relative link href")
+		status := footer.GetByRole("link", playwright.LocatorGetByRoleOptions{Name: "Status"})
+		check(t, expect.Locator(status).ToHaveAttribute("href", "https://status.acme.dev"), "external link href")
+		check(t, install.Click(), "follow footer link")
+		check(t, expect.Page(page).ToHaveURL(site.URL+"guide/install/"), "footer link target")
+	})
+	t.Run("empty", func(t *testing.T) {
+		t.Parallel()
+		site := serveWithConfig(t, `footer = ""`)
+		page := newPage(t)
+		site.open(t, page, "/")
+		check(t, expect.Locator(page.Locator("footer")).ToHaveCount(0), "no footer")
+	})
 }

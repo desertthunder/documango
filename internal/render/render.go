@@ -50,6 +50,10 @@ type Options struct {
 	Favicon, Logo string
 	// Links are shown in the header, in order.
 	Links []Link
+	// Footer is Markdown shown at the foot of every page. Its relative links
+	// resolve as in a page at the root of the docs folder. nil shows
+	// DefaultFooter; "" shows no footer.
+	Footer *string
 	// FontCSS is appended to the stylesheet, after the component styles, so
 	// its font variables win. FontFiles are added to the output, keyed by
 	// output path.
@@ -59,6 +63,9 @@ type Options struct {
 
 // Link is a header link.
 type Link struct{ Title, URL string }
+
+// DefaultFooter is the footer of sites that do not set one.
+const DefaultFooter = "Built with [documango](https://github.com/desertthunder/documango) by [Owais](https://desertthunder.dev)"
 
 // Output paths of the shared files, relative to the output root.
 const (
@@ -145,7 +152,8 @@ type layoutData struct {
 	FaviconType string
 	Logo        string
 	Links       []headerLink
-	Heading     string // h1 to render above the content; "" when it has one
+	Footer      template.HTML // "" for no footer
+	Heading     string        // h1 to render above the content; "" when it has one
 	Nav         []navNode
 	TOC         []markdown.Heading
 	LiveReload  string
@@ -184,13 +192,26 @@ func Render(s *site.Site, src fs.FS, opts Options) (map[string][]byte, error) {
 		external := err == nil && (u.Scheme == "http" || u.Scheme == "https" || u.Scheme == "" && u.Host != "")
 		links[i] = headerLink{Title: l.Title, URL: l.URL, External: external}
 	}
+	footer := DefaultFooter
+	if opts.Footer != nil {
+		footer = *opts.Footer
+	}
+	var footerHTML template.HTML
+	if footer != "" {
+		// External links follow the header links: rel="noopener", same tab.
+		res, err := markdown.New(markdown.WithExternalLinkRel("noopener")).Render([]byte(footer), s.Resolver())
+		if err != nil {
+			return nil, fmt.Errorf("render footer: %w", err)
+		}
+		footerHTML = res.HTML
+	}
 	files := map[string][]byte{}
 	data := layoutData{
 		Site: s, Base: base, LiveReload: opts.LiveReload, Version: opts.Version,
 		Dark: opts.Dark, Light: opts.Light, SchemeMenu: len(opts.Dark) > 1 || len(opts.Light) > 1,
 		Description: opts.Description, Lang: cmp.Or(opts.Language, "en"), Author: opts.Author,
 		Favicon: opts.Favicon, FaviconType: faviconTypes[strings.ToLower(path.Ext(opts.Favicon))],
-		Logo: opts.Logo, Links: links,
+		Logo: opts.Logo, Links: links, Footer: footerHTML,
 	}
 
 	for _, p := range s.Pages {

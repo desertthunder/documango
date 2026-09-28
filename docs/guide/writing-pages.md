@@ -187,12 +187,32 @@ Every page has the same layout:
   that readers can expand and collapse. The section that holds the current
   page starts expanded, and the others start collapsed.
 - An "On this page" list of the page's level-2 and level-3 headings. It
-  appears only when a page has at least two of them.
+  appears only when a page has at least two of them. See
+  [headings](#headings).
 - Previous and next links.
+- A footer, which you can change or remove with the `footer` key in the
+  [config file](../reference/configuration.md#footer).
 
 On narrow screens, the sidebar moves behind a menu button in the header.
 While the menu is open, keyboard focus stays in the header and the menu.
 Press <kbd>Escape</kbd> to close it.
+
+### Headings
+
+A heading made of an image, such as `## ![Architecture](diagram.svg)`, takes
+its name from the image's alt text. The name appears in the "On this page"
+list, and a level-1 image heading gives the page its title.
+
+A heading with no text, such as an image heading without alt text, is left out
+of the "On this page" list. `documango build` and `documango serve` print a
+warning that names the file, even with `--quiet`:
+
+```text
+WARN guide/about.md: a level-2 heading has no text; give its image "diagram.svg" alt text
+```
+
+While `documango serve` runs, a warning is printed when it appears. Later
+rebuilds don't repeat it until you fix the heading and the problem comes back.
 
 ## Search
 
