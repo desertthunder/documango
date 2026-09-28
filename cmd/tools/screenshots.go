@@ -401,6 +401,15 @@ func capture(browser playwright.Browser, html string, dark bool) ([]byte, error)
 	if _, err := page.Evaluate("document.fonts.ready.then(() => true)"); err != nil {
 		return nil, fmt.Errorf("wait for fonts: %w", err)
 	}
+	// A frame taller than the viewport loses its transparent background, so
+	// grow the viewport to fit it.
+	box, err := page.Locator("#shot").BoundingBox()
+	if err != nil {
+		return nil, fmt.Errorf("measure frame: %w", err)
+	}
+	if err := page.SetViewportSize(max(1600, int(box.X+box.Width)+1), max(2400, int(box.Y+box.Height)+1)); err != nil {
+		return nil, fmt.Errorf("resize viewport: %w", err)
+	}
 	png, err := page.Locator("#shot").Screenshot(playwright.LocatorScreenshotOptions{
 		OmitBackground: playwright.Bool(true),
 		Animations:     playwright.ScreenshotAnimationsDisabled,
