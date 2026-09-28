@@ -155,8 +155,20 @@ func (s *Server) Rebuild() error {
 }
 
 // ServeHTTP serves the current build under the base path, plus the
-// live-reload event stream at [Server.EventsURL].
+// live-reload event stream at [Server.EventsURL]. Each request is logged at
+// debug level, except event streams, which log their connect and disconnect.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+	sw := &statusWriter{ResponseWriter: w}
+	s.serve(sw, r)
+	if sw.streamed {
+		return
+	}
+	s.log.Debug("request", "method", r.Method, "path", r.URL.Path, "status", sw.status,
+		"duration", time.Since(start), "bytes", sw.bytes)
+}
+
+func (s *Server) serve(w *statusWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		w.Header().Set("Allow", "GET, HEAD")
@@ -224,27 +236,34 @@ func (s *Server) notFound(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) serveEvents(w http.ResponseWriter, r *http.Request) {
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
-		return
-	}
+func (s *Server) serveEvents(w *statusWriter, r *http.Request) {
 	h := w.Header()
 	h.Set("Content-Type", "text/event-stream")
 	h.Set("Connection", "keep-alive")
-	w.WriteHeader(http.StatusOK)
+	// Flushing sends the 200 header, or fails without writing anything.
+	if err := w.FlushError(); err != nil {
+		h.Del("Connection")
+		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
+		return
+	}
 	if r.Method == http.MethodHead {
 		return
 	}
 
+	w.streamed = true
 	ch := s.subscribe()
-	defer s.unsubscribe(ch)
+	s.log.Debug("events client connected", "remote", r.RemoteAddr)
+	defer func() {
+		s.unsubscribe(ch)
+		s.log.Debug("events client disconnected", "remote", r.RemoteAddr)
+	}()
 
 	if _, err := fmt.Fprint(w, "retry: 1000\n\n"); err != nil {
 		return
 	}
-	flusher.Flush()
+	if err := w.FlushError(); err != nil {
+		return
+	}
 
 	ticker := time.NewTicker(s.keepalive)
 	defer ticker.Stop()
@@ -263,12 +282,55 @@ func (s *Server) serveEvents(w http.ResponseWriter, r *http.Request) {
 			}
 			_, err = fmt.Fprintf(w, "event: %s\ndata: %s\n\n", ev.name, ev.data)
 		}
+		if err == nil {
+			err = w.FlushError()
+		}
 		if err != nil {
 			return
 		}
-		flusher.Flush()
 	}
 }
+
+// statusWriter records the status and body size of a response. It forwards
+// flushes and supports [http.ResponseController] through Unwrap.
+type statusWriter struct {
+	http.ResponseWriter
+	status   int
+	bytes    int64
+	streamed bool // an event stream, which logs its own lifetime
+}
+
+func (w *statusWriter) WriteHeader(code int) {
+	if w.status == 0 {
+		w.status = code
+	}
+	w.ResponseWriter.WriteHeader(code)
+}
+
+func (w *statusWriter) Write(b []byte) (int, error) {
+	if w.status == 0 {
+		w.status = http.StatusOK
+	}
+	n, err := w.ResponseWriter.Write(b)
+	w.bytes += int64(n)
+	return n, err
+}
+
+// FlushError flushes the wrapped writer, returning [http.ErrNotSupported]
+// if it cannot flush.
+func (w *statusWriter) FlushError() error {
+	if err := http.NewResponseController(w.ResponseWriter).Flush(); err != nil {
+		return err
+	}
+	if w.status == 0 {
+		w.status = http.StatusOK
+	}
+	return nil
+}
+
+func (w *statusWriter) Flush() { _ = w.FlushError() }
+
+func (w *statusWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
 
 func (s *Server) subscribe() chan event {
 	ch := make(chan event, 8)

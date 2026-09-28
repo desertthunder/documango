@@ -712,3 +712,132 @@ func TestServe(t *testing.T) {
 		t.Fatal("Serve did not return after cancel")
 	}
 }
+
+// recordHandler is a slog.Handler that keeps every record for inspection.
+type recordHandler struct {
+	mu      sync.Mutex
+	records []slog.Record
+}
+
+func (h *recordHandler) Enabled(context.Context, slog.Level) bool { return true }
+func (h *recordHandler) WithAttrs([]slog.Attr) slog.Handler       { return h }
+func (h *recordHandler) WithGroup(string) slog.Handler            { return h }
+
+func (h *recordHandler) Handle(_ context.Context, r slog.Record) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.records = append(h.records, r.Clone())
+	return nil
+}
+
+// find returns the attributes of every record with the given message.
+func (h *recordHandler) find(msg string) []map[string]slog.Value {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	var out []map[string]slog.Value
+	for _, r := range h.records {
+		if r.Message != msg {
+			continue
+		}
+		attrs := map[string]slog.Value{"level": slog.StringValue(r.Level.String())}
+		r.Attrs(func(a slog.Attr) bool {
+			attrs[a.Key] = a.Value
+			return true
+		})
+		out = append(out, attrs)
+	}
+	return out
+}
+
+func TestRequestLogging(t *testing.T) {
+	h := &recordHandler{}
+	s := newTestServer(t, staticBuild(Files{"index.html": []byte("hello")}), Options{Logger: slog.New(h)})
+
+	tests := []struct {
+		method, path string
+		status       int64
+		bytes        int64
+	}{
+		{http.MethodGet, "/", 200, 5},
+		{http.MethodHead, "/", 200, 0},
+		{http.MethodGet, "/missing", 404, 19},
+		{http.MethodPost, "/", 405, 19},
+		{http.MethodGet, "/guide", 404, 19},
+	}
+	for _, tt := range tests {
+		s.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(tt.method, tt.path, nil))
+	}
+
+	got := h.find("request")
+	if len(got) != len(tests) {
+		t.Fatalf("logged %d requests, want %d", len(got), len(tests))
+	}
+	for i, tt := range tests {
+		a := got[i]
+		if a["level"].String() != "DEBUG" || a["method"].String() != tt.method || a["path"].String() != tt.path ||
+			a["status"].Int64() != tt.status || a["bytes"].Int64() != tt.bytes {
+			t.Errorf("request %d logged %v, want %s %s %d %d bytes", i, a, tt.method, tt.path, tt.status, tt.bytes)
+		}
+		if a["duration"].Kind() != slog.KindDuration {
+			t.Errorf("request %d duration = %v, want a duration", i, a["duration"])
+		}
+	}
+}
+
+func TestEventsLoggedOnConnectAndDisconnect(t *testing.T) {
+	h := &recordHandler{}
+	s := newTestServer(t, staticBuild(Files{}), Options{Logger: slog.New(h)})
+	s.keepalive = time.Millisecond
+	ts := httptest.NewServer(s)
+	defer ts.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	lines := readEvents(openEvents(t, ctx, ts.URL+s.EventsURL()))
+	waitLine(t, lines, ": keepalive")
+	waitLine(t, lines, ": keepalive")
+	cancel()
+	waitClients(t, s, 0)
+
+	deadline := time.Now().Add(5 * time.Second)
+	for len(h.find("events client disconnected")) == 0 {
+		if time.Now().After(deadline) {
+			t.Fatal("disconnect never logged")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	if n := len(h.find("events client connected")); n != 1 {
+		t.Errorf("connect logged %d times, want 1", n)
+	}
+	if n := len(h.find("request")); n != 0 {
+		t.Errorf("events stream logged %d request records, want 0", n)
+	}
+}
+
+func TestStatusWriter(t *testing.T) {
+	rec := httptest.NewRecorder()
+	w := &statusWriter{ResponseWriter: rec}
+	if w.Unwrap() != rec {
+		t.Error("Unwrap did not return the wrapped writer")
+	}
+	if err := http.NewResponseController(w).Flush(); err != nil {
+		t.Fatalf("Flush through ResponseController: %v", err)
+	}
+	if !rec.Flushed || w.status != http.StatusOK {
+		t.Errorf("flushed = %v, status = %d; want true, 200", rec.Flushed, w.status)
+	}
+	w.WriteHeader(http.StatusTeapot) // superfluous; the first status stands
+	if w.status != http.StatusOK {
+		t.Errorf("status = %d after late WriteHeader, want 200", w.status)
+	}
+
+	w = &statusWriter{ResponseWriter: httptest.NewRecorder()}
+	if _, err := w.Write([]byte("abc")); err != nil {
+		t.Fatal(err)
+	}
+	if w.status != http.StatusOK || w.bytes != 3 {
+		t.Errorf("after Write: status = %d, bytes = %d; want 200, 3", w.status, w.bytes)
+	}
+
+	var f http.Flusher = &statusWriter{ResponseWriter: struct{ http.ResponseWriter }{httptest.NewRecorder()}}
+	f.Flush() // must not panic when the wrapped writer cannot flush
+}
