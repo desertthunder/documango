@@ -3,6 +3,7 @@ package markdown
 import (
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -389,4 +390,32 @@ func TestConcurrentRender(t *testing.T) {
 	for err := range errs {
 		t.Error(err)
 	}
+}
+
+func TestImageHeadings(t *testing.T) {
+	t.Parallel()
+
+	src := "# ![Acme](logo.svg)\n\n" +
+		"## ![Install steps](i.png) Install\n\n" +
+		"## ![](diagram.svg)\n\n" +
+		"### Usage\n\nBody.\n\n##\n"
+	res := render(t, src, nil)
+
+	if res.Title != "Acme" {
+		t.Errorf("Title = %q, want the image alt text %q", res.Title, "Acme")
+	}
+	var got []string
+	for _, h := range res.Headings {
+		got = append(got, h.Text)
+	}
+	if want := []string{"Install steps Install", "Usage"}; !slices.Equal(got, want) {
+		t.Errorf("Headings = %q, want %q (a heading with no text stays out of the table of contents)", got, want)
+	}
+	if want := []string{
+		`a level-2 heading has no text; give its image "diagram.svg" alt text`,
+		"a level-2 heading has no text",
+	}; !slices.Equal(res.Warnings, want) {
+		t.Errorf("Warnings = %q, want %q", res.Warnings, want)
+	}
+	assertNotContains(t, res.Text, "Acme", "Install steps")
 }

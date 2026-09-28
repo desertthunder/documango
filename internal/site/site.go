@@ -60,6 +60,9 @@ type Site struct {
 	Assets []string
 	// Home is the root index page, or nil if there is none.
 	Home *Page
+	// Warnings lists problems found while loading, each prefixed with the
+	// source file, such as a heading with no text.
+	Warnings []string
 
 	byURL map[string]*Page
 }
@@ -186,6 +189,9 @@ func Load(fsys fs.FS, opts Options) (*Site, error) {
 			return nil, fmt.Errorf("%s: %w", p.Source, err)
 		}
 		p.Content, p.Headings, p.Text = res.HTML, res.Headings, res.Text
+		for _, w := range res.Warnings {
+			s.Warnings = append(s.Warnings, p.Source+": "+w)
+		}
 		p.HasH1 = res.Title != ""
 		p.Title = cmp.Or(p.Meta.Title, res.Title)
 		if p.Title == "" {

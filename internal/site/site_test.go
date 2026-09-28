@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/fs"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -417,4 +418,20 @@ type missingFS struct{}
 
 func (missingFS) Open(name string) (fs.File, error) {
 	return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrNotExist}
+}
+
+func TestWarnings(t *testing.T) {
+	t.Parallel()
+	s := load(t, fstest.MapFS{
+		"index.md":       file("# Home\n"),
+		"guide/about.md": file("# About\n\n## ![](diagram.svg)\n"),
+		"a.md":           file("# A\n\n##\n"),
+	}, Options{})
+	want := []string{
+		"a.md: a level-2 heading has no text",
+		`guide/about.md: a level-2 heading has no text; give its image "diagram.svg" alt text`,
+	}
+	if !slices.Equal(s.Warnings, want) {
+		t.Errorf("Warnings = %q, want %q", s.Warnings, want)
+	}
 }

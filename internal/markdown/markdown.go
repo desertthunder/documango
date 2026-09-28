@@ -35,6 +35,7 @@ type Result struct {
 	Title    string    // plain text of the first level-1 heading, "" if none
 	Headings []Heading // h2 and h3 only, in document order
 	Text     string    // whitespace-collapsed plain text for search indexing
+	Warnings []string  // problems worth telling the author about, such as a heading with no text
 }
 
 // Resolver rewrites a relative link or image destination. It is called only
@@ -89,7 +90,12 @@ func (r *Renderer) Render(src []byte, resolve Resolver) (Result, error) {
 		case *ast.Heading:
 			id, _ := n.AttributeString("id")
 			idStr, _ := id.([]byte)
-			txt := plainText(n, src)
+			// Image alt text names a heading made of an image.
+			txt := plainText(n, src, true)
+			if txt == "" {
+				res.Warnings = append(res.Warnings, emptyHeadingWarning(n))
+				break
+			}
 			if n.Level == 1 && res.Title == "" {
 				res.Title = txt
 			}
@@ -115,7 +121,7 @@ func (r *Renderer) Render(src []byte, resolve Resolver) (Result, error) {
 	for _, q := range quotes {
 		convertAlert(q, src)
 	}
-	res.Text = plainText(doc, src)
+	res.Text = plainText(doc, src, false)
 
 	var buf bytes.Buffer
 	if err := r.md.Renderer().Render(&buf, src, doc); err != nil {
@@ -132,8 +138,9 @@ func isRelative(dest []byte) bool {
 }
 
 // plainText returns the whitespace-collapsed text content of n, skipping raw
-// HTML and image alt text and inserting spaces between blocks.
-func plainText(n ast.Node, src []byte) string {
+// HTML and inserting spaces between blocks. Image alt text is included only
+// when alt is true.
+func plainText(n ast.Node, src []byte, alt bool) string {
 	var b strings.Builder
 	_ = ast.Walk(n, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		if n.Type() == ast.TypeBlock {
@@ -143,7 +150,11 @@ func plainText(n ast.Node, src []byte) string {
 			return ast.WalkContinue, nil
 		}
 		switch n := n.(type) {
-		case *ast.RawHTML, *ast.HTMLBlock, *ast.Image:
+		case *ast.Image:
+			if !alt {
+				return ast.WalkSkipChildren, nil
+			}
+		case *ast.RawHTML, *ast.HTMLBlock:
 			return ast.WalkSkipChildren, nil
 		case *ast.Text:
 			b.Write(n.Value(src))
@@ -164,6 +175,17 @@ func plainText(n ast.Node, src []byte) string {
 		return ast.WalkContinue, nil
 	})
 	return strings.Join(strings.Fields(b.String()), " ")
+}
+
+// emptyHeadingWarning describes heading h, which has no text, naming its
+// first image so the author can find it.
+func emptyHeadingWarning(h *ast.Heading) string {
+	for c := h.FirstChild(); c != nil; c = c.NextSibling() {
+		if img, ok := c.(*ast.Image); ok {
+			return fmt.Sprintf("a level-%d heading has no text; give its image %q alt text", h.Level, img.Destination)
+		}
+	}
+	return fmt.Sprintf("a level-%d heading has no text", h.Level)
 }
 
 // slugIDs generates GitHub-style heading IDs: lowercase, letters, digits,
