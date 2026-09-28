@@ -70,6 +70,19 @@ results. They go to `e2e/screenshots/`, or to the folder named by
 `DOCUMANGO_E2E_SCREENSHOTS`. Nothing compares them; they are for reviewing
 visual changes by eye.
 
+## README screenshots
+
+The images in `.github/assets/` are generated. To regenerate them, run this
+from the repository root:
+
+```sh
+go run ./cmd/tools screenshots
+```
+
+It needs [freeze](https://github.com/charmbracelet/freeze) on your `PATH` and
+Chromium from `go run ./cmd/tools browsers`. Pass `-only site-dark,cli-help` to
+regenerate only some of the images.
+
 ## Project layout
 
 documango is a single Go module. The command-line entry point is small, and

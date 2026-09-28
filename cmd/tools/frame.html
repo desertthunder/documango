@@ -1,0 +1,95 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  :root {
+    --bar: #ececec;
+    --bar-border: #d4d4d4;
+    --field: #ffffff;
+    --field-text: #5c5c5c;
+    --ring: rgba(0, 0, 0, 0.14);
+    --shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.28), 0 8px 16px -8px rgba(0, 0, 0, 0.18);
+    --bezel: #1b1b1d;
+  }
+  {{if .Dark}}
+  :root {
+    --bar: #2b2d31;
+    --bar-border: #1c1d20;
+    --field: #1d1f21;
+    --field-text: #a4a6a9;
+    --ring: rgba(255, 255, 255, 0.12);
+    --shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.55), 0 8px 16px -8px rgba(0, 0, 0, 0.4);
+    --bezel: #0e0e10;
+  }
+  {{end}}
+  html, body { margin: 0; background: transparent; }
+  body { font: 13px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+  #shot { display: inline-block; padding: 24px 48px 64px; }
+  .window {
+    width: {{.Width}}px;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 0 0 1px var(--ring), var(--shadow);
+  }
+  .window > img { display: block; width: {{.Width}}px; }
+  .bar {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 44px;
+    padding: 0 16px;
+    background: var(--bar);
+    border-bottom: 1px solid var(--bar-border);
+  }
+  .dots { display: flex; gap: 8px; }
+  .dots span { width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.2); }
+  .dots span:nth-child(1) { background: #ff5f57; }
+  .dots span:nth-child(2) { background: #febc2e; }
+  .dots span:nth-child(3) { background: #28c840; }
+  .address {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 42%;
+    height: 28px;
+    border-radius: 8px;
+    background: var(--field);
+    color: var(--field-text);
+    box-shadow: 0 0 0 1px var(--ring);
+  }
+  .address svg { width: 11px; height: 11px; fill: currentColor; opacity: 0.8; }
+  .phone {
+    padding: 12px;
+    border-radius: 56px;
+    background: var(--bezel);
+    box-shadow: 0 0 0 1px var(--ring), inset 0 0 0 2px rgba(255, 255, 255, 0.08), var(--shadow);
+  }
+  .phone > img { display: block; width: {{.Width}}px; border-radius: 44px; }
+</style>
+</head>
+<body>
+<div id="shot">
+{{- if eq .Kind "browser"}}
+  <div class="window">
+    <div class="bar">
+      <div class="dots"><span></span><span></span><span></span></div>
+      <div class="address">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 7V5a4 4 0 1 1 8 0v2h1a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h1zm2 0h4V5a2 2 0 1 0-4 0v2z"/></svg>
+        <span>{{.URL}}</span>
+      </div>
+    </div>
+    <img src="{{.Image}}" alt="">
+  </div>
+{{- else if eq .Kind "phone"}}
+  <div class="phone"><img src="{{.Image}}" alt=""></div>
+{{- else}}
+  <div class="window"><img src="{{.Image}}" alt=""></div>
+{{- end}}
+</div>
+</body>
+</html>

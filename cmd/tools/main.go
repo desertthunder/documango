@@ -4,6 +4,7 @@
 //
 //	go run ./cmd/tools schemes [-ref spec-0.11] [-out internal/theme/schemes]
 //	go run ./cmd/tools browsers [-with-deps]
+//	go run ./cmd/tools screenshots [-out .github/assets] [-docs docs] [-only NAME,...]
 //
 // The schemes subcommand downloads the tinted-theming/schemes repository at the
 // given ref and copies the curated base16 schemes (see theme.Curated) and the
@@ -12,6 +13,10 @@
 // The browsers subcommand installs the Playwright driver and Chromium used by
 // the browser tests in e2e. -with-deps also installs the system packages
 // Chromium needs, which requires root on Linux.
+//
+// The screenshots subcommand writes the README images: terminal captures made
+// with freeze and framed captures of the docs site made with Chromium. Run it
+// from the repository root; -only takes a comma-separated list of shot names.
 package main
 
 import (
@@ -31,7 +36,7 @@ import (
 
 const (
 	defaultOut = "internal/theme/schemes"
-	usage      = "usage: tools schemes [-ref REF] [-out DIR]\n       tools browsers [-with-deps]\n"
+	usage      = "usage: tools schemes [-ref REF] [-out DIR]\n       tools browsers [-with-deps]\n       tools screenshots [-out DIR] [-docs DIR] [-only NAME,...]\n"
 )
 
 // install is playwright.Install, replaced in tests.
@@ -51,6 +56,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		return runSchemes(ctx, args[1:], stdout, stderr)
 	case "browsers":
 		return runBrowsers(args[1:], stdout, stderr)
+	case "screenshots":
+		return runScreenshots(ctx, args[1:], stdout, stderr)
 	}
 	fmt.Fprintf(stderr, "unknown command %q\n%s", args[0], usage)
 	return 2
