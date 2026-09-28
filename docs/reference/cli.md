@@ -4,10 +4,12 @@ description: Every documango command and flag, environment variables, and exit c
 order: 1
 ---
 
-documango has three commands: `serve` runs the development server, `build`
-writes the static site, and `themes` lists the color schemes.
+documango has four commands: `init` creates a starter docs folder, `serve`
+runs the development server, `build` writes the static site, and `themes`
+lists the color schemes.
 
 ```text
+documango init [dir]
 documango [dir]
 documango serve [dir]
 documango build [dir]
@@ -16,7 +18,30 @@ documango themes pick
 documango --version
 ```
 
-`dir` is the docs directory. It defaults to the current directory.
+`dir` is the docs directory. It defaults to the current directory, except for
+`init`, where it defaults to `docs`.
+
+## init
+
+`documango init` creates a starter site: a home page, a short guide on
+writing pages, and a config file with every option listed and explained.
+Missing folders are created.
+
+```sh
+documango init docs --title "Acme Docs"
+```
+
+| Flag       | Default                  | Description |
+| ---------- | ------------------------ | ----------- |
+| `--title`  | the project folder name  | Site title, written to the home page and the config file. By default, documango uses the name of the folder that holds `dir` when `dir` is named `docs` or `doc`, and the name of `dir` otherwise. `~/code/acme/docs` gets the title "Acme". |
+| `--format` | `toml`                   | Config file format: `toml` writes `documango.toml`, `yaml` writes `documango.yaml`. |
+| `--force`  | off                      | Write into a folder that isn't empty. Starter files that already exist are skipped and listed. |
+
+Without `--force`, `init` refuses to write into a folder that isn't empty and
+lists any starter files that are already there. It never overwrites a file.
+
+When it finishes, `init` lists the files it created and the commands to
+preview and build the site. With `--quiet`, it prints nothing.
 
 ## serve
 
@@ -36,7 +61,8 @@ keeps serving the last successful build and the page shows the error in a
 error.
 
 Changes to files and folders whose names start with `.` don't trigger a
-rebuild.
+rebuild. Saving the [config file](configuration.md) rebuilds the site with
+the new settings, except for the base path, which needs a restart.
 
 | Flag           | Default     | Description |
 | -------------- | ----------- | ----------- |
@@ -117,9 +143,12 @@ These flags work with `documango`, `documango serve`, and `documango build`.
 | `--light-theme` | `tomorrow`       | Light color schemes, in the same form as `--dark-theme`. |
 | `--search`      | `pagefind`       | Search engine: `pagefind` or `builtin`. |
 | `--base-path`   | `/`              | URL prefix the site is served under, such as `/docs/`. |
+| `--config`      | See description  | Config file to read. Defaults to `documango.toml`, `documango.yaml`, or `documango.yml` in the docs directory, if one exists. |
 
-See [themes](../guide/themes.md), [search](../guide/writing-pages.md#search),
-and [base path](../guide/deploying.md#base-path) for details.
+Flags given on the command line override the
+[config file](configuration.md). See [themes](../guide/themes.md),
+[search](../guide/writing-pages.md#search), and
+[base path](../guide/deploying.md#base-path) for details.
 
 ## Global flags
 

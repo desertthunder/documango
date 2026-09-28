@@ -9,6 +9,9 @@ examples, start with the [guide](../guide/index.md).
 
 - [Command line](cli.md): every command and flag, environment variables, and
   exit codes.
+- [Configuration](configuration.md): the optional `documango.toml` or
+  `documango.yaml` file for the site title, metadata, themes, and header
+  links.
 - [Front matter](front-matter.md): the fields documango reads from the top of
   a Markdown file.
 - [Development](development.md): building and testing documango itself, and

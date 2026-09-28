@@ -6,8 +6,9 @@ description: Turn a directory of Markdown files into a documentation website.
 documango turns a directory of Markdown files into a documentation website.
 Run it against a folder of `.md` files and you get a site with a sidebar built
 from your folder structure, a table of contents on each page, search, and a
-light and dark theme. There is no configuration file: the files and their front
-matter describe the site.
+light and dark theme. The files and their front matter describe the site. An
+optional [config file](reference/configuration.md) sets the title, page
+metadata, themes, and header links.
 
 documango has two modes:
 
@@ -46,6 +47,10 @@ documango my-docs
 
 Open <http://127.0.0.1:3000/> in your browser. Edit `my-docs/index.md` and
 the page reloads with your change.
+
+To start from a sample site instead, run `documango init my-docs`. It creates
+a home page, a short guide on writing pages, and a `documango.toml` config
+file.
 
 When you're ready to publish, build the static site:
 

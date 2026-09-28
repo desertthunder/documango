@@ -1,0 +1,6 @@
+title = "documango"
+description = "Turn a directory of Markdown files into a documentation website."
+
+[[links]]
+title = "GitHub"
+url = "https://github.com/desertthunder/documango"

@@ -80,6 +80,21 @@ documango docs --base-path /docs/
 
 The site is then served at `http://127.0.0.1:3000/docs/`.
 
+### Set the site address in the config file
+
+Instead of passing `--base-path` on every run, set `url` in the
+[config file](../reference/configuration.md) to the address you publish the
+site at:
+
+```toml
+url = "https://example.com/docs/"
+```
+
+documango takes the base path from the path of `url`, here `/docs/`, and
+adds canonical links and link preview URLs to every page. If your host serves
+the site under a different path than the one in `url`, set `base_path` too.
+A `--base-path` flag overrides both.
+
 ## The 404 page
 
 `404.html` at the top of the output folder is a "Page not found" page with
