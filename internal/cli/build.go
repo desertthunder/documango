@@ -49,21 +49,12 @@ inside dir.`,
 		Example: buildExample,
 		Args:    usageArgs(cobra.MaximumNArgs(1)),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if fs := cmd.Flags(); fs.Changed("out") {
-				if fs.Changed("output") {
-					return &usageError{errors.New("--out and --output cannot be used together")}
-				}
-				a.logger().Warn("--out is deprecated; use --output")
-			}
 			return a.build(cmd.Context(), dirArg(args), opts)
 		},
 	}
 	fs := cmd.Flags()
 	opts.site.addFlags(fs)
 	fs.StringVarP(&opts.out, "output", "o", "_site", "folder to write the site to")
-	// --out is the old name of --output.
-	fs.StringVar(&opts.out, "out", "_site", "")
-	_ = fs.MarkHidden("out")
 	fs.BoolVar(&opts.clean, "clean", false, "empty the output folder first; refuses if it holds anything but an earlier build")
 	return cmd
 }

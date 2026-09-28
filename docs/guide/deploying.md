@@ -71,8 +71,8 @@ in your Markdown. It doesn't change links that start with `/`, so a link
 written as `[Install](/guide/install/)` ignores the base path. Use relative
 links to `.md` files instead. See [links and images](writing-pages.md#links-and-images).
 
-To check a subpath site before you publish it, pass the same base path to the
-development server:
+The development server serves the site at `/` by default. To check a subpath
+site before you publish it, pass the same base path to it:
 
 ```sh
 documango docs --base-path /docs/
@@ -90,10 +90,11 @@ site at:
 url = "https://example.com/docs/"
 ```
 
-documango takes the base path from the path of `url`, here `/docs/`, and
-adds canonical links and link preview URLs to every page. If your host serves
-the site under a different path than the one in `url`, set `base_path` too.
-A `--base-path` flag overrides both.
+`documango build` takes the base path from the path of `url`, here `/docs/`,
+and adds canonical links and link preview URLs to every page. If your host
+serves the site under a different path than the one in `url`, set `base_path`
+too. A `--base-path` flag overrides both. The development server ignores
+`url` and `base_path` for the base path and keeps serving at `/`.
 
 ## The 404 page
 

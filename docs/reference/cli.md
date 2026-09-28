@@ -62,7 +62,7 @@ error.
 
 Changes to files and folders whose names start with `.` don't trigger a
 rebuild. Saving the [config file](configuration.md) rebuilds the site with
-the new settings, except for the base path, which needs a restart.
+the new settings.
 
 | Flag           | Default     | Description |
 | -------------- | ----------- | ----------- |
@@ -145,7 +145,7 @@ These flags work with `documango`, `documango serve`, and `documango build`.
 | `--dark-theme`  | `tomorrow-night` | Dark color schemes, separated by commas. Each is a name from `documango themes` or a path to a base16 YAML file. The first is the default. |
 | `--light-theme` | `tomorrow`       | Light color schemes, in the same form as `--dark-theme`. |
 | `--search`      | `pagefind`       | Search engine: `pagefind` or `builtin`. |
-| `--base-path`   | `/`              | URL prefix the site is served under, such as `/docs/`. |
+| `--base-path`   | `/`              | URL prefix the site is served under, such as `/docs/`. The server uses `/` unless you pass this flag. `build` falls back to the config file. |
 | `--config`      | See description  | Config file to read. Defaults to `documango.toml`, `documango.yaml`, or `documango.yml` in the docs directory, if one exists. |
 
 Flags given on the command line override the

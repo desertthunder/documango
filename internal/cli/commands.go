@@ -197,8 +197,8 @@ type builder struct {
 	exclude     []string
 	catalog     *theme.Catalog
 	log         *slog.Logger
-	// serving enables live reload and fixes the base path after the first
-	// build, since the server routes by it.
+	// serving enables live reload and ignores the config's base path, so
+	// the preview lives at --base-path.
 	serving bool
 
 	// Set by configure on each build.
@@ -265,13 +265,15 @@ func (b *builder) configure(ctx context.Context) error {
 		return err
 	}
 
-	base := path.Clean("/" + setting("base-path", cfg.BasePath))
+	// The preview always lives at --base-path, by default the root; only a
+	// build takes the base path from the config.
+	base := b.opts.basePath
+	if !b.serving {
+		base = setting("base-path", cfg.BasePath)
+	}
+	base = path.Clean("/" + base)
 	if base != "/" {
 		base += "/"
-	}
-	if b.serving && b.render.BasePath != "" && base != b.render.BasePath {
-		b.log.Warn("restart documango to serve the site under a new base path", "base_path", base)
-		base = b.render.BasePath
 	}
 	links := make([]render.Link, len(cfg.Links))
 	for i, l := range cfg.Links {

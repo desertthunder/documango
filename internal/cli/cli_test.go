@@ -315,27 +315,10 @@ func TestBuildSinglePage(t *testing.T) {
 	}
 }
 
-func TestBuildOutFlag(t *testing.T) {
-	dir := docsDir(t)
-	out := filepath.Join(t.TempDir(), "site")
-	r := run(t, nil, "build", dir, "--out", out)
-	if r.code != 0 || !exists(filepath.Join(out, "index.html")) {
-		t.Fatalf("--out: exit %d, stderr %q", r.code, r.stderr)
-	}
-	if !strings.Contains(r.stderr, "WARN --out is deprecated; use --output\n") || strings.Count(r.stderr, "deprecated") != 1 {
-		t.Errorf("--out notice missing or repeated: %q", r.stderr)
-	}
-	if r.stdout != "" {
-		t.Errorf("stdout = %q, want empty", r.stdout)
-	}
-	if r := run(t, nil, "help", "build"); strings.Contains(r.stdout, "--out ") {
-		t.Errorf("help lists the deprecated --out:\n%s", r.stdout)
-	}
-
-	r = run(t, nil, "build", dir, "--out", out, "-o", out)
-	if r.code != 2 || !strings.Contains(r.stderr, "--out and --output cannot be used together") ||
-		!strings.Contains(r.stderr, "Run 'documango build --help' for usage.") {
-		t.Errorf("--out with -o: exit %d, stderr %q", r.code, r.stderr)
+func TestBuildOutFlagRemoved(t *testing.T) {
+	r := run(t, nil, "build", docsDir(t), "--out", filepath.Join(t.TempDir(), "site"))
+	if r.code != 2 || !strings.Contains(r.stderr, "unknown flag: --out") {
+		t.Errorf("--out: exit %d, stderr %q", r.code, r.stderr)
 	}
 }
 
@@ -1173,20 +1156,31 @@ func waitFor(t *testing.T, url, want string) {
 }
 
 func TestServeReloadsConfig(t *testing.T) {
-	dir := configDocs(t, "documango.toml", "title = \"First\"\nbase_path = \"/docs/\"")
+	dir := configDocs(t, "documango.toml", "title = \"First\"\nurl = \"https://acme.dev/docs/\"")
 	url, stderr, stop := startServe(t, dir, "--port", "0")
 	defer stop()
-	if !strings.HasSuffix(url, "/docs/") {
-		t.Fatalf("base path from config not used: %s", url)
+	if strings.Contains(url, "/docs/") || !strings.HasSuffix(url, "/") {
+		t.Fatalf("config url moved the preview: %s", url)
 	}
 	if resp, _ := get(t, url+"documango.toml"); resp.StatusCode != http.StatusNotFound {
 		t.Errorf("config file served: %d", resp.StatusCode)
 	}
 
-	writeFile(t, filepath.Join(dir, "documango.toml"), "title = \"Second\"\nbase_path = \"/docs/\"\nfooter = \"See [install](guide/install.md)\"\n[[links]]\ntitle = \"Blog\"\nurl = \"/blog/\"")
+	// The config's base_path does not move the preview either, but its url
+	// still gives canonical links.
+	writeFile(t, filepath.Join(dir, "documango.toml"), "title = \"Second\"\nurl = \"https://acme.dev/docs/\"\nbase_path = \"/other/\"\nfooter = \"See [install](guide/install.md)\"\n[[links]]\ntitle = \"Blog\"\nurl = \"/blog/\"")
 	waitFor(t, url, ">Blog</a>")
-	if _, body := get(t, url); !strings.Contains(body, `<p>See <a href="/docs/guide/install/">install</a></p>`) {
-		t.Error("footer from the reloaded config not applied")
+	_, body := get(t, url)
+	for _, w := range []string{
+		`<p>See <a href="/guide/install/">install</a></p>`, `href="/_documango/style.css"`,
+		`"/_documango/events"`, `<link rel="canonical" href="https://acme.dev/docs/">`,
+	} {
+		if !strings.Contains(body, w) {
+			t.Errorf("home page lacks %q", w)
+		}
+	}
+	if strings.Contains(body, "/other/") {
+		t.Error("config base_path used while serving")
 	}
 
 	// A broken config fails the rebuild but keeps the last good site.
@@ -1201,12 +1195,17 @@ func TestServeReloadsConfig(t *testing.T) {
 	if _, body := get(t, url); !strings.Contains(body, "<title>Second</title>") {
 		t.Error("last good build not kept")
 	}
+}
 
-	// The base path is fixed while serving.
-	writeFile(t, filepath.Join(dir, "documango.toml"), "title = \"Third\"\nbase_path = \"/other/\"")
-	waitFor(t, url, "<title>Third</title>")
-	if !strings.Contains(stderr.String(), "restart") {
-		t.Errorf("base path change not reported: %q", stderr.String())
+func TestServeBasePathFlagOverridesConfig(t *testing.T) {
+	dir := configDocs(t, "documango.toml", "url = \"https://acme.dev/proj/\"")
+	url, _, stop := startServe(t, dir, "--port", "0", "--base-path", "/docs/")
+	defer stop()
+	if !strings.HasSuffix(url, "/docs/") {
+		t.Fatalf("--base-path not used: %s", url)
+	}
+	if resp, body := get(t, url+"guide/install/"); resp.StatusCode != http.StatusOK || !strings.Contains(body, `href="/docs/_documango/style.css"`) {
+		t.Errorf("GET page: %d\n%.300s", resp.StatusCode, body)
 	}
 }
 

@@ -28,9 +28,7 @@ The config file is never copied into the built site.
 
 While `documango serve` runs, saving the config file rebuilds the site with
 the new settings. If the file has an error, the page shows it in the "Build
-failed" banner and the server keeps the last successful build. Changing the
-base path is the one exception: restart the server to use a new base path.
-The server only watches the docs directory, so edits to a `--config` file
+failed" banner and the server keeps the last successful build. The server only watches the docs directory, so edits to a `--config` file
 outside it take effect on the next change inside the docs directory or on a
 restart.
 
@@ -102,7 +100,7 @@ Every key is optional.
 | `title`       | See description | Site title in the header and browser tabs. Defaults to the home page's title, else "Documentation". |
 | `description` | none    | Description for search engines and link previews, used on pages without a `description` in their [front matter](front-matter.md). |
 | `url`         | none    | Full address of the published site, such as `https://acme.dev/docs/`. It must start with `http://` or `https://`. When set, each page gets a canonical link and an Open Graph URL. |
-| `base_path`   | the path of `url`, else `/` | URL prefix the site is served under. See [base path](../guide/deploying.md#base-path). |
+| `base_path`   | the path of `url`, else `/` | URL prefix of the built site. The development server ignores it and uses `/`. See [base path](../guide/deploying.md#base-path). |
 | `author`      | none    | Author name, in a `<meta name="author">` tag. |
 | `language`    | `en`    | Language of the pages, as a language tag such as `en` or `pt-BR`. |
 | `favicon`     | none    | Icon for browser tabs: the path of an image in the docs directory, such as `favicon.svg`. SVG, PNG, ICO, GIF, JPEG, WebP, and AVIF files get a matching type. |
@@ -179,15 +177,17 @@ file wins over the defaults:
 | Flag            | Config key     |
 | --------------- | -------------- |
 | `--title`       | `title`        |
-| `--base-path`   | `base_path`, else the path of `url` |
+| `--base-path`   | `base_path`, else the path of `url` (`build` only) |
 | `--dark-theme`  | `theme.dark`   |
 | `--light-theme` | `theme.light`  |
 | `--search`      | `theme.search` |
 
-For example, to preview a site at `/` whose config sets `base_path = "/docs/"`:
+The development server doesn't read `base_path` or the path of `url`: it
+serves the site at `/` unless you pass `--base-path`. For example, to preview
+a site under `/docs/`:
 
 ```sh
-documango docs --base-path /
+documango docs --base-path /docs/
 ```
 
 ## Validation
