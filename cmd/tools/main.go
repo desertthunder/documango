@@ -3,10 +3,15 @@
 // Usage:
 //
 //	go run ./cmd/tools schemes [-ref spec-0.11] [-out internal/theme/schemes]
+//	go run ./cmd/tools browsers [-with-deps]
 //
 // The schemes subcommand downloads the tinted-theming/schemes repository at the
 // given ref and copies the curated base16 schemes (see theme.Curated) and the
 // LICENSE into the out directory.
+//
+// The browsers subcommand installs the Playwright driver and Chromium used by
+// the browser tests in e2e. -with-deps also installs the system packages
+// Chromium needs, which requires root on Linux.
 package main
 
 import (
@@ -19,13 +24,18 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/mxschmitt/playwright-go"
+
 	"github.com/desertthunder/documango/internal/theme"
 )
 
 const (
 	defaultOut = "internal/theme/schemes"
-	usage      = "usage: tools schemes [-ref REF] [-out DIR]\n"
+	usage      = "usage: tools schemes [-ref REF] [-out DIR]\n       tools browsers [-with-deps]\n"
 )
+
+// install is playwright.Install, replaced in tests.
+var install = playwright.Install
 
 func main() {
 	os.Exit(run(context.Background(), os.Args[1:], os.Stdout, os.Stderr))
@@ -36,21 +46,23 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		fmt.Fprint(stderr, usage)
 		return 2
 	}
-	if args[0] != "schemes" {
-		fmt.Fprintf(stderr, "unknown command %q\n%s", args[0], usage)
-		return 2
+	switch args[0] {
+	case "schemes":
+		return runSchemes(ctx, args[1:], stdout, stderr)
+	case "browsers":
+		return runBrowsers(args[1:], stdout, stderr)
 	}
+	fmt.Fprintf(stderr, "unknown command %q\n%s", args[0], usage)
+	return 2
+}
 
+func runSchemes(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("schemes", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	ref := fs.String("ref", theme.DefaultRef, "tinted-theming/schemes git ref to download")
 	out := fs.String("out", defaultOut, "directory to write scheme files into")
 	base := fs.String("base", theme.DefaultBaseURL, "GitHub API base URL")
-	if err := fs.Parse(args[1:]); err != nil {
-		return 2
-	}
-	if fs.NArg() > 0 {
-		fmt.Fprintf(stderr, "unexpected arguments: %v\n%s", fs.Args(), usage)
+	if !parse(fs, args, stderr) {
 		return 2
 	}
 
@@ -61,6 +73,33 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	}
 	fmt.Fprintf(stdout, "wrote %d schemes to %s\n", n, *out)
 	return 0
+}
+
+func runBrowsers(args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("browsers", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	withDeps := fs.Bool("with-deps", false, "also install the system packages Chromium needs")
+	if !parse(fs, args, stderr) {
+		return 2
+	}
+	opts := &playwright.RunOptions{Browsers: []string{"chromium"}, WithDeps: *withDeps, Stdout: stdout, Stderr: stderr}
+	if err := install(opts); err != nil {
+		fmt.Fprintf(stderr, "browsers: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
+// parse parses args into fs and rejects positional arguments.
+func parse(fs *flag.FlagSet, args []string, stderr io.Writer) bool {
+	if err := fs.Parse(args); err != nil {
+		return false
+	}
+	if fs.NArg() > 0 {
+		fmt.Fprintf(stderr, "unexpected arguments: %v\n%s", fs.Args(), usage)
+		return false
+	}
+	return true
 }
 
 // syncSchemes downloads the curated schemes and LICENSE from cat and replaces

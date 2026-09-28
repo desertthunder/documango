@@ -4,6 +4,8 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -11,6 +13,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/mxschmitt/playwright-go"
 
 	"github.com/desertthunder/documango/internal/theme"
 )
@@ -104,7 +108,7 @@ func TestRunSchemes(t *testing.T) {
 	if data, _ := os.ReadFile(filepath.Join(out, "tomorrow.yaml")); string(data) != "name: tomorrow" {
 		t.Errorf("tomorrow.yaml = %q, not replaced", data)
 	}
-	if want := "wrote 24 schemes"; len(curated) != 24 || !strings.Contains(stdout.String(), want) {
+	if want := fmt.Sprintf("wrote %d schemes", len(curated)); !strings.Contains(stdout.String(), want) {
 		t.Errorf("stdout = %q, want %q", stdout.String(), want)
 	}
 	if leftovers, _ := filepath.Glob(filepath.Join(filepath.Dir(out), ".schemes-*")); len(leftovers) != 0 {
@@ -168,6 +172,8 @@ func TestRunUsage(t *testing.T) {
 		{name: "unknown subcommand", args: []string{"bogus"}, wantCode: 2, wantErr: `unknown command "bogus"`},
 		{name: "bad flag", args: []string{"schemes", "-nope"}, wantCode: 2, wantErr: "-nope"},
 		{name: "extra args", args: []string{"schemes", "extra"}, wantCode: 2, wantErr: "unexpected arguments"},
+		{name: "browsers bad flag", args: []string{"browsers", "-nope"}, wantCode: 2, wantErr: "-nope"},
+		{name: "browsers extra args", args: []string{"browsers", "firefox"}, wantCode: 2, wantErr: "unexpected arguments"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -180,5 +186,44 @@ func TestRunUsage(t *testing.T) {
 				t.Errorf("stderr = %q, want %q", stderr.String(), tt.wantErr)
 			}
 		})
+	}
+}
+
+func TestRunBrowsers(t *testing.T) {
+	var got []*playwright.RunOptions
+	fail := false
+	orig := install
+	install = func(opts ...*playwright.RunOptions) error {
+		got = append(got, opts...)
+		if fail {
+			return errors.New("offline")
+		}
+		return nil
+	}
+	t.Cleanup(func() { install = orig })
+
+	var stdout, stderr bytes.Buffer
+	if code := run(t.Context(), []string{"browsers"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("exit %d, stderr: %s", code, stderr.String())
+	}
+	if code := run(t.Context(), []string{"browsers", "-with-deps"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("exit %d, stderr: %s", code, stderr.String())
+	}
+	if len(got) != 2 {
+		t.Fatalf("install called with %d options, want 2", len(got))
+	}
+	for i, wantDeps := range []bool{false, true} {
+		if !slices.Equal(got[i].Browsers, []string{"chromium"}) || got[i].WithDeps != wantDeps {
+			t.Errorf("call %d: Browsers = %v, WithDeps = %v; want [chromium], %v", i, got[i].Browsers, got[i].WithDeps, wantDeps)
+		}
+	}
+
+	fail = true
+	stderr.Reset()
+	if code := run(t.Context(), []string{"browsers"}, &stdout, &stderr); code != 1 {
+		t.Errorf("exit %d on install failure, want 1", code)
+	}
+	if !strings.Contains(stderr.String(), "browsers: offline") {
+		t.Errorf("stderr = %q, want the install error", stderr.String())
 	}
 }

@@ -33,3 +33,6 @@ go.work.sum
 
 # documango build output
 _site/
+
+# Browser test screenshots
+e2e/screenshots/

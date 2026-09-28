@@ -31,6 +31,45 @@ To preview these docs with your local changes:
 go run ./cmd/documango docs
 ```
 
+## Browser tests
+
+The tests in `e2e/` start `documango serve` on a sample docs folder and drive
+the pages in headless Chromium with
+[playwright-go](https://github.com/mxschmitt/playwright-go). They cover
+navigation, themes, the color scheme menu, the sidebar, search, the mobile
+menu, live reload, and basic accessibility checks. They are behind the `e2e`
+build tag, so `go test ./...` skips them.
+
+Install the Playwright driver and Chromium once:
+
+```sh
+go run ./cmd/tools browsers
+```
+
+On Linux, add `-with-deps` to also install the system packages Chromium
+needs. This runs the package manager with `sudo`.
+
+Then run the tests:
+
+```sh
+go test -tags e2e ./e2e
+```
+
+Without the driver or Chromium, every test is skipped with a message that
+names the install command. When the `CI` environment variable is set, a
+missing browser fails the run instead.
+
+The tests never download anything. They use the built-in search and an empty
+theme cache. The Pagefind search test runs only when a Pagefind binary is
+available, either named by `DOCUMANGO_PAGEFIND` or already in documango's
+default cache folder. Otherwise it is skipped.
+
+The tests also save full-page screenshots of the desktop page in light and
+dark mode, the mobile page with the menu closed and open, and open search
+results. They go to `e2e/screenshots/`, or to the folder named by
+`DOCUMANGO_E2E_SCREENSHOTS`. Nothing compares them; they are for reviewing
+visual changes by eye.
+
 ## Project layout
 
 documango is a single Go module. The command-line entry point is small, and
@@ -40,7 +79,8 @@ each step of turning Markdown into a site lives in its own package under
 | Path                   | Purpose |
 | ---------------------- | ------- |
 | `cmd/documango`        | The `documango` binary. |
-| `cmd/tools`            | Development helpers, such as the built-in scheme updater. |
+| `cmd/tools`            | Development helpers: the built-in scheme updater and the browser installer for the browser tests. |
+| `e2e`                  | Browser tests, built only with the `e2e` tag. |
 | `internal/cli`         | Commands, flags, and output for the binary. |
 | `internal/frontmatter` | Splits YAML front matter from a Markdown file. |
 | `internal/markdown`    | Renders Markdown to HTML with goldmark, and collects the title, headings, and search text. |
